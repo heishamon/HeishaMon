@@ -500,12 +500,9 @@ void mqtt_reconnect()
         resetlastalldatatime(); //resend all heatpump values to mqtt
       }
       //use this to receive valid heishamon raw data from other heishamon to debug this OT code
-//#define RAWDEBUG
-#ifdef RAWDEBUG
-      if ( heishamonSettings.listenonly) {
+      if (heishamonSettings.publishRawData && heishamonSettings.listenonly) {
         mqtt_client.subscribe((char*)"panasonic_heat_pump/raw/data"); //subscribe to raw heatpump data over MQTT
       }
-#endif
     }
 //#ifdef TLS_SUPPORT // error state is useful in any case
     else {
@@ -741,25 +738,21 @@ bool readSerial()
             log_message(_F("Extra data available on this heatpump"));
             extraDataBlockAvailable = true; //request for extra data next run
           }
-          #ifdef RAWDEBUG
-          {
+          if (heishamonSettings.publishRawData) {
             char mqtt_topic[256];
             sprintf(mqtt_topic, "%s/raw/data", heishamonSettings.mqtt_topic_base);
             mqtt_client.publish(mqtt_topic, (const uint8_t *)actData, DATASIZE, false); //do not retain this raw data
           }
-          #endif
           data_length = 0;
           return true;
         } else if (data[3] == 0x21) { //decode the new model extra data block
           extraDataBlockAvailable = true; //set the flag to true so we know we can request this data always
           decode_heatpump_data_extra(data, actDataExtra, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
-          #ifdef RAWDEBUG
-          {
+          if (heishamonSettings.publishRawData) {
             char mqtt_topic[256];
             sprintf(mqtt_topic, "%s/raw/dataextra", heishamonSettings.mqtt_topic_base);
             mqtt_client.publish(mqtt_topic, (const uint8_t *)actDataExtra, DATASIZE, false); //do not retain this raw data
           }
-          #endif
           data_length = 0;
           return true;
         } else {
@@ -977,13 +970,11 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       char* topic_sendcommand = topic_command + strlen(mqtt_topic_commands) + 1; //strip the first 9 "commands/" from the topic to get what we need
       send_heatpump_command(topic_sendcommand, msg, send_command, log_message, heishamonSettings.optionalPCB);
     //use this to receive valid heishamon raw data from other heishamon to debug this OT code
-#ifdef RAWDEBUG
-    } else if (strcmp((char*)"panasonic_heat_pump/raw/data", topic) == 0) {  // check for raw heatpump input
+    } else if (heishamonSettings.publishRawData && strcmp((char*)"panasonic_heat_pump/raw/data", topic) == 0) {  // check for raw heatpump input
       sprintf_P(log_msg, PSTR("Received raw heatpump data from MQTT"));
       log_message(log_msg);
       decode_heatpump_data(msg, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
       memcpy(actData, msg, DATASIZE);
-#endif
     } else if (strncmp(topic_command, mqtt_topic_opentherm_read, strlen(mqtt_topic_opentherm_read)) == 0)  {
       char* topic_otcommand = topic_command + strlen(mqtt_topic_opentherm_read) + 1; //strip the opentherm subtopic from the topic
       mqttOTCallback(topic_otcommand, msg);

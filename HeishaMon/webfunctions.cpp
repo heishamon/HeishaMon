@@ -227,6 +227,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->logMqtt = ( jsonDoc[F("logMqtt")] == "enabled" ) ? true : false;
           heishamonSettings->logHexdump = ( jsonDoc[F("logHexdump")] == "enabled" ) ? true : false;
           heishamonSettings->logSerial1 = ( jsonDoc[F("logSerial1")] == "enabled" ) ? true : false;
+          heishamonSettings->publishRawData = ( jsonDoc[F("publishRawData")] == "enabled" ) ? true : false;
           heishamonSettings->optionalPCB = ( jsonDoc[F("optionalPCB")] == "enabled" ) ? true : false;
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
 #ifdef ESP32          
@@ -446,6 +447,11 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("logSerial1")] = "disabled";
   }
+  if (heishamonSettings->publishRawData) {
+    jsonDoc[F("publishRawData")] = "enabled";
+  } else {
+    jsonDoc[F("publishRawData")] = "disabled";
+  }
   if (heishamonSettings->optionalPCB) {
     jsonDoc[F("optionalPCB")] = "enabled";
   } else {
@@ -598,6 +604,7 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("logMqtt")] = String("disabled");
   jsonDoc[F("logHexdump")] = String("disabled");
   jsonDoc[F("logSerial1")] = String("disabled");
+  jsonDoc[F("publishRawData")] = String("disabled");
   jsonDoc[F("optionalPCB")] = String("disabled");
   jsonDoc[F("opentherm")] = String("disabled");
 
@@ -645,6 +652,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("logHexdump")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "logSerial1") == 0) {
       jsonDoc[F("logSerial1")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "publishRawData") == 0) {
+      jsonDoc[F("publishRawData")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "optionalPCB") == 0) {
       jsonDoc[F("optionalPCB")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "opentherm") == 0) {
