@@ -228,6 +228,8 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->logHexdump = ( jsonDoc[F("logHexdump")] == "enabled" ) ? true : false;
           heishamonSettings->logSerial1 = ( jsonDoc[F("logSerial1")] == "enabled" ) ? true : false;
           heishamonSettings->publishRawData = ( jsonDoc[F("publishRawData")] == "enabled" ) ? true : false;
+          heishamonSettings->listenRawData = ( jsonDoc[F("listenRawData")] == "enabled" ) ? true : false;
+          if (heishamonSettings->publishRawData && heishamonSettings->listenRawData) heishamonSettings->listenRawData = false;
           heishamonSettings->optionalPCB = ( jsonDoc[F("optionalPCB")] == "enabled" ) ? true : false;
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
 #ifdef ESP32          
@@ -452,6 +454,11 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("publishRawData")] = "disabled";
   }
+  if (heishamonSettings->listenRawData) {
+    jsonDoc[F("listenRawData")] = "enabled";
+  } else {
+    jsonDoc[F("listenRawData")] = "disabled";
+  }
   if (heishamonSettings->optionalPCB) {
     jsonDoc[F("optionalPCB")] = "enabled";
   } else {
@@ -605,6 +612,7 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("logHexdump")] = String("disabled");
   jsonDoc[F("logSerial1")] = String("disabled");
   jsonDoc[F("publishRawData")] = String("disabled");
+  jsonDoc[F("listenRawData")] = String("disabled");
   jsonDoc[F("optionalPCB")] = String("disabled");
   jsonDoc[F("opentherm")] = String("disabled");
 
@@ -654,6 +662,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("logSerial1")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "publishRawData") == 0) {
       jsonDoc[F("publishRawData")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "listenRawData") == 0) {
+      jsonDoc[F("listenRawData")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "optionalPCB") == 0) {
       jsonDoc[F("optionalPCB")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "opentherm") == 0) {
@@ -704,6 +714,10 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("s0_2_maxpulsewidth")] = tmp->value;
     }
     tmp = tmp->next;
+  }
+
+  if (jsonDoc[F("publishRawData")] == "enabled" && jsonDoc[F("listenRawData")] == "enabled") {
+    jsonDoc[F("listenRawData")] = String("disabled");
   }
 
   if (new_ota_password != NULL && strlen(new_ota_password) > 0 && current_ota_password != NULL && strlen(current_ota_password) > 0) {

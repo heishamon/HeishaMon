@@ -64,7 +64,8 @@ struct settingsStruct {
   bool logMqtt = false; //log to mqtt from start
   bool logHexdump = false; //log hexdump from start
   bool logSerial1 = true; //log to serial1 (gpio2) from start
-  bool publishRawData = false; //publish and receive raw heatpump mqtt debug data
+  bool publishRawData = false; //publish raw heatpump mqtt debug data
+  bool listenRawData = false; //listen to raw heatpump mqtt debug data
   bool opentherm = false; //opentherm enable flag
   bool hotspot = true; //enable wifi hotspot when wifi is not connected
 #ifdef ESP32

@@ -1362,6 +1362,14 @@ function ShowHideDallasTable(cb){
 function ShowHideS0Table(cb){
   document.getElementById('s0settings').style.display=cb.checked?'block':'none';
 }
+function syncRawDataSettings(changed){
+  var publish=document.getElementsByName('publishRawData')[0];
+  var listen=document.getElementsByName('listenRawData')[0];
+  if(!publish||!listen)return;
+  if(changed=='publish'&&publish.checked)listen.checked=false;
+  if(changed=='listen'&&listen.checked)publish.checked=false;
+  if(!changed&&publish.checked&&listen.checked)listen.checked=false;
+}
 function changeMinWatt(port){
   var ppkwh=document.getElementById('s0_ppkwh_'+port).value;
   var interval=document.getElementById('s0_interval_'+port).value;
@@ -1565,7 +1573,8 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Debug log to serial1 (GPIO2)</label><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data</label><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled' onchange="syncRawDataSettings('publish')"></div><span class='setting-hint'>For a production HeishaMon connected to a heatpump.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen to raw heatpump data from MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='listenRawData' value='enabled' onchange="syncRawDataSettings('listen')"></div><span class='setting-hint'>For a test HeishaMon fed by another device. Cannot be combined with publishing.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Force load rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
@@ -1667,7 +1676,8 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Debug log USB</label><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data</label><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled' onchange="syncRawDataSettings('publish')"></div><span class='setting-hint'>For a production HeishaMon connected to a heatpump.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen to raw heatpump data from MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='listenRawData' value='enabled' onchange="syncRawDataSettings('listen')"></div><span class='setting-hint'>For a test HeishaMon fed by another device. Cannot be combined with publishing.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div></div>
@@ -1772,6 +1782,7 @@ R"====(
           if(el[0].type.indexOf('select')>-1){var ch=el[0].childNodes;for(var x=0;x<ch.length;x++){if(ch[x].value==j[k])ch[x].selected=true;}}
         }
       }
+      syncRawDataSettings();
       document.getElementById('loading_settings').style.display='none';
       document.getElementById('settings_form').style.display='block';
       changeMinWatt(1);changeMinWatt(2);
