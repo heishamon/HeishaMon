@@ -1863,9 +1863,13 @@ void setup() {
   setupHttp();
 
   loggingSerial.println(F("Setup SNTP..."));
+#if defined(ESP8266)
   sntp_stop();
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
   sntp_init();
+#else
+  loggingSerial.println(F("SNTP setup deferred until network is up"));
+#endif
 
   loggingSerial.println(F("Setup MQTT..."));
   setupMqtt();

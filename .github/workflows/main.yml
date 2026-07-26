@@ -55,15 +55,10 @@ jobs:
         run: |
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
-          arduino-cli core install esp32:esp32@3.0.7
+          arduino-cli core install esp32:esp32
 
       - name: Install dependencies
         run: arduino-cli lib install ringbuffer pubsubclient arduinojson dallastemperature onewire "Adafruit NeoPixel"
-
-      - name: Fix Onewire lib for ESP32-3.0.0
-        run: |
-          sed -i '/#include <driver\/rtc_io\.h>/a\ #include <soc\/gpio_struct\.h>' \
-            /home/runner/Arduino/libraries/OneWire/util/OneWire_direct_gpio.h
 
       - name: Compile Sketch for ESP8266
         run: cd HeishaMon && arduino-cli compile --output-dir . --fqbn=esp8266:esp8266:d1_mini:xtal=160,vt=flash,ssl=basic,mmu=3216,non32xfer=fast,eesz=4M2M,ip=lm2f,dbg=Disabled,lvl=None____,wipe=none,baud=921600 --warnings=none --verbose HeishaMon.ino

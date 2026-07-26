@@ -859,6 +859,17 @@ static void rules_print_stack(struct varstack_t *table) {
   }
 }
 
+static void rules_print_local_stacks(void) {
+  uint8_t x = 0;
+  for(x = 0; x < nrrules; x++) {
+    struct varstack_t *node = (struct varstack_t *)rules[x]->userdata;
+    if(node != NULL && node->nr > 0) {
+      logprintf_P(F("\n>>> local variables (%s)\n"), rules[x]->name);
+      rules_print_stack(node);
+    }
+  }
+}
+
 void rules_timer_cb(int nr) {
   char *name = NULL;
   int x = 0, i = 0;
@@ -885,8 +896,7 @@ void rules_timer_cb(int nr) {
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));
 
-      logprintf_P(F("\n>>> local variables\n"));
-      rules_print_stack((struct varstack_t *)rules[nr]->userdata);
+      rules_print_local_stacks();
       logprintf_P(F("\n>>> global variables\n"));
       rules_print_stack(&global_varstack);
       rules_free_stack();
@@ -902,13 +912,17 @@ void rules_setup(void) {
     if (rule_options.event_cb == NULL) { //check if not initialized before
 #ifdef ESP32
       if (mempool == NULL) { //make sure we only malloc if not done before
-        mempool = (unsigned char *)ps_malloc(MEMPOOL_SIZE);  //in arduino IDE normal malloc causes big block to go to PSRAM if PSRAM is enabled. But seems to be unstable so for now don't enable PSRAM
+        mempool = (unsigned char *)ps_malloc(MEMPOOL_SIZE);
         if (mempool == NULL) {
-          logprintln_P(F("Mempool OOM"));
-          OUT_OF_MEMORY
+          logprintln_P(F("Mempool OOM, rules disabled"));
+          return;
         }
       }
-#endif  
+#endif
+    if (mempool == NULL) {
+      logprintln_P(F("Mempool unavailable, rules disabled"));
+      return;
+    }
     memset(mempool, 0, MEMPOOL_SIZE);
 
     logprintf_P(F("rules mempool size: %d"), MEMPOOL_SIZE);
@@ -940,7 +954,11 @@ bool existsRulesFile(char *file) {
 int rules_parse(char *file) {
   if (existsRulesFile(file)) { //only parse an existing and not empty, file
     rules_setup(); //check there if done already
-	
+    if (mempool == NULL) {
+      logprintln_P(F("Rules parser unavailable: mempool not initialized"));
+      return -1;
+    }
+
     File frules = LittleFS.open(file, "r");
     parsing = 1;
 
@@ -1039,8 +1057,7 @@ void rules_event_cb(const char *prefix, const char *name) {
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));
 
-      logprintf_P(F("\n>>> local variables\n"));
-      rules_print_stack((struct varstack_t *)rules[nr]->userdata);
+      rules_print_local_stacks();
       logprintf_P(F("\n>>> global variables\n"));
       rules_print_stack(&global_varstack);
       rules_free_stack();
@@ -1064,8 +1081,7 @@ void rules_boot(void) {
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));
 
-      logprintf_P(F("\n>>> local variables\n"));
-      rules_print_stack((struct varstack_t *)rules[nr]->userdata);
+      rules_print_local_stacks();
       logprintf_P(F("\n>>> global variables\n"));
       rules_print_stack(&global_varstack);
       rules_free_stack();

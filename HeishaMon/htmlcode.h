@@ -640,7 +640,9 @@ static const char webHeader[] FLASHPROG = R"====(
     }
     return null;
   }
-  if(getCookie('darkMode')==='true'){
+  var darkMode=getCookie('darkMode');
+  var wantDark = darkMode==='true' || (darkMode===null && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if(wantDark){
     document.documentElement.classList.add('dark-mode-loading');
   }
 })();
@@ -798,12 +800,21 @@ function initDarkMode() {
   var darkMode = getCookie('darkMode');
   var toggle = document.getElementById('darkModeToggle');
   var html = document.documentElement;
-  
+
   // Remove the temporary loading class
   html.classList.remove('dark-mode-loading');
-  
-  // Apply proper dark mode
+
+  // No explicit preference saved yet: follow the OS/browser setting
+  var useDark;
   if (darkMode === 'true') {
+    useDark = true;
+  } else if (darkMode === 'false') {
+    useDark = false;
+  } else {
+    useDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  if (useDark) {
     html.classList.add('dark-mode');
     if (toggle) toggle.checked = true;
   } else {

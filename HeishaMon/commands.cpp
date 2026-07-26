@@ -336,6 +336,29 @@ unsigned int set_force_sterilization(char *msg, unsigned char *cmd, char *log_ms
   return sizeof(panasonicSendQuery);
 }
 
+unsigned int set_force_heater(char *msg, unsigned char *cmd, char *log_msg) {
+
+  String set_force_heater_string(msg);
+
+  byte force_heater_mode = 4; //hex 0x04
+  if ( set_force_heater_string.toInt() == 1 ) {
+    force_heater_mode = 8; //hex 0x08
+  }
+
+  {
+    char tmp[256] = { 0 };
+    snprintf_P(tmp, 255, PSTR("set force heater mode to %d"), (force_heater_mode / 4) - 1);
+    memcpy(log_msg, tmp, sizeof(tmp));
+  }
+
+  {
+    memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
+    cmd[5] = force_heater_mode;
+  }
+
+  return sizeof(panasonicSendQuery);
+}
+
 unsigned int set_holiday_mode(char *msg, unsigned char *cmd, char *log_msg) {
 
   String set_holiday_string(msg);
