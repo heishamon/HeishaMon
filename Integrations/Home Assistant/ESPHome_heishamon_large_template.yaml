@@ -1,0 +1,270 @@
+# =============================================================================
+# HeishaMon Large — ESPHome Board Package
+# Hardware: ESP32-S3 (custom HeishaMon PCB by TheHogNL)
+# Pin source: HeishaMon firmware (verified from source #defines)
+#
+# USAGE: Include this file in your ESPHome config with:
+#   packages:
+#     board: !include heishamon_large.yaml
+#
+# This package defines the board hardware — pins, UART, bus definitions,
+# and the following Home Assistant entities:
+#   - S0 Meter 1 / S0 Meter 1 Total  (pulse_meter sensor)
+#   - S0 Meter 2 / S0 Meter 2 Total  (pulse_meter sensor)
+#   - Relay 1 / Relay 2              (switch)
+#   - Boot Button                     (binary_sensor, internal)
+#   - Status LED                      (light, internal — not exposed to HA by default)
+# Adjust sensor names and filter multipliers to match your meters.
+#
+# PIN SUMMARY (all verified from firmware source):
+#   GPIO18  — UART RX  heatpump→HeishaMon  (HEATPUMPRX, Serial1)
+#   GPIO17  — UART TX  HeishaMon→heatpump  (HEATPUMPTX, Serial1)
+#   GPIO9   — Proxy UART RX  (PROXYRX, Serial2 — CZ-TAW1 passthrough)
+#   GPIO8   — Proxy UART TX  (PROXYTX, Serial2)
+#   GPIO5   — ENABLEPIN (enables RS-232 level-shifter after boot)
+#   GPIO4   — ENABLEOTPIN (enables OpenTherm interface after boot)
+#   GPIO3   — 1-Wire bus  (ONE_WIRE_BUS)
+#   GPIO1   — S0 pulse input 1  (DEFAULT_S0_PIN_1)
+#   GPIO2   — S0 pulse input 2  (DEFAULT_S0_PIN_2)
+#   GPIO6   — OpenTherm IN  (inOTPin)
+#   GPIO7   — OpenTherm OUT (outOTPin)
+#   GPIO21  — Relay 1  (relayOnePin)
+#   GPIO47  — Relay 2  (relayTwoPin)
+#   GPIO42  — LEDPIN (NeoPixel RGB LED — Adafruit_NeoPixel in firmware)
+#   GPIO0   — BOOTPIN (factory reset, active LOW)
+# =============================================================================
+
+substitutions:
+  uart_rx_pin:    GPIO18
+  uart_tx_pin:    GPIO17
+  proxy_rx_pin:   GPIO9
+  proxy_tx_pin:   GPIO8
+  enable_pin:     GPIO5
+  enable_ot_pin:  GPIO4
+  onewire_pin:    GPIO3
+  s0_pin_1:       GPIO1
+  s0_pin_2:       GPIO2
+  ot_in_pin:      GPIO6
+  ot_out_pin:     GPIO7
+  relay_1_pin:    GPIO21
+  relay_2_pin:    GPIO47
+  led_pin:        GPIO42
+  boot_pin:       GPIO0
+
+esphome:
+  name: heishamon-large
+  friendly_name: HeishaMon Large
+  on_boot:
+    # Drive both enable pins HIGH before UART/OT components initialise.
+    # Priority 800 fires before most components start.
+    priority: 800
+    then:
+      - output.turn_on: heatpump_enable
+      - output.turn_on: opentherm_enable
+      - logger.log: "HeishaMon Large — ENABLEPIN + ENABLEOTPIN HIGH"
+
+esp32:
+  board: esp32-s3-devkitc-1  # closest generic S3 board; module is ESP32-S3-MINI-1-N4R2
+  variant: esp32s3
+  framework:
+    type: esp-idf             # required for hardware_uart: USB_CDC logger support
+                              # arduino framework does not support USB_CDC in ESPHome
+
+# Module: ESP32-S3-MINI-1-N4R2 — 4MB Flash, 2MB Quad SPI PSRAM (R2 suffix)
+psram:
+  mode: quad
+  speed: 80MHz
+
+# ---------------------------------------------------------------------------
+# Logging — ESP32-S3 uses USB CDC (loggingSerial = Serial / USB CDC)
+# ---------------------------------------------------------------------------
+logger:
+  hardware_uart: USB_CDC  # ESP32-S3 native USB; baud_rate is ignored over CDC
+
+# ---------------------------------------------------------------------------
+# ENABLEPIN — GPIO5
+# Enables the RS-232 level-shifter/transceiver for heatpump serial.
+# ---------------------------------------------------------------------------
+output:
+  - platform: gpio
+    id: heatpump_enable
+    pin:
+      number: ${enable_pin}       # GPIO5
+      mode:
+        output: true
+
+  # ENABLEOTPIN — GPIO4
+  # Enables the OpenTherm interface circuit.
+  - platform: gpio
+    id: opentherm_enable
+    pin:
+      number: ${enable_ot_pin}    # GPIO4
+      mode:
+        output: true
+
+# ---------------------------------------------------------------------------
+# UART 1 — Panasonic Aquarea serial bus
+# heatpumpSerial = Serial1 → HEATPUMPRX=18, HEATPUMPTX=17
+# Baud: 9600 8N1
+# ---------------------------------------------------------------------------
+uart:
+  - id: heatpump_uart
+    rx_pin: ${uart_rx_pin}        # GPIO18
+    tx_pin: ${uart_tx_pin}        # GPIO17
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+
+  # UART 2 — Proxy serial (CZ-TAW1 passthrough)
+  # proxySerial = Serial2 → PROXYRX=9, PROXYTX=8
+  - id: proxy_uart
+    rx_pin: ${proxy_rx_pin}       # GPIO9
+    tx_pin: ${proxy_tx_pin}       # GPIO8
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+
+# ---------------------------------------------------------------------------
+# 1-Wire bus — DS18B20 temperature sensors
+# ONE_WIRE_BUS = 3
+# 4.7kΩ pull-up resistor fitted on HeishaMon PCB.
+# ---------------------------------------------------------------------------
+one_wire:
+  - platform: gpio
+    pin: ${onewire_pin}           # GPIO3
+    id: onewire_bus
+
+# ---------------------------------------------------------------------------
+# Relay outputs — large board only
+# relayOnePin = 21, relayTwoPin = 47
+# Restore to OFF on boot to avoid unexpected switching.
+# ---------------------------------------------------------------------------
+switch:
+  - platform: gpio
+    id: relay_1
+    name: "Relay 1"
+    pin:
+      number: ${relay_1_pin}      # GPIO21
+      mode:
+        output: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    id: relay_2
+    name: "Relay 2"
+    pin:
+      number: ${relay_2_pin}      # GPIO47
+      mode:
+        output: true
+    restore_mode: ALWAYS_OFF
+
+# ---------------------------------------------------------------------------
+# OpenTherm (slave — HeishaMon acts as OT boiler toward thermostat)
+# inOTPin = 6, outOTPin = 7
+# ENABLEOTPIN (GPIO4) is driven HIGH on boot before this component starts.
+#
+# ⚠ ESPHome's native opentherm: component is MASTER-only (thermostat role).
+#   HeishaMon requires SLAVE mode (boiler emulation toward a thermostat).
+#   Slave support is tracked in ESPHome PR #8570 (not yet merged as of early 2026).
+#   Until that lands, use the ihormelnyk OpenTherm library via a custom component,
+#   instantiating OpenTherm with the third constructor argument set to true:
+#     OpenTherm ot(inPin, outPin, true);  // true = slave mode
+#
+# Pin substitutions are defined above for use in your custom component:
+#   ${ot_in_pin}   GPIO6
+#   ${ot_out_pin}  GPIO7
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Status LED — LEDPIN = 42, NeoPixel RGB (Adafruit_NeoPixel in firmware)
+# ---------------------------------------------------------------------------
+light:
+  - platform: esp32_rmt_led_strip
+    id: status_rgb
+    name: "Status LED"
+    pin: ${led_pin}               # GPIO42
+    num_leds: 1
+    chipset: WS2812
+    rgb_order: GRB
+    default_transition_length: 0s
+    internal: true                # hide from HA by default; override in your config
+
+# ---------------------------------------------------------------------------
+# Boot / factory-reset button — BOOTPIN = 0, active LOW
+# ---------------------------------------------------------------------------
+binary_sensor:
+  - platform: gpio
+    id: boot_button
+    pin:
+      number: ${boot_pin}         # GPIO0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    name: "Boot Button"
+    internal: true
+
+# ---------------------------------------------------------------------------
+# S0 pulse counters — DEFAULT_S0_PIN_1 = 1, DEFAULT_S0_PIN_2 = 2
+# ---------------------------------------------------------------------------
+sensor:
+  - platform: pulse_meter
+    id: s0_meter_1
+    pin:
+      number: ${s0_pin_1}   # GPIO1
+      mode:
+        input: true
+        pullup: true
+    name: "S0 Meter 1"
+    unit_of_measurement: "W"
+    internal_filter: 13us
+    filters:
+      - multiply: 60        # pulses/min → W; adjust multiplier for your
+                            # meter's imp/kWh constant (e.g. 1000 imp/kWh → ×60)
+    total:
+      name: "S0 Meter 1 Total"
+      unit_of_measurement: "Wh"
+
+  - platform: pulse_meter
+    id: s0_meter_2
+    pin:
+      number: ${s0_pin_2}   # GPIO2
+      mode:
+        input: true
+        pullup: true
+    name: "S0 Meter 2"
+    unit_of_measurement: "W"
+    internal_filter: 13us
+    filters:
+      - multiply: 60
+    total:
+      name: "S0 Meter 2 Total"
+      unit_of_measurement: "Wh"
+
+# ---------------------------------------------------------------------------
+# Network — WiFi (default) or W5500 Ethernet (mutually exclusive in ESPHome)
+# Note: the HeishaMon firmware supports both simultaneously, but ESPHome's
+# config validation does not allow both wifi: and ethernet: to be declared.
+#
+# Default: WiFi — add credentials in your own config:
+#   wifi:
+#     ssid: !secret wifi_ssid
+#     password: !secret wifi_password
+#
+# To use Ethernet instead, comment out wifi: in your config and uncomment
+# the ethernet block below.
+#
+# ETH_CS=10, ETH_IRQ=15, ETH_RST=14
+# ETH_SPI_SCK=12, ETH_SPI_MISO=13, ETH_SPI_MOSI=11
+# ---------------------------------------------------------------------------
+
+# ethernet:
+#   type: W5500
+#   clk_pin: GPIO12
+#   mosi_pin: GPIO11
+#   miso_pin: GPIO13
+#   cs_pin: GPIO10
+#   interrupt_pin: GPIO15
+#   reset_pin: GPIO14
