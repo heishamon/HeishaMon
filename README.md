@@ -318,10 +318,9 @@ Use some 24 AWG shielded 4-conductors cable.
 
 
 ## The HeishaMon hardware itself
-The PCB's needed to connect to the heatpump are designed by project members and are listed below. The most important part of the hardware is a level shifting between 5v from the Panasonic to 3.3v of the HeishaMon and a GPIO13/GPIO15 enable line after boot. \
-[PCD Designs from the project members](PCB_Designs.md) \
-[Picture Wemos D1 beta](WEMOSD1.JPG) \
-[Picture ESP12-F](NewHeishamon.JPG)
+The PCB needed to connect to the heatpump is just a ESP8266 or a ESP32 (for the Heishamon Large it uses the ESP32-S3-MINI-1-N4R2) with some level shifting to get the 5v tx/rx down down 3.3v. That is the only thing to make it work.
+For the ESP8266 the Heishamon software uses the schematic as described in the [ESP8266 hardware design guide](https://documentation.espressif.com/esp8266_hardware_design_guidelines_en.pdf) figure 1-10c on page 12. The GPIO5 shown there is the enable on boot (or disabled when listen only is selected). But it is also possible to user a proper schmitt buffer instead of basic level shifting.
+The rest of Heishamon software is just adding more stuff, like Dallas 1wire, Opentherm etc.
 
 To make things easy you can order a completed PCB from some project members: \
 [Lectronz shop](https://lectronz.com/products/heishamon-communication-pcb) from Igor Ybema (aka TheHogNL) based in the Netherlands
