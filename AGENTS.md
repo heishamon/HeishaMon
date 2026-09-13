@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance when working with code in this repository. Always read the SKILL.md files in this repository first!
+This file provides guidance when working with code in this repository. Before writing or editing any rules-engine file (`rules.txt`, `src/rules/`), read the `heishamon-rules` skill at `Examples/Rules/SKILL.md` first.
 
 ## What this is
 

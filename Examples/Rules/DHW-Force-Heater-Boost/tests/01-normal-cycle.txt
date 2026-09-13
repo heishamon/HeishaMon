@@ -1,0 +1,27 @@
+# All emergency preconditions already met (heatpump off, heat-only mode):
+# tank drops below the low threshold, force heater engages immediately,
+# after a fixed 3-minute wait the pump switches to DHW-only for a fixed
+# 10-minute run, then it switches back to heat-only and releases the
+# heater. Nothing to restore afterwards.
+silent Heatpump_State 0
+silent Operating_Mode_State 0
+silent DHW_Temp 45
+silent Force_Heater_State 0
+boot
+adv 60
+expectnone
+set DHW_Temp 41
+expectcmd SetForceHeater 1
+set Force_Heater_State 1
+adv 180
+expectcmd SetOperationMode 3
+set Operating_Mode_State 3
+adv 600
+expectcmd SetOperationMode 0
+expectcmd SetForceHeater 0
+set Operating_Mode_State 0
+set Force_Heater_State 0
+adv 60
+expectnone
+set DHW_Temp 47
+expectnone

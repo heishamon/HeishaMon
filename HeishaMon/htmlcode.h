@@ -1828,6 +1828,7 @@ function changewifissid(){
 
 static const char populatescanwifiJS[] FLASHPROG = R"====(
 <script>
+var wifiScanTries=0;
 var refreshWifiScan=function(){
   var sel=document.getElementById('wifi_ssid_select');
   var req=new XMLHttpRequest();
@@ -1845,11 +1846,15 @@ var refreshWifiScan=function(){
         sel.appendChild(opt);
       });
       sel.style.display='block';
+      // scan results lag one HTTP poll behind on some boards, so poll fast
+      // for the first stretch after page load to avoid a long initial wait
+      wifiScanTries++;
+      var next=(list.length>1||wifiScanTries>10)?30000:3000;
+      setTimeout(refreshWifiScan,next);
     }
   };
   req.open('GET','/wifiscan',true);
   req.send();
-  setTimeout(refreshWifiScan,30000);
 };
 setTimeout(refreshWifiScan,500);
 </script>
@@ -2424,7 +2429,7 @@ static const char webBodySettingsNewWifiWarning[] FLASHPROG = R"====(
   <h2>Reconfiguring WiFi</h2>
   <p>Attempting to connect to the new access point.<br><br>
   The <strong style='color:var(--text-primary)'>Heishamon-Setup</strong> hotspot will be brought down automatically on success.<br><br>
-  This page will redirect to home shortly.</p>
+  This page will redirect to the device's new address shortly.</p>
 </div>
 )====";
 
