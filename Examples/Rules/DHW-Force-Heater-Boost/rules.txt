@@ -1,0 +1,56 @@
+on System#Boot then
+   #fhDhwLow = 42;
+   #fhDhwActive = 0;
+   #fhModeBefore = 0;
+   #fhStateBefore = 0;
+   setTimer(30, 60);
+end
+
+on timer=30 then
+   fhdhw_step();
+end
+
+on @DHW_Temp then
+   if #fhDhwActive == 0 then
+      fhdhw_step();
+   end
+end
+
+on fhdhw_step then
+   if #fhDhwActive == 0 && @DHW_Temp < #fhDhwLow then
+      if @Operating_Mode_State != 0 then
+         #fhModeBefore = @Operating_Mode_State;
+         @SetOperationMode = 0;
+         setTimer(30, 60);
+      elseif @Heatpump_State == 1 then
+         #fhStateBefore = 1;
+         @SetHeatpump = 0;
+         setTimer(30, 60);
+      else
+         #fhDhwActive = 1;
+         @SetForceHeater = 1;
+         setTimer(30, 180);
+      end
+   elseif #fhDhwActive == 1 then
+      #fhDhwActive = 2;
+      @SetOperationMode = 3;
+      setTimer(30, 600);
+   elseif #fhDhwActive == 2 then
+      #fhDhwActive = 3;
+      @SetOperationMode = 0;
+      if @Force_Heater_State == 1 then
+         @SetForceHeater = 0;
+      end
+      setTimer(30, 60);
+   elseif #fhDhwActive == 3 then
+      #fhDhwActive = 0;
+      if #fhModeBefore != 0 then
+         @SetOperationMode = #fhModeBefore;
+         #fhModeBefore = 0;
+      end
+      if #fhStateBefore == 1 then
+         @SetHeatpump = 1;
+         #fhStateBefore = 0;
+      end
+   end
+end

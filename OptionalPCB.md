@@ -1,20 +1,22 @@
 ## Optional PCB:
 
-Optional PCB is also connected to HP via the CN-CNT ( in case using it and CZ-TAW1 ,Optional PCB is connected to HP , and on Optional PCB there is another CN-CNT to connect CZ-TAW1).
-In this way Optional PCB communicate with HP in similar way to CZ-TAW1 - Next to(between) standard Magic Packets there specific commands from Optional PCB to HP ,and next to (between) answers from HP there is a answer/confirmation to Optional PCB.
+The Optional PCB connects to the HP via the CN-CNT connector. If a CZ-TAW1 is also used, the wiring chain is HP → Optional PCB → CZ-TAW1: the Optional PCB connects directly to the HP's CN-CNT, and has its own CN-CNT connector for the CZ-TAW1 to connect to.
+The Optional PCB communicates with the HP in a similar way to the CZ-TAW1: alongside the standard Magic Packets, the Optional PCB sends its own specific commands to the HP, and alongside the HP's normal answers there is an additional answer/confirmation addressed to the Optional PCB.
 
 ### Optional PCB emulation support:
-Recent firmware allows (experimental) support for optional PCB emulation. This allows you to set SmartGrid or Demand Control values without having the optional pcb installed. Also you can send the temperatures normally connected to that board to the heatpump.
+Recent firmware allows (experimental) support for optional PCB emulation. This lets you set SmartGrid or Demand Control values without having the optional PCB installed, and lets you send the temperatures normally connected to that board to the heat pump.
 
-You can publish mqtt messages towards the 'topic base/commands/pcb_topic', so for example "panasonic_heat_pump/commands/SetSolarTemp". For temperatures you just send the real temperature (the hexadecimal value will be calculated for your). For SmartGrid and Demand control you send the decimal representation of the hex value you want to send (see below for the possible hex values).
+You can publish MQTT messages to 'topic base/commands/pcb_topic', for example "panasonic_heat_pump/commands/SetSolarTemp". For temperatures, just send the real temperature — the hexadecimal value is calculated for you. For SmartGrid and Demand Control, send the decimal representation of the hex value you want to send (see below for the possible hex values).
 
-Remark 1: You need to set in HP Service settings Optional PCB to YES ,and appropriate function as well to have effect in sending MQTT topics.
+Before enabling optional PCB emulation, be aware of the following:
 
-Remark 2: Turning on Optional PCB in HP's options will couse ,that Room Thermo 1 input will not work anymore (H/J series only). It is now possible to use PCB topics "SetExternalThermostat1State" (with substitute Room Thermo 1 now)  and "SetExternalThermostat2State".
+Remark 1: You need to set Optional PCB to YES in the HP's service settings, along with the appropriate function, for the MQTT topics to have any effect.
 
-Remark 3: Setting in HP Service settings Optional PCB to YES gives expectation ,that Optional PCB emulator ( HeishaMon) will sent continuously Optional PCB Set Command. When communication disappear (for around 40s) HP generates H74 error and switches off to StandBy. So ensure continiues communication is very important , be aware during switch off , factory default of HeishaMon , or similar action.
+Remark 2: Setting Optional PCB to YES gives HeishaMon (as the Optional PCB emulator) an obligation to continuously send the Optional PCB Set Command. If that communication stops for around 40 seconds, the HP raises an H74 error and switches to standby. Continuous communication is therefore essential — be careful during a HeishaMon reboot, factory reset, or similar action.
 
-Remark 4: If you enable optional pcb emulation the HeishaMon not boot into a wifi config hotspot if it can not connect to your previously configured wifi during boot. Also during wifi failures it will keep running and try to reconnect to the wifi instead of rebooting into wifi hotspotconfig. It is important to send often optional pcb commands to the heatpump and therefore it can not react on wifi failures like that. So if you have a running wifi and heishamon and need to reconfigure your wifi ssid or password you first need to factory reset your heishamon. Or if you need to reconfigure your HeishaMon in such situation you need the double reset factory reset trick to clear the config on the Heishamon.
+Remark 3: With optional PCB emulation enabled, HeishaMon will not boot into a WiFi config hotspot if it fails to connect to the configured WiFi at boot. It will also keep running and retry the WiFi connection on failure instead of rebooting into hotspot config mode — because it needs to keep sending optional PCB commands to the heat pump, it can't afford to react to WiFi failures the normal way. As a result, if HeishaMon is running and you need to reconfigure its WiFi SSID or password, you must first factory reset it (or, if a normal factory reset isn't possible in that situation, use the double-reset trick to clear its configuration).
+
+Remark 4: Enabling Optional PCB in the HP's options disables the Room Thermo 1 input (H/J series only). The PCB topics "SetExternalThermostat1State" and "SetExternalThermostat2State" can be used as a replacement, with SetExternalThermostat1State taking over Room Thermo 1's role.
 
 ### Set command byte decrypt:
 

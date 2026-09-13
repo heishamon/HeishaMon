@@ -31,8 +31,8 @@ TOP11 | main/Operations_Hours | Heatpump operating time (Hours)
 TOP12 | main/Operations_Counter | Heatpump starts (counter)
 TOP13 | main/Main_Schedule_State | Main thermostat schedule state (0=inactive, 1=active)
 TOP14 | main/Outside_Temp | Outside ambient temperature (°C)
-TOP15 | main/Heat_Power_Production | Thermal heat power production (Watt)
-TOP16 | main/Heat_Power_Consumption | Elektrical heat power consumption at heat mode (Watt)
+TOP15 | main/Heat_Power_Production | Thermal heat power production (Watt) — invalid on heatpumps with extra data block support, see XTOP3
+TOP16 | main/Heat_Power_Consumption | Elektrical heat power consumption at heat mode (Watt) — invalid on heatpumps with extra data block support, see XTOP0
 TOP17 | main/Powerful_Mode_Time | Powerful state in minutes (0, 1, 2 or 3 x 30min)
 TOP18 | main/Quiet_Mode_Level | Quiet mode level (0=off, 1=less power, 2=even less power, 3=least power)
 TOP19 | main/Holiday_Mode_State | Holiday mode (0=off, 1=scheduled, 2=active)
@@ -54,10 +54,10 @@ TOP34 | main/Z2_Heat_Request_Temp | Zone 2 Heat Requested shift temp (-5 to 5) o
 TOP35 | main/Z2_Cool_Request_Temp | Zone 2 Cool Requested shift temp (-5 to 5) or direct cool temp (5 to 20)
 TOP36 | main/Z1_Water_Temp | Zone 1 Water outlet temperature (°C)
 TOP37 | main/Z2_Water_Temp | Zone 2 Water outlet temperature (°C)
-TOP38 | main/Cool_Power_Production | Thermal cooling power production (Watt)
-TOP39 | main/Cool_Power_Consumption | Elektrical cooling power consumption (Watt)
-TOP40 | main/DHW_Power_Production | Thermal DHW power production (Watt)
-TOP41 | main/DHW_Power_Consumption | Elektrical DHW power consumption (Watt)
+TOP38 | main/Cool_Power_Production | Thermal cooling power production (Watt) — invalid on heatpumps with extra data block support, see XTOP4
+TOP39 | main/Cool_Power_Consumption | Elektrical cooling power consumption (Watt) — invalid on heatpumps with extra data block support, see XTOP1
+TOP40 | main/DHW_Power_Production | Thermal DHW power production (Watt) — invalid on heatpumps with extra data block support, see XTOP5
+TOP41 | main/DHW_Power_Consumption | Elektrical DHW power consumption (Watt) — invalid on heatpumps with extra data block support, see XTOP2
 TOP42 | main/Z1_Water_Target_Temp | Zone 1 water target temperature (°C)
 TOP43 | main/Z2_Water_Target_Temp | Zone 2 water target temperature (°C)
 TOP44 | main/Error | Last active Error from Heat Pump
@@ -164,6 +164,20 @@ TOP143 | main/DHW_Sensor_Selection | DHW tank sensor selection (0=Top, 1=Center)
 
 
 All Topics related with state can have also value -1 - unknown - but only in abnormal situations.
+
+## Extra Sensor Topics:
+Some heatpumps (K/L series and newer) send an additional "extra data block" on top of the normal data block. HeishaMon detects this automatically at boot and, if available, starts requesting and decoding it as well. These extra topics provide separate, more precise power consumption/production values (Watt) per mode, published under the `extra/` topic prefix. If your heatpump does not support the extra data block, these topics will not be published.
+
+**Warning:** on heatpumps that do support the extra data block, the heatpump stops populating the "old" power topics listed above (TOP15 Heat_Power_Production, TOP16 Heat_Power_Consumption, TOP38 Cool_Power_Production, TOP39 Cool_Power_Consumption, TOP40 DHW_Power_Production, TOP41 DHW_Power_Consumption). Those will then report bogus/invalid values (e.g. -200). In that case, ignore those topics and use the XTOP equivalents below instead.
+
+ID | Topic | Response/Description
+:--- | --- | ---
+XTOP0 | extra/Heat_Power_Consumption_Extra | Electrical heat power consumption (Watt)
+XTOP1 | extra/Cool_Power_Consumption_Extra | Electrical cooling power consumption (Watt)
+XTOP2 | extra/DHW_Power_Consumption_Extra | Electrical DHW power consumption (Watt)
+XTOP3 | extra/Heat_Power_Production_Extra | Thermal heat power production (Watt)
+XTOP4 | extra/Cool_Power_Production_Extra | Thermal cooling power production (Watt)
+XTOP5 | extra/DHW_Power_Production_Extra | Thermal DHW power production (Watt)
 
 ## Option PCB Topics:
 The following topics are actions from the heatpump to the optional pcb (for example, start pump on zone 2). This is only available if you have enable optional pcb emulation.
