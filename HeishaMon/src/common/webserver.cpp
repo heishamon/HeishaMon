@@ -362,7 +362,7 @@ static int webserver_parse_post(struct webserver_t *client, uint16_t size) {
       }
     }
 
-    if((client->ptr >= WEBSERVER_BUFFER_SIZE || ptrD != NULL) && strncmp((char *)&client->buffer[pos+1], "HTTP/1.1", 8) != 0) {
+    if((client->ptr >= WEBSERVER_BUFFER_SIZE || ptrD != NULL) && strncmp((char *)&client->buffer[pos+1], "HTTP/1.", 7) != 0) {
       /*
        * GET end delimiter before HTTP/1.1
        */
@@ -542,7 +542,23 @@ static int webserver_parse_post(struct webserver_t *client, uint16_t size) {
 
 int8_t http_parse_request(struct webserver_t *client, uint8_t **buf, uint16_t *len) {
   uint16_t hasread = MIN(WEBSERVER_BUFFER_SIZE-client->ptr, *len);
+  uint16_t lastptr = 0xFFFF, lastlen = 0xFFFF;
+  uint8_t lastsubstep = 0xFF;
   while((*len > 0) || (strnstr(client->buffer, "\r\n\r\n", client->ptr) != NULL)) {
+    /*
+     * A malformed request can leave the parser without any
+     * way to progress while the loop condition stays true
+     * (e.g. a complete request still in the buffer). Bail
+     * out instead of spinning forever and blocking the
+     * main loop.
+     */
+    if(client->ptr == lastptr && *len == lastlen && client->substep == lastsubstep) {
+      return -1;
+    }
+    lastptr = client->ptr;
+    lastlen = *len;
+    lastsubstep = client->substep;
+
     hasread = MIN(WEBSERVER_BUFFER_SIZE-client->ptr, (*len));
     memcpy(&client->buffer[client->ptr], &(*buf)[0], hasread);
 
@@ -585,6 +601,16 @@ int8_t http_parse_request(struct webserver_t *client, uint8_t **buf, uint16_t *l
         memmove(&client->buffer[0], &client->buffer[5], client->ptr-5);
         client->ptr -= 5;
         client->substep = 1;
+      }
+      if(client->substep == 0) {
+        /*
+         * Unsupported request method (HEAD, OPTIONS, binary
+         * probes from network scanners, etc.)
+         */
+        if(client->ptr >= 5 || memchr(client->buffer, '\n', client->ptr) != NULL) {
+          return -1;
+        }
+        return 1;
       }
     }
       /*
@@ -648,7 +674,7 @@ int8_t http_parse_request(struct webserver_t *client, uint8_t **buf, uint16_t *l
       }
 
       if(client->ptr >= 4) {
-        if(memcmp_P(client->buffer, " HTTP/1.1", 9) == 0) {
+        if(memcmp_P(client->buffer, PSTR(" HTTP/1."), 8) == 0) {
           client->substep = 3;
         } else {
           continue;
@@ -2102,7 +2128,12 @@ int websocket_read(struct webserver_t *client, unsigned char *buf, ssize_t buf_l
 
 uint8_t webserver_sync_receive(struct webserver_t *client, uint8_t *rbuffer, uint16_t size) {
   if(client->step == WEBSERVER_CLIENT_READ_HEADER) {
-    if(http_parse_request(client, &rbuffer, &size) == 0) {
+    int8_t ret = http_parse_request(client, &rbuffer, &size);
+    if(ret == -1) {
+      client->step = WEBSERVER_CLIENT_CLOSE;
+      return 0;
+    }
+    if(ret == 0) {
       if(client->is_websocket == 1 && client->data.websockkey != NULL) {
         client->is_websocket = 1;
         client->lastping = millis();
