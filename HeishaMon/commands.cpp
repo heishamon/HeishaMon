@@ -313,6 +313,46 @@ unsigned int set_force_defrost(char *msg, unsigned char *cmd, char *log_msg) {
   return sizeof(panasonicSendQuery);
 }
 
+unsigned int set_sterilization_temp(char *msg, unsigned char *cmd, char *log_msg) {
+  if (msg == NULL || strlen(msg) != 2 || msg[0] < '0' || msg[0] > '9' || msg[1] < '0' || msg[1] > '9') {
+    snprintf_P(log_msg, 256, PSTR("Invalid sterilization temperature: expected integer 55-75 C"));
+    return 0;
+  }
+  const int temperature = (msg[0] - '0') * 10 + (msg[1] - '0');
+  if (temperature < 55 || temperature > 75) {
+    snprintf_P(log_msg, 256, PSTR("Invalid sterilization temperature: expected integer 55-75 C"));
+    return 0;
+  }
+
+  memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
+  cmd[100] = temperature + 128;
+  snprintf_P(log_msg, 256, PSTR("set sterilization temperature to %d C"), temperature);
+  return sizeof(panasonicSendQuery);
+}
+
+unsigned int set_sterilization_max_time(char *msg, unsigned char *cmd, char *log_msg) {
+  int minutes = 0;
+  const size_t length = msg == NULL ? 0 : strlen(msg);
+  if (length > 0 && length <= 2) {
+    for (size_t i = 0; i < length; ++i) {
+      if (msg[i] < '0' || msg[i] > '9') {
+        minutes = 0;
+        break;
+      }
+      minutes = minutes * 10 + (msg[i] - '0');
+    }
+  }
+  if (minutes < 5 || minutes > 60 || minutes % 5 != 0) {
+    snprintf_P(log_msg, 256, PSTR("Invalid sterilization holding time: expected multiple of 5 minutes from 5 to 60"));
+    return 0;
+  }
+
+  memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
+  cmd[101] = minutes + 1;
+  snprintf_P(log_msg, 256, PSTR("set sterilization holding time to %d minutes"), minutes);
+  return sizeof(panasonicSendQuery);
+}
+
 unsigned int set_force_sterilization(char *msg, unsigned char *cmd, char *log_msg) {
 
   String set_force_sterilization_string(msg);

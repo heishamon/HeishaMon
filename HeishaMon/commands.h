@@ -39,6 +39,8 @@ unsigned int set_z2_heat_request_temperature(char *msg, unsigned char *cmd, char
 unsigned int set_z2_cool_request_temperature(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_force_DHW(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_force_defrost(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_sterilization_max_time(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_sterilization_temp(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_force_sterilization(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_force_heater(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_holiday_mode(char *msg, unsigned char *cmd, char *log_msg);
@@ -122,6 +124,10 @@ const cmdStruct commands[] PROGMEM = {
   { "SetForceDefrost", set_force_defrost },
   // set mode to force sterilization by sending 1
   { "SetForceSterilization", set_force_sterilization },
+  // set sterilization target temperature in whole degrees Celsius (55-75)
+  { "SetSterilizationTemp", set_sterilization_temp },
+  // set sterilization holding time in 5-minute steps (5-60)
+  { "SetSterilizationMaxTime", set_sterilization_max_time },
   // set mode to force heater (emergency heating) by sending 1, off will be 0
   { "SetForceHeater", set_force_heater },
   // set Holiday mode by sending 1, off will be 0

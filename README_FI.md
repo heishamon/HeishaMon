@@ -141,6 +141,7 @@ Tavallisia operaattoreita tuetaan standardisella assosiatiivisuudella ja priorit
 - `&&`: Ja
 - `||`: Tai
 - `==`: Yhtä suuri
+- `!=`: Erisuuri kuin
 - `>=`: Suurempi tai yhtä suuri
 - `>`: Suurempi kuin
 - `<`: Pienempi kuin

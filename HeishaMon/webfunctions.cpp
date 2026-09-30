@@ -852,7 +852,10 @@ int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonS
   } else if (client->content == 2) {
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));
     webserver_send_content_P(client, webBodySettingsNewWifiWarning, strlen_P(webBodySettingsNewWifiWarning));
-    webserver_send_content_P(client, refreshMeta, strlen_P(refreshMeta));
+    char meta[96];
+    snprintf(meta, sizeof(meta), "<meta http-equiv='refresh' content='5; url=http://%s.local/' />",
+             heishamonSettings->wifi_hostname[0] != '\0' ? heishamonSettings->wifi_hostname : "heishamon");
+    webserver_send_content(client, meta, strlen(meta));
     webserver_send_content_P(client, webFooter, strlen_P(webFooter));
     timerqueue_insert(5, 0, -3); //handle wifi reconnect after 5 sec to make sure all above data is sent to client so no memory leak is introduced
   }

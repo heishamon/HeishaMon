@@ -141,6 +141,7 @@ Reguläre Operatoren werden mit ihrer Standard-Assoziativität und -Präzedenz u
 - `&&`: Und
 - `||`: Oder
 - `==`: Gleich
+- `!=`: Ungleich
 - `>=`: Größer oder gleich
 - `>`: Größer als
 - `<`: Kleiner als

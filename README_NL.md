@@ -141,6 +141,7 @@ Reguliere operatoren worden ondersteund met hun standaard associativiteit en pri
 - `&&`: En
 - `||`: Of
 - `==`: Gelijk aan
+- `!=`: Niet Gelijk aan
 - `>=`: Groter dan of gelijk aan
 - `>`: Groter dan
 - `<`: Kleiner dan
