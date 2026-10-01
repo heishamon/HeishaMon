@@ -45,6 +45,9 @@
 #include "commands.h"
 #include "rules.h"
 #include "version.h"
+#ifdef ESP32
+#include "HeishaModbusServer.h"
+#endif
 
 DNSServer dnsServer;
 
@@ -142,7 +145,9 @@ static uint8_t cmdstart = 0;
 static uint8_t cmdend = 0;
 static uint8_t cmdnrel = 0;
 
-
+#ifdef ESP32
+HeishaModbusServer modbusServer;
+#endif
 
 // mqtt
 #ifdef TLS_SUPPORT
@@ -1073,6 +1078,10 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
     case WEBSERVER_CLIENT_REQUEST_URI: {
         if (strcmp_P((char *)dat, PSTR("/")) == 0) {
           client->route = 1;
+#ifdef ESP32
+        } else if (strcmp_P((char *)dat, PSTR("/modbus")) == 0) {
+          client->route = 200;
+#endif
         } else if (strcmp_P((char *)dat, PSTR("/json")) == 0) {
           client->route = 20;
         } else if (strcmp_P((char *)dat, PSTR("/reboot")) == 0) {
@@ -1305,6 +1314,11 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           case 1: {
               return handleRoot(client, readpercentage, mqttReconnects, &heishamonSettings);
             } break;
+#ifdef ESP32
+          case 200: {
+              return handleModbus(client);
+            } break;
+#endif
           case 20: {
               return handleJsonOutput(client, actData, actDataExtra, actOptData, &heishamonSettings, extraDataBlockAvailable);
             } break;
@@ -1875,6 +1889,13 @@ void setup() {
   setupETH();
 #endif
 
+#ifdef ESP32
+  if (heishamonSettings.modbus) {
+    loggingSerial.println(F("Setup Modbus TCP server.."));
+    modbusServer.setup(heishamonSettings.optionalPCB, heishamonSettings.use_s0, heishamonSettings.modbusWrites);
+  }
+#endif
+
   loggingSerial.println(F("Setup HTTP..."));
   setupHttp();
 
@@ -2017,6 +2038,10 @@ void loop() {
   check_wifi();
   // Handle OTA first.s
   ArduinoOTA.handle();
+
+#ifdef ESP32
+  if (heishamonSettings.modbus) modbusServer.loop(heishamonSettings.use_s0, extraDataBlockAvailable);
+#endif
 
   mqtt_client.loop();
 
