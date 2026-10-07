@@ -1249,7 +1249,12 @@ document.addEventListener('DOMContentLoaded',function(){
 <a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
 <a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
 <a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
-`;
+)===="
+#ifdef ESP32
+R"====(<a href="/modbus"><span class="nav-icon">&#9432;</span> Modbus</a>
+)===="
+#endif
+R"====(`;
 });
 </script>
 <div class='main-content'>
@@ -1706,6 +1711,12 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div></div>
+  </div></div>
+  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Modbus TCP</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Enable Modbus TCP server (port 502)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbus' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>No authentication, so only enable on a trusted network. Reboot required.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Allow Modbus writes</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbusWrites' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Lets Modbus clients send heat pump commands (including SetReset) and switch the relays.</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Listen Only</h3></div>
@@ -3385,3 +3396,101 @@ static const char tzDataOptions[] FLASHPROG = R"====(
 <option value="459">Etc/Universal</option>
 <option value="460">Etc/Zulu</option>
 )====";
+
+
+#ifdef ESP32
+static const char webModbusStart[] FLASHPROG = R"====(
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var nav=document.getElementById('sideNav');
+  nav.innerHTML=`
+<a href="/"><span class="nav-icon">&#8634;</span> Home</a>
+<a href="/firmware"><span class="nav-icon">&#8679;</span> Firmware</a>
+<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
+<a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
+<a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
+`;
+});
+</script>
+<style>
+/* Modbus tables scroll inside their own containers, below the page header. */
+.modbus-page thead th{top:0}
+</style>
+<main class='main-content modbus-page'>
+  <h1 style='color:var(--accent);margin-bottom:16px'><span aria-hidden='true'>&#9432;</span> Modbus registers</h1>
+  <p>TCP port <strong>502</strong> &middot; Unit ID <strong>1</strong> &middot;
+     Addresses are <strong>zero-based</strong> protocol offsets (no 40001 prefix).
+     If your client uses one-based addresses, add 1.</p>
+  <p style='margin:12px 0'>Read values with FC03. Integer values are signed 16-bit.
+     Floats are IEEE 754 float32: read <strong>both registers</strong>, high word first (MSW / LSW), without scaling.
+     Temperatures in signed 16-bit registers are <strong>x100</strong>: divide by 100, 2050 means 20.50. Temperature commands (FC06) use the same x100 scale. Commands can also be written as an unscaled float32 with FC16.</p>
+  <p style='margin:16px 0'>The Modbus TCP server must be enabled in Settings. Writes (FC05 / FC06 / FC16) additionally require
+     <strong>Allow Modbus writes</strong>. The register map version is currently 3.</p>
+  <details style='margin:16px 0' open><summary>Fixed blocks with room to grow</summary>
+    <p>Each measurement group reserves 1,000 topics. Unused addresses are reserved and cannot be read yet.</p>
+    <div style='overflow-x:auto'><table>
+      <thead><tr><th>Group</th><th>Integer block</th><th>Float block</th></tr></thead>
+      <tbody><tr><td>Main (TOP)</td><td>0-999</td><td>10000-11999</td></tr>
+      <tr><td>Extra (XTOP)</td><td>1000-1999</td><td>12000-13999</td></tr>
+      <tr><td>Optional PCB (OPT)</td><td>2000-2999</td><td>14000-15999</td></tr>
+      <tr><td>S0 inputs</td><td>3000-3999</td><td>16000-17999</td></tr></tbody>
+    </table></div>
+    <p><strong>Float start = 10000 + 2 &times; integer address</strong>; the next register holds the low word.
+       Example: TOP139 uses integer 139 and float 10278 / 10279.</p>
+    <p>S0 1 starts at integer 3000 / float 16000; S0 2 at integer 3100 / float 16200.
+       Each input reserves 100 fields. Enable S0 and configure pulses/kWh in Settings.
+       Read floats for fractional energy and large totals; integer S0 values truncate fractions and stop at 32767.</p>
+  </details>
+  <div style='display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:20px 0'>
+    <label for='registerSearch'>Find register</label>
+    <input id='registerSearch' class='setting-input' type='search' placeholder='Name or address, e.g. 12000' style='max-width:360px' disabled>
+    <label for='registerKind'>Access</label>
+    <select id='registerKind' disabled><option value=''>All</option><option value='read'>Read values</option><option value='write'>Write commands</option></select>
+    <span id='registerCount' role='status'>Loading registers...</span>
+  </div>
+  <div class='panel' style='overflow-x:auto'>
+    <table id='registerTable'>
+      <thead><tr><th>Group</th><th>Name</th><th>16-bit / coil address</th><th>Float32 MSW / LSW</th><th>Access</th><th>Scaling / notes</th></tr></thead>
+      <tbody>
+)====";
+
+static const char webModbusEnd[] FLASHPROG = R"====(
+      </tbody>
+    </table>
+  </div>
+  <p id='registerEmpty' hidden>No matching registers.</p>
+  <p style='margin-top:16px'>This page lists the map compiled into this firmware; it does not send commands.
+     Availability of readings depends on the heat pump, optional PCB and S0 configuration.
+     Non-numeric readings return 0; letter-prefixed error codes use a numeric block in the integer register.</p>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var search = document.getElementById('registerSearch');
+  var kind = document.getElementById('registerKind');
+  var rows = Array.from(document.querySelectorAll('#registerTable tbody tr'));
+  // One list in ascending order of the 16-bit / coil address.
+  rows.sort(function(a, b){
+    return parseInt(a.cells[2].textContent, 10) - parseInt(b.cells[2].textContent, 10);
+  });
+  var body = document.querySelector('#registerTable tbody');
+  rows.forEach(function(row){ body.appendChild(row); });
+  function filter(){
+    var query = search.value.trim().toLowerCase();
+    var count = 0;
+    rows.forEach(function(row){
+      var match = (!kind.value || row.dataset.kind === kind.value) && row.textContent.toLowerCase().includes(query);
+      row.hidden = !match;
+      if(match) count++;
+    });
+    document.getElementById('registerCount').textContent = count + ' / ' + rows.length + ' entries';
+    document.getElementById('registerEmpty').hidden = count !== 0;
+  }
+  search.disabled = false;
+  kind.disabled = false;
+  search.addEventListener('input', filter);
+  kind.addEventListener('change', filter);
+  filter();
+});
+</script>
+)====";
+#endif

@@ -3,6 +3,9 @@
 #include "version.h"
 #include "htmlcode.h"
 #include "commands.h"
+#ifdef ESP32
+#include "HeishaModbusServer.h"
+#endif
 #include "src/common/progmem.h"
 #include "src/common/webserver.h"
 #include "src/common/timerqueue.h"
@@ -258,6 +261,8 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
 #ifdef ESP32          
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
+          heishamonSettings->modbus = ( jsonDoc[F("modbus")] == "enabled" ) ? true : false;
+          heishamonSettings->modbusWrites = ( jsonDoc[F("modbusWrites")] == "enabled" ) ? true : false;
 #endif          
           if ( jsonDoc[F("waitTime")]) heishamonSettings->waitTime = jsonDoc[F("waitTime")];
           if (heishamonSettings->waitTime < 5) heishamonSettings->waitTime = 5;
@@ -489,6 +494,16 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("proxy")] = "disabled";
   }
+  if (heishamonSettings->modbus) {
+    jsonDoc[F("modbus")] = "enabled";
+  } else {
+    jsonDoc[F("modbus")] = "disabled";
+  }
+  if (heishamonSettings->modbusWrites) {
+    jsonDoc[F("modbusWrites")] = "enabled";
+  } else {
+    jsonDoc[F("modbusWrites")] = "disabled";
+  }
 #endif 
   jsonDoc[F("waitTime")] = heishamonSettings->waitTime;
   jsonDoc[F("waitDallasTime")] = heishamonSettings->waitDallasTime;
@@ -630,6 +645,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
 
 #ifdef ESP32  
   jsonDoc[F("proxy")] = String("disabled");
+  jsonDoc[F("modbus")] = String("disabled");
+  jsonDoc[F("modbusWrites")] = String("disabled");
 #endif  
 #ifdef TLS_SUPPORT
   jsonDoc[F("mqtt_tls_enabled")] = String("disabled");
@@ -679,6 +696,10 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
 #ifdef ESP32      
     } else if (strcmp(tmp->name.c_str(), "proxy") == 0) {
       jsonDoc[F("proxy")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "modbus") == 0) {
+      jsonDoc[F("modbus")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "modbusWrites") == 0) {
+      jsonDoc[F("modbusWrites")] = tmp->value;
 #endif      
     } else if (strcmp(tmp->name.c_str(), "ntp_servers") == 0) {
       jsonDoc[F("ntp_servers")] = tmp->value;
@@ -1013,6 +1034,32 @@ int handleDebug(struct webserver_t *client, char *hex, byte hex_len) {
   return 0;
 }
 
+
+#ifdef ESP32
+int handleModbus(struct webserver_t *client) {
+  if (client->content == 0) {
+    webserver_send(client, 200, (char *)"text/html", 0);
+    webserver_send_content_P(client, webHeader, strlen_P(webHeader));
+    webserver_send_content_P(client, webCSS, strlen_P(webCSS));
+    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    webserver_send_content_P(client, webModbusStart, strlen_P(webModbusStart));
+  } else {
+    String row;
+    if (HeishaModbusServer::registerRow(client->content - 1, row)) {
+      webserver_send_content(client, const_cast<char *>(row.c_str()), row.length());
+    } else {
+      // Send the footer once; the following empty callback ends chunked output.
+      String previous;
+      if (client->content == 1 || HeishaModbusServer::registerRow(client->content - 2, previous)) {
+        webserver_send_content_P(client, webModbusEnd, strlen_P(webModbusEnd));
+        webserver_send_content_P(client, menuJS, strlen_P(menuJS));
+        webserver_send_content_P(client, webFooter, strlen_P(webFooter));
+      }
+    }
+  }
+  return 0;
+}
+#endif
 
 int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconnects, settingsStruct *heishamonSettings) {
   switch (client->content) {
