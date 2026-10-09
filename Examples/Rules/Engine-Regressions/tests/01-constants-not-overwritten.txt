@@ -1,0 +1,26 @@
+# heishamon/HeishaMon#1006: three or more independent assignments in one
+# block made the slot allocator hand out a negative temp slot that collided
+# with a shared constant, so `1 + 1` overwrote the literal `1`. Later uses of
+# `1` (the setTimer id, the next firing) then saw wrong values.
+#
+# timer=1 must re-arm itself (id 1, 5 s) and compute 2/3/4 on every firing;
+# timer=2 calls a helper block and must compute the same values every time.
+boot
+adv 5
+expectcmd SetDHWTemp 234
+adv 2
+expectcmd SetZ1HeatRequestTemperature 234
+adv 2
+expectnone
+adv 1
+expectcmd SetDHWTemp 234
+adv 5
+expectcmd SetDHWTemp 234
+adv 2
+expectcmd SetZ1HeatRequestTemperature 234
+adv 3
+expectcmd SetDHWTemp 234
+adv 7
+expectcmd SetDHWTemp 234
+expectcmd SetZ1HeatRequestTemperature 234
+expectnone

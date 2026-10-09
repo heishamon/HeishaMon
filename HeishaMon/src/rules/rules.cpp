@@ -2061,15 +2061,15 @@ static void bc_assign_slots(struct rules_t *obj) {
            gettype(obj->bc.buffer[a]) == OP_RET)) {
           end = c;
           break;
-        } else if((c = bc_next(obj, a)) >= 0 &&
-          gettype(obj->bc.buffer[a]) == OP_SETVAL &&
-            (gettype(obj->bc.buffer[c]) == OP_SETVAL ||
-             gettype(obj->bc.buffer[c]) == OP_GETVAL)
-          ) {
-          end = a;
-          break;
-        } else if((c = bc_before(a)) >= 0 &&
-          gettype(obj->bc.buffer[a]) == OP_SETVAL && gettype(obj->bc.buffer[c]) == OP_GETVAL) {
+        } else if(gettype(obj->bc.buffer[a]) == OP_SETVAL ||
+                  gettype(obj->bc.buffer[a]) == OP_CLEAR) {
+          /*
+           * An assignment or a call statement closes an
+           * independent statement. Without this split the
+           * temporary slot counter of the next pass runs
+           * negative over several statements and collides
+           * with the heap slots of constants (#1006).
+           */
           end = a;
           break;
         }
