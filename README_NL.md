@@ -166,7 +166,7 @@ Geeft de maximale waarde van de invoerparameters terug.
 Geeft de minimale waarde van de invoerparameters terug.
 
 - `isset`
-Geeft boolean true terug wanneer de invoervariabele nog `NULL` is, in alle andere gevallen false.
+Geeft `1` terug wanneer de invoervariabele een numerieke waarde heeft en `0` wanneer deze nog `NULL` is (een tekstwaarde geeft ook `0`). Gebruik dit om op `NULL` te testen: een vergelijking met `NULL` (bijv. `#g == NULL`) geeft altijd `NULL`, wat false is, dus schrijf in plaats daarvan `if isset(#g) == 0 then`.
 
 - `round`
 Rondt de invoer-float af op het dichtstbijzijnde gehele getal.
