@@ -1923,8 +1923,15 @@ static int32_t vm_heap_next(struct rules_t *obj, uint8_t type, uint8_t skip) {
   switch(type) {
     case VNULL: {
       for(i=4;i<ret;i+=rule_max_var_bytes()) {
-        if(gettype(obj->heap->buffer[i]) == VNULL) {
-          if(cnt >= skip && get_group(obj->heap->buffer[i]) == 0) {
+        /*
+         * Only group 0 slots are temporary slots. A literal
+         * NULL constant is a VNULL slot in group 1 and must
+         * not be counted, else the skip count is off by one
+         * and two values get the same slot (#1009).
+         */
+        if(gettype(obj->heap->buffer[i]) == VNULL &&
+           get_group(obj->heap->buffer[i]) == 0) {
+          if(cnt >= skip) {
             return i;
           }
           cnt++;
@@ -2061,15 +2068,15 @@ static void bc_assign_slots(struct rules_t *obj) {
            gettype(obj->bc.buffer[a]) == OP_RET)) {
           end = c;
           break;
-        } else if((c = bc_next(obj, a)) >= 0 &&
-          gettype(obj->bc.buffer[a]) == OP_SETVAL &&
-            (gettype(obj->bc.buffer[c]) == OP_SETVAL ||
-             gettype(obj->bc.buffer[c]) == OP_GETVAL)
-          ) {
-          end = a;
-          break;
-        } else if((c = bc_before(a)) >= 0 &&
-          gettype(obj->bc.buffer[a]) == OP_SETVAL && gettype(obj->bc.buffer[c]) == OP_GETVAL) {
+        } else if(gettype(obj->bc.buffer[a]) == OP_SETVAL ||
+                  gettype(obj->bc.buffer[a]) == OP_CLEAR) {
+          /*
+           * An assignment or a call statement closes an
+           * independent statement. Without this split the
+           * temporary slot counter of the next pass runs
+           * negative over several statements and collides
+           * with the heap slots of constants (#1006).
+           */
           end = a;
           break;
         }

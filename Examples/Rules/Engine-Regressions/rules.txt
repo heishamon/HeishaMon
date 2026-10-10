@@ -1,0 +1,46 @@
+on System#Boot then
+   setTimer(1, 5);
+   setTimer(2, 7);
+end
+
+on timer=1 then
+   $a = 1 + 1;
+   $b = 1 + 2;
+   $c = 1 + 3;
+   print($a);
+   print($b);
+   setTimer(1, 5);
+   @SetDHWTemp = $a * 100 + $b * 10 + $c;
+end
+
+on f then
+   $a = 1 + 1;
+   $b = 1 + 2;
+   $c = 1 + 3;
+   @SetZ1HeatRequestTemperature = $a * 100 + $b * 10 + $c;
+end
+
+on timer=2 then
+   f();
+   setTimer(2, 10);
+end
+
+on g then
+   $a = 10;
+   $b = 20;
+   $c = $a / $b;
+   $x = NULL;
+   @SetZ1HeatRequestTemperature = $c * 10;
+end
+
+on @Outside_Temp then
+   $a = 10;
+   $b = 20;
+   $c = $a / $b;
+   $d = 30;
+   if #unset == NULL then
+      $d = 40;
+   end
+   @SetDHWTemp = $c * 100;
+   g();
+end
