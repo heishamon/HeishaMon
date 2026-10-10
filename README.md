@@ -168,7 +168,7 @@ Returns the maximum value of the input parameters.
 Returns the minimum value of the input parameters.
 
 - `isset`
-Return boolean true when the input variable is still `NULL` in any other cases it will return false.
+Returns `1` when the input variable has a numeric value and `0` when it is still `NULL` (a string value also returns `0`). Use it to test for `NULL`: a comparison with `NULL` (e.g. `#g == NULL`) always results in `NULL`, which is false, so write `if isset(#g) == 0 then` instead.
 
 - `round`
 Rounds the input float to the nearest integer.

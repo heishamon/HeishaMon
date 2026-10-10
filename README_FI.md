@@ -166,7 +166,7 @@ Palauttaa syöteparametrien maksimiarvo.
 Palauttaa syöteparametrien minimiarvo.
 
 - `isset`
-Palauttaa boolean true, kun syötemuuttuja on vielä `NULL`, muissa tapauksissa false.
+Palauttaa `1`, kun syötemuuttujalla on numeroarvo, ja `0`, kun se on vielä `NULL` (myös merkkijonoarvo palauttaa `0`). Käytä tätä `NULL`-arvon testaamiseen: vertailu `NULL`-arvoon (esim. `#g == NULL`) antaa aina `NULL`, joka on false, joten kirjoita sen sijaan `if isset(#g) == 0 then`.
 
 - `round`
 Pyöristää syöte-floatin lähimpään kokonaislukuun.

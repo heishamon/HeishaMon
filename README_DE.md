@@ -166,7 +166,7 @@ Gibt den maximalen Wert der Eingabeparameter zurück.
 Gibt den minimalen Wert der Eingabeparameter zurück.
 
 - `isset`
-Gibt den booleschen Wert true zurück, wenn die Eingabevariable noch `NULL` ist. In allen anderen Fällen gibt sie false zurück.
+Gibt `1` zurück, wenn die Eingabevariable einen Zahlenwert hat, und `0`, wenn sie noch `NULL` ist (ein Textwert gibt ebenfalls `0` zurück). Damit wird auf `NULL` geprüft: Ein Vergleich mit `NULL` (z. B. `#g == NULL`) ergibt immer `NULL` und damit false, daher stattdessen `if isset(#g) == 0 then` schreiben.
 
 - `round`
 Rundet den Eingabe-Float auf die nächste ganze Zahl.
