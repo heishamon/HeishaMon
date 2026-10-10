@@ -1923,8 +1923,15 @@ static int32_t vm_heap_next(struct rules_t *obj, uint8_t type, uint8_t skip) {
   switch(type) {
     case VNULL: {
       for(i=4;i<ret;i+=rule_max_var_bytes()) {
-        if(gettype(obj->heap->buffer[i]) == VNULL) {
-          if(cnt >= skip && get_group(obj->heap->buffer[i]) == 0) {
+        /*
+         * Only group 0 slots are temporary slots. A literal
+         * NULL constant is a VNULL slot in group 1 and must
+         * not be counted, else the skip count is off by one
+         * and two values get the same slot (#1009).
+         */
+        if(gettype(obj->heap->buffer[i]) == VNULL &&
+           get_group(obj->heap->buffer[i]) == 0) {
+          if(cnt >= skip) {
             return i;
           }
           cnt++;
