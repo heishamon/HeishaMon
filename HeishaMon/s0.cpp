@@ -159,6 +159,7 @@ void s0Loop(PubSubClient &mqtt_client, void (*log_message)(char*), char* mqtt_to
       //double, because a float loses whole Wh above 16777216 Wh
       double Watthour = (actS0Data[i].pulses * ( 1000.0 / actS0Settings[i].ppkwh));
       double WatthourTotal = (actS0Data[i].pulsesTotal * ( 1000.0 / actS0Settings[i].ppkwh));
+      actS0Data[i].lastReportWatthour = Watthour;
 
       noInterrupts();
       actS0Data[i].pulses = 0; //per message we report new wattHour, so pulses should be zero at start new message

@@ -17,11 +17,11 @@ scripts/build_esp8266.sh   # builds HeishaMon/HeishaMon.ino for the small (Wemos
 scripts/build_esp32s3.sh   # builds HeishaMon/HeishaMon.ino for the large (ESP32-S3) PCB
 ```
 
-Both scripts `cd HeishaMon` first and output the compiled binary/map alongside the sketch. Required libraries (installed via `arduino-cli lib install`, see `LIBSUSED.md` and `.github/workflows/main.yml`): `ringbuffer`, `pubsubclient`, `arduinojson`, `dallastemperature`, `onewire`, `Adafruit NeoPixel`. Board cores needed: `esp8266:esp8266` and `esp32:esp32@3.0.7`.
+Both scripts `cd HeishaMon` first and output the compiled binary/map alongside the sketch. Required libraries (installed via `arduino-cli lib install`, see `LIBSUSED.md` and `.github/workflows/main.yml`): `ringbuffer`, `pubsubclient`, `arduinojson`, `dallastemperature`, `onewire`, `Adafruit NeoPixel`, `Async TCP` (the ESP32Async one; not `AsyncTCP`, which resolves to an outdated fork). Install eModbus separately with `ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL=true arduino-cli lib install --git-url https://github.com/eModbus/eModbus.git#v1.7.5stable`; it is not in the Arduino registry. Board cores needed: `esp8266:esp8266` and `esp32:esp32@3.3.11`.
 
 There is a devcontainer (`.devcontainer/`) preconfigured with `arduino-cli` and these dependencies (image `ghcr.io/the78mole/heishamon-dev`) — prefer developing/building inside it if available, since board cores and libs are already installed there.
 
-There is no unit test suite for the firmware itself. Verification is: does it compile for both boards, and (when possible) manual testing against real hardware or logged serial captures. `Tools/chksumChecker.js` is a standalone Node script for computing/verifying checksums of raw heat pump command packets documented in the README — run with plain `node Tools/chksumChecker.js`.
+Run `python3 tests/modbus/run_tests.py` for the Modbus register map and request-handler regression tests (host build, no Arduino toolchain). There is no other unit test suite for the firmware itself. Verification is: does it compile for both boards, and (when possible) manual testing against real hardware or logged serial captures. `Tools/chksumChecker.js` is a standalone Node script for computing/verifying checksums of raw heat pump command packets documented in the README — run with plain `node Tools/chksumChecker.js`.
 
 The **rules engine and example rulesets do have tests**: `Examples/Rules/run_tests.sh` builds a host-side harness (`Examples/Rules/harness/`, plain `g++`, no Arduino toolchain) that compiles the real rules engine for Linux and runs each example's `tests/` scenarios against it, asserting the exact `@Set…` command stream. Run it after any change to `src/rules/`, `src/common/timerqueue.cpp`, the decode/command tables, or an example ruleset.
 
@@ -60,6 +60,7 @@ Rulesets can be validated and behavior-tested **off-device**: `Examples/Rules/ha
 ### Other subsystems
 
 - **`dallas.cpp`/`dallas.h`**: DS18B20 1-wire temperature sensors on GPIO4, aliasing support, periodic MQTT resend.
+- **`HeishaModbusServer.cpp`/`.h`, `ModbusRegisterMap.h`** (ESP32 only): opt-in Modbus TCP server (Settings: *Enable Modbus TCP*, *Allow Modbus writes*, both default off). eModbus callbacks run in the AsyncTCP task, so they only read a data snapshot and queue writes; `loop()` refreshes the snapshot and executes the queued writes. Modbus command IDs live in `ModbusRegisterMap.h` (name→ID tables), not in `commands.h`. Register map: `Modbus-Register-Mapping.md`.
 - **`s0.cpp`/`s0.h`**: S0 kWh-meter pulse counting on GPIO12/GPIO14, with persisted running totals (restorable from a retained MQTT value on boot).
 - **`gpio.cpp`/`gpio.h`**: generic extra GPIO configuration/control, also reachable from rules via the `gpio()` function and from MQTT (`gpio/` topic prefix).
 - **`HeishaOT.cpp`/`HeishaOT.h`**: OpenTherm thermostat integration (`?`-prefixed rule variables, `mqttOTCallback`).

@@ -69,6 +69,8 @@ struct settingsStruct {
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
   bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)
+  bool modbus = false; //modbus tcp server enable flag
+  bool modbusWrites = false; //allow modbus clients to write commands and relays
 #endif
   s0SettingsStruct s0Settings[NUM_S0_COUNTERS];
   gpioSettingsStruct gpioSettings;
@@ -102,6 +104,9 @@ void loadSettings(settingsStruct *heishamonSettings);
 int getSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int getSettingsJson(struct webserver_t *client, settingsStruct *heishamonSettings);
 
+#ifdef ESP32
+int handleModbus(struct webserver_t *client);
+#endif
 int handleSettings(struct webserver_t *client);
 int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonSettings);

@@ -43,5 +43,8 @@ void publishRelayStates(PubSubClient &mqtt, const char* base, unsigned int inter
 void publishGPIOStates(PubSubClient &mqtt_client, gpioSettingsStruct &gpioSettings, char* mqtt_topic_base, bool publishAll, bool openthermEnabled, bool listenOnly);
 void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly);
 bool extraGPIOBlockedByListenOnly(bool listenOnly); // true when the whole GPIO tab/panel should be hidden (ESP8266 in listen-only mode)
-
+void setRelay1(bool state);
+void setRelay2(bool state);
+bool getRelay1();
+bool getRelay2();
 

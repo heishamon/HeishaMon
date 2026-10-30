@@ -174,3 +174,25 @@ void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings
   webserver_send_content_P(client, PSTR("]"), 1);
 }
 
+#ifdef ESP32
+void setRelay1(bool state)
+{
+  digitalWrite(relayOnePin, state);
+}
+
+void setRelay2(bool state)
+{
+  digitalWrite(relayTwoPin, state);
+}
+
+bool getRelay1()
+{
+  return digitalRead(relayOnePin);
+}
+
+bool getRelay2()
+{
+  return digitalRead(relayTwoPin);
+}
+
+#endif
