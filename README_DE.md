@@ -40,6 +40,10 @@ Im Ordner 'integrations' findest du Beispiele, wie du deine Automatisierungsplat
 # Regeln-Funktionalität
 Die Regeln-Funktionalität ermöglicht es dir, die Wärmepumpe direkt vom HeishaMon aus zu steuern. Das macht es viel zuverlässiger als die Steuerung über externe Hausautomatisierung über WLAN. Wenn ein neues Regelwerk veröffentlicht wird, wird es sofort validiert und bei Gültigkeit übernommen. Wenn ein neues Regelwerk ungültig ist, wird es ignoriert und das alte Regelwerk wieder geladen. Du kannst die Konsole auf Rückmeldungen überprüfen. Falls ein neues gültiges Regelwerk den HeishaMon zum Absturz bringt, wird es beim nächsten Neustart automatisch deaktiviert, sodass du Änderungen vornehmen kannst. Dies verhindert eine Boot-Schleife des HeishaMon.
 
+Zur Überwachung gibt es die schreibgeschützten MQTT-Topics `<base>/rules/state` und `<base>/rules/executed`. `rules/state` meldet mit Retain `1`, wenn mindestens ein Regelblock geladen ist, andernfalls `0`. `rules/executed` meldet nach einer Regelausführung ein JSON-Ereignis ohne Retain mit Regelname, Block-ID, Ergebniscode, Geräte-Uptime und der Kennzeichnung verschachtelter Hilfsblöcke. Bei äußeren Aufrufen wird zusätzlich die Laufzeit in Mikrosekunden mitgesendet. Der Standardwert für `<base>` ist `panasonic_heat_pump`. Payload-Details und Einschränkungen stehen in der [MQTT-Dokumentation](MQTT-Topics.md#rules-engine-status).
+
+Nicht jedes MQTT-Topic erhält eine `TOP…`-Nummer: `TOP…` kennzeichnet die normalen decodierten Wärmepumpenwerte, `XTOP…` den zusätzlichen Datenblock und `OPT…` die optionale Platine. Geräteinformationen und Ereignisse wie `LWT`, `log`, `stats`, `rules/state` und `rules/executed` werden separat ohne TOP-Nummer dokumentiert. Die ESP32-Relaiszustände sind eine gesonderte Erweiterung mit `TOP170` und `TOP171` für die Web-/JSON-Anzeige. Die beiden Rules-Topics sind MQTT-Meldungen für externe Abonnenten und keine `@`-Variablen im Regelwerk.
+
 Die im Regelwerk verwendeten Techniken ermöglichen die Arbeit mit sehr großen Regelwerken, aber Best Practice ist es, sie unter 10.000 Bytes zu halten.
 
 Beachte, dass das Senden von Befehlen an die Wärmepumpe asynchron erfolgt. Befehle, die zu Beginn deiner Syntax an die Wärmepumpe gesendet werden, spiegeln sich nicht sofort in den Werten der Wärmepumpe wider. Daher sollten Wärmepumpen-Werte direkt von der Wärmepumpe gelesen werden, nicht aus selbst gespeicherten Werten.
@@ -364,6 +368,16 @@ Bis heute wissen wir nicht, wie die an die Wärmepumpe gesendeten Befehle in der
 Die Software unterstützt auch das Auslesen von DS18B20 1-Wire-Temperatursensoren. Eine korrekte 1-Wire-Konfiguration (mit 4,7kOhm Pull-up-Widerstand) an GPIO4 wird alle konfigurierten Sekunden (mindestens 5) gelesen und an das Topic panasonic_heat_pump/1wire/"sensor-hex-adresse" gesendet. Auf den vorgefertigten Boards ist dieser 4,7kOhm-Widerstand bereits installiert.
 
 ## Relaissteuerung auf der großen Platine
+
+Die Firmware veröffentlicht die ausgelesenen Relais-Ausgangszustände als `0` (aus) oder `1` (ein) mit MQTT-Retain:
+
+| Relais | Status-Topic (bei Standard-Basistopic) |
+| --- | --- |
+| 1 | `panasonic_heat_pump/gpio/relay/one/state` |
+| 2 | `panasonic_heat_pump/gpio/relay/two/state` |
+
+Die Meldung erfolgt direkt nach einem MQTT-Schaltbefehl, bei jeder MQTT-Verbindung und regelmäßig im konfigurierten Intervall für die vollständige Datenversendung (`updateAllTime`). Änderungen durch die Rules Engine werden am Ende des Hauptschleifendurchlaufs erkannt und veröffentlicht. Bei einem anderen MQTT-Basistopic wird dieses auch für die Status-Topics verwendet. Der Status bestätigt den GPIO-Ausgangszustand; eine mechanische Rückmeldung des Relaiskontakts gibt es nicht.
+
 Der neuere, große, Heishamon enthält zwei eingebaute Relais, die über MQTT-Befehle ein- und ausgeschaltet werden können. Die Relais können für jede Kontaktschaltung verwendet werden, auch 230V Netzspannung (max. 5A). Um das Relais zu steuern, sende einfach einen Wert von 1 oder 0 an das MQTT-Topic "panasonic_heat_pump/gpio/relay/one" für Relais eins oder "panasonic_heat_pump/gpio/relay/two" für Relais zwei.
 
 ## Benutzerkonfigurierbare Extra-GPIOs

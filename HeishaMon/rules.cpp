@@ -32,6 +32,7 @@
 #define OPTDATASIZE 20
 
 bool send_command(byte* command, int length);
+void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested);
 #ifdef ESP32
 extern QueueHandle_t pcbQueue;
 #endif
@@ -364,6 +365,9 @@ if(strncmp(text, "s0#", 3) == 0 && (size == 9 || size == 13 || size == 18)) {
 }
 
 static void rule_done_cb(struct rules_t *obj) {
+  if (!parsing && obj->ctx.ret != NULL) {
+    publishRuleExecution(obj->name, obj->nr, 0, 0, true);
+  }
   return;
 }
 
@@ -892,6 +896,7 @@ void rules_timer_cb(int nr) {
     int ret = rule_run(rules[nr], 0);
 
     timestamp.second = micros();
+    publishRuleExecution(rules[nr]->name, rules[nr]->nr, ret, timestamp.second - timestamp.first, false);
 
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));
@@ -1053,6 +1058,7 @@ void rules_event_cb(const char *prefix, const char *name) {
     int ret = rule_run(rules[nr], 0);
 
     timestamp.second = micros();
+    publishRuleExecution(rules[nr]->name, rules[nr]->nr, ret, timestamp.second - timestamp.first, false);
 
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));
@@ -1077,6 +1083,7 @@ void rules_boot(void) {
     int ret = rule_run(rules[nr], 0);
 
     timestamp.second = micros();
+    publishRuleExecution(rules[nr]->name, rules[nr]->nr, ret, timestamp.second - timestamp.first, false);
 
     if(ret == 0) {
       logprintf_P(F("%s%d %s %d %s"), F("rule #"), rules[nr]->nr, F("was executed in"), timestamp.second - timestamp.first, F("microseconds"));

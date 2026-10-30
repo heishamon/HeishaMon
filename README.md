@@ -35,12 +35,19 @@ The software is also able to measure Watt on a S0 port of two kWh meters. You on
 
 Updating the firmware is as easy as going to the firmware menu and, after authentication with username 'admin' and password 'heisha' (or other provided during setup), uploading the binary there.
 
-A json output of all received data (heatpump and 1wire) is available at the url http://heishamon.local/json (replace heishamon.local with the ip address of your heishamon device if MDNS is not working for you).
+A JSON output of heat pump data and enabled 1-wire/S0 sensors is available at http://heishamon.local/json (replace heishamon.local with the IP address of your HeishaMon device if mDNS is not working). On the ESP32 large board, it also includes the two relay output states in the `relays` array. See [relay control](#large-board-relay-control) for reading and switching those outputs.
 
 Within the 'integrations' folder you can find examples how to connect your automation platform to the HeishaMon.
 
 # Rules functionality
 The rules functionality allows you to control the heatpump from within the HeishaMon itself. Which makes it much more reliable then having to deal with external domotica over WiFi. When posting a new ruleset, it is immidiatly validated and when valid used. When a new ruleset is invalid it will be ignored and the old ruleset will be loaded again. You can check the console for feedback on this. If somehow a new valid ruleset crashes the HeishaMon, it will be automatically disabled the next reboot, allowing you to make changes. This prevents the HeishaMon getting into a boot loop.
+
+Rules monitoring is available through two read-only MQTT topics on both ESP8266 and ESP32:
+
+- `<base>/rules/state` is retained and reports `1` when at least one rule block is loaded, or `0` otherwise. It is sent on connection, changes, and the full-data resend interval. The existing `<base>/stats` field `"rules active"` gives the number of loaded blocks. Use `<base>/LWT` to check device availability.
+- `<base>/rules/executed` publishes a non-retained JSON event after an execution returns. It includes the block name and ID, interpreter result, device uptime, and whether it is a nested helper call. Outer invocations also include elapsed microseconds. Validation does not generate events; disconnected events are not replayed.
+
+The default base is `panasonic_heat_pump`. See [rules status](MQTT-Topics.md#rules-engine-status) and [execution events](MQTT-Topics.md#rule-execution-events) for the payload format and limitations. These are monitoring topics for MQTT clients, not `@` variables or commands in a ruleset.
 
 The techniques used in the rule library allows you to work with very large rulesets, but best practice is to keep it below 10.000 bytes.
 
@@ -62,7 +69,7 @@ These variables live inside a rule block. When a rule block finishes, these vari
 These are the same as listed in the Manage Topics documentation page and as found on the HeishaMon homepage. The ruleset also follows the R/W logic as used through the MQTT and REST API. That means that the read topics differ from the write topics. So reading the heatpump state is done through `@Heatpump_State`, changing the heatpump state through `@SetHeatpump`.
 
 - `%`: Datetime variables
-These can be used for date and time based rules. Currently `%hour` (0 - 23), `%minute` (0 - 59), `%month` (1 - 12), and `%day` (1 - 7)  are supported. All are plain integers. A proper NTP configuration is needed to set the correct system date and time on the HeishaMon.
+These can be used for date and time based rules. Currently `%hour` (0 - 23), `%minute` (0 - 59), `%month` (1 - 12), and `%day` (1 - 7) are supported. All are plain integers. A proper NTP configuration is needed to set the correct system date and time on the HeishaMon.
 
 - `?`: Thermostat parameters
 These variables reflect parameters read from the connected thermostat when using the OpenTherm functionality. When OpenTherm is supported this documentation will be extended with more precise information. The can check the opentherm tab for the variables that can be used. The names are the same for reading and writing, but not all values support reading and/or writing. The opentherm tab also lists this.
@@ -368,7 +375,23 @@ As until today we don't know how the commands sent to the heatpump are processed
 The software also supports ds18b20 1-wire temperature sensors reading. A proper 1-wire configuration (with 4.7kohm pull-up resistor) connected to GPIO4 will be read each configured secs (minimal 5) and send at the panasonic_heat_pump/1wire/"sensor-hex-address" topic. On the pre-made boards this 4.7kohm resistor is already installed.
 
 ## Large board relay control
+
+Relay output states are published as `0` (off) or `1` (on), with MQTT retain, to `<base>/gpio/relay/one/state` and `<base>/gpio/relay/two/state`. The default base is `panasonic_heat_pump`. Both states are published after an MQTT or REST relay command, on MQTT connection, and at the configured full-data resend interval (`updateAllTime`). Changes made by rules are detected and published at the end of the main loop. Failed publications are retried. These values report the GPIO output levels, not mechanical contact feedback.
+
 The newer, large, heishamon contains two onboard relays which can be switched on and off using MQTT commands. The relays can be used for any contact switching, even 230V mains (max 5A). For example to switch the 230V contacts in the heatpump for controlling the 'external thermostat', switching a pump on or off or other lower power devices. I do not recommend to use the relay as a switch for a electric heater as they use too much power. To control the relay just send a value of 1 or 0 to the MQTT topic "panasonic_heat_pump/gpio/relay/one" for relay one or "panasonic_heat_pump/gpio/relay/two" for relay two.
+
+The ESP32 large board also supports relay control through the existing HTTP REST `/command` endpoint (GET):
+
+| Action | Request |
+| --- | --- |
+| Relay 1 on | `http://<HeishaMon-IP>/command?SetRelayOne=1` |
+| Relay 1 off | `http://<HeishaMon-IP>/command?SetRelayOne=0` |
+| Relay 2 on | `http://<HeishaMon-IP>/command?SetRelayTwo=1` |
+| Relay 2 off | `http://<HeishaMon-IP>/command?SetRelayTwo=0` |
+
+Both parameters may be combined, for example `/command?SetRelayOne=1&SetRelayTwo=0`. The plain-text response reports the resulting output level, for example `SetRelayOne: 1`. As with MQTT relay commands, `1`, `true`, `on`, and `enable` turn the relay on (text is case-insensitive); other values turn it off. REST switching works without an MQTT connection and publishes retained relay states when MQTT is connected. These commands are only available on ESP32.
+
+Read both output states with `GET http://<HeishaMon-IP>/json`: the `relays` array contains `Name` (`Relay 1` / `Relay 2`) and numeric `Value` (`0` / `1`). These are GPIO output levels, not mechanical contact feedback.
 
 ## Opentherm support
 If your heishamon board supports opentherm the software can also be used to bridge opentherm information from a compatible thermostat to your home automation over MQTT or JSON and as mentioned above it can also be connected directly in the rules to connect opentherm information to the heatpump and back, for example to display the outside temperature from the heatpump on your opentherm thermostat. If you enable opentherm support in settings there will be a new tab visible in the web page. On that tab you will see opentherm values. Some are of type R(ead) and some are W(rite), and some are both. Read means that the thermostat can read that information from the heishamon. You provide that information over MQTT (or using the rules) by updating this value on the mqtt 'opentherm/read' topic, for example 'panasonic_heat_pump/opentherm/read/outsideTemp'. The write values are information from the thermostat, like 'roomTemp'. These are available on mqtt topic 'opentherm/write'. You can use these values to change the heatpump behaviour in anyway you want using your home automation and mqtt set-commands to heishamon on using the internal rules.

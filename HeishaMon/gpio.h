@@ -11,6 +11,7 @@
 #define relayTwoPin 47
 #endif
 
+#include <PubSubClient.h>
 extern const char* mqtt_topic_gpio;
 
 struct gpioSettingsStruct {
@@ -24,6 +25,7 @@ struct gpioSettingsStruct {
 };
 
 void setupGPIO(gpioSettingsStruct gpioSettings);
-void mqttGPIOCallback(char* topic, char* value);
+void mqttGPIOCallback(char* topic, char* value, PubSubClient &mqtt, const char* base);
+void publishRelayStates(PubSubClient &mqtt, const char* base, unsigned int interval, bool force = false);
 
 
