@@ -126,7 +126,7 @@ commands: SetZ1HeatRequestTemperature, SetZ1CoolRequestTemperature,
 SetZ2HeatRequestTemperature, SetZ2CoolRequestTemperature, SetDHWTemp, SetFloorHeatDelta,
 SetFloorCoolDelta, SetDHWHeatDelta, SetHeaterStartDelta, SetHeaterStopDelta, SetBufferDelta,
 SetHeatingOffOutdoorTemp, SetBivalentStartTemp, SetBivalentAPStartTemp,
-SetBivalentAPStopTemp, SetHeaterOnOutdoorTemp and SetSterilizationTemp. All other commands (modes, states, times,
+SetBivalentAPStopTemp, SetHeaterOnOutdoorTemp, SetSterilizationTemp, SetHeatToCoolTemp and SetCoolToHeatTemp. All other commands (modes, states, times,
 duty) are unscaled signed int16. Allowed values are those of the regular HeishaMon command
 handlers. SetCurves needs JSON and must use MQTT/HTTP.
 
@@ -231,6 +231,11 @@ is `MAIN_COMMANDS` in `HeishaMon/ModbusRegisterMap.h`. IDs 1-1000 map to
 | 5046 | `SetHeaterOnOutdoorTemp` |
 | 5047 | `SetSterilizationTemp` |
 | 5048 | `SetSterilizationMaxTime` |
+| 5049 | `SetHeatToCoolTemp` |
+| 5050 | `SetCoolToHeatTemp` |
+| 5051 | `SetRoomOperationMaxTime` |
+| 5052 | `SetDHWHeatupMaxTime` |
+| 5053 | `SetQuietModeSchedule` |
 
 ## Optional PCB commands
 
