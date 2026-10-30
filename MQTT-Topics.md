@@ -1,10 +1,39 @@
 # MQTT Topics for HeishaMon
 
+`TOP...` IDs identify the normal decoded heat pump values; `XTOP...` and `OPT...` identify values from the extra data block and optional PCB. Not every MQTT topic needs such an ID: device status and event topics such as `LWT`, `log`, `stats`, `rules/state`, and `rules/executed` are documented separately without a TOP number. The ESP32 relay states are a separate extension with `TOP170` and `TOP171` IDs for the web/JSON display.
+
 ## Availability Topic:
 
 ID | Topic | Response
 --- | --- | ---
 || LWT | Online/Offline (automatically returns to Offline if connection with the HeishaMon lost)
+
+## Rules Engine Status:
+
+Topic | Response/Description
+--- | ---
+rules/state | Read-only, retained: `1` if at least one rule block is loaded, `0` if no rule blocks are loaded (both ESP8266 and ESP32).
+
+The full topic is `<base>/rules/state`, for example `panasonic_heat_pump/rules/state`. It is published on MQTT connection/reconnection, when the state changes, and at the configured full-data resend interval (`updateAllTime`). Failed publications are retried. There is no command to set this topic; publishing to it does not enable or disable rules.
+
+This reports loaded rules, not whether a rule is executing at that instant. `0` can mean that no ruleset exists, parsing failed, rules were deinitialized, or loading was skipped after a crash reboot. It does not distinguish these causes. The existing `<base>/stats` JSON field `"rules active"` provides the number of loaded rule blocks. Check `<base>/LWT` for device availability; a retained rules state can outlive a disconnected device.
+
+## Rule Execution Events:
+
+`<base>/rules/executed` (for example `panasonic_heat_pump/rules/executed`) publishes a read-only JSON event after a rule execution returns. It is **not retained**.
+
+```json
+{"rule":"timer=1","rule_id":2,"result":0,"uptime_ms":123456,"nested":false,"duration_us":245}
+```
+
+- `rule`: block name, such as `System#Boot`, `timer=1`, `@Outside_Temp`, or a custom helper name.
+- `rule_id`: the engine's numeric block ID; it may change when the ruleset is edited.
+- `result`: interpreter return code (`0` = successful return, nonzero = error). Success does not imply that a command was emitted or acknowledged by the heat pump.
+- `uptime_ms`: device uptime at publication, in milliseconds (wraps after approximately 49.7 days).
+- `nested`: `true` for a successfully completed helper block invoked by another rule. Each completed helper produces its own event before the outer block's event.
+- `duration_us`: elapsed microseconds for an outer Boot, timer, or topic/event invocation, including its helper calls. Omitted for nested helper events. Nested event publication time is included in the outer duration.
+
+Ruleset validation does not publish execution events. A returned error is reported for the outer invocation; a helper that fails before returning successfully has no separate completion event. A crash cannot produce a completion event. Events use MQTT QoS 0, are sent only while connected, and are neither queued nor replayed after reconnecting. Boot events may therefore be absent if MQTT is not connected yet. Every execution can produce traffic, including frequent timer/topic handlers and their helper calls.
 
 ## Log Topic:
 
@@ -160,6 +189,39 @@ TOP140 | main/Smart_DHW | Smart DHW
 TOP141 | main/Quiet_Mode_Priority | Quiet Mode Priority (0=sound, 1=capacity)
 TOP142 | main/Expansion_Valve | Expansion Valve (Steps)
 TOP143 | main/DHW_Sensor_Selection | DHW tank sensor selection (0=Top, 1=Center) (K/L series All-In-One only)
+TOP144 | main/Dry_Concrete_State | Concrete drying (0=off, 1=on)
+TOP145 | main/DHW_Capacity_Mode | DHW capacity (0=Standard, 1=Variable; J series)
+TOP146 | main/Zone_Configuration | Zone configuration (decimal raw code: 21=one zone, Z1 room; 25=one zone, Z1 pool; 22=two zones, Z2 room; 38=two zones, Z2 pool)
+TOP147 | main/Internal_Heater_Capacity | Configured internal heater capacity (3/6/9 kW; -1=unavailable)
+TOP148 | main/DHW_Heater_Type | DHW heater type (0=internal, 1=external)
+TOP149 | main/SG_Ready_Control | SG Ready control (0=disabled, 1=enabled)
+TOP150 | main/Demand_Control | Demand control (0=disabled, 1=enabled)
+TOP151 | main/DHW_Defrost | DHW defrost option (0=no, 1=yes; K/L series)
+TOP152 | main/Dry_Concrete_Target_Temp | Current stage target temperature for concrete drying (°C)
+TOP153 | main/Pool_Delta | Pool temperature delta (K)
+TOP154 | main/SG_Ready_1_Heat_Capacity | SG Ready setting 1 heating capacity (%)
+TOP155 | main/SG_Ready_1_DHW_Capacity | SG Ready setting 1 DHW capacity (%)
+TOP156 | main/SG_Ready_2_Heat_Capacity | SG Ready setting 2 heating capacity (%)
+TOP157 | main/SG_Ready_2_DHW_Capacity | SG Ready setting 2 DHW capacity (%)
+TOP158 | main/Room_Operation_Max_Time | Maximum room operation time during alternating room/DHW operation (minutes)
+TOP159 | main/DHW_Heatup_Max_Time | Maximum DHW heat-up time (minutes)
+TOP160 | main/Quiet_Mode_Actual_State | Actual quiet mode state (0=off, 1=on)
+TOP161 | main/Powerful_Mode_Actual_State | Actual powerful mode state (0=off, 1=on)
+TOP162 | main/Heat_Cool_Switch_State | Actual heat/cool switch state (0=heat, 1=cool)
+TOP163 | main/External_Switch_State | Actual external switch state (0=closed, 1=open)
+TOP164 | main/Bivalent_Boiler_Contact_State | Actual bivalent boiler contact state (0=off, 1=on)
+TOP165 | main/Z2_Active | Actual zone 2 activity (0=inactive, 1=active)
+TOP166 | main/Z1_Active | Actual zone 1 activity (0=inactive, 1=active)
+TOP167 | main/Backup_Heater_Enable | Backup heater custom-menu setting (0=inactive, 1=active)
+TOP168 | main/Cooling_Enable | Cooling custom-menu setting (0=inactive, 1=active)
+TOP169 | main/Heat_Request_Temp_With_Buffer | Heating water shift/direct target including buffer delta (°C)
+TOP170 | gpio/relay/one/state | Onboard relay 1 GPIO output state (ESP32 only, 0=off, 1=on, retained)
+TOP171 | gpio/relay/two/state | Onboard relay 2 GPIO output state (ESP32 only, 0=off, 1=on, retained)
+
+TOP170 and TOP171 are displayed on the main web page as Relay 1 and Relay 2 with On/Off and their full configured MQTT topics. They are read directly from GPIO21 and GPIO47, independent of MQTT connectivity, and exposed in the `/json` response's `relays` array. The page refreshes these states every five seconds. These values report GPIO output levels, not mechanical contact feedback.
+
+The topics above are relative to the configured MQTT base topic. New topics TOP144–TOP169 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
+
 
 
 
@@ -253,6 +315,15 @@ SET47 | SetForceHeater | Force heater mode (emergency heating), same as the heat
 SET48 | SetReset | Reset/confirm active heatpump fault code (e.g. H72). Equivalent to pressing "Reset" on the CZ-TAW1 remote / indoor unit panel. Writes byte 8 of the outgoing query. Clears latched errors that soft power-cycle (`SetHeatpump` 0→1) cannot clear. | 0=no action, 1=reset
 SET49 | SetSterilizationTemp | Set DHW sterilization target temperature; experimental, L-series write acceptance is hardware-verified | integer 55-75 (degrees C)
 SET50 | SetSterilizationMaxTime | Set DHW sterilization holding time after reaching target temperature; experimental, L-series write acceptance is hardware-verified | 5, 10, 15, ..., 60 minutes; other values are rejected without sending a command
+SET51 | SetHeatToCoolTemp | Outdoor temperature for automatic heat-to-cool switching; readback TOP79 | integer -127..127 °C (wire range)
+SET52 | SetCoolToHeatTemp | Outdoor temperature for automatic cool-to-heat switching; readback TOP80 | integer -127..127 °C (wire range)
+SET53 | SetRoomOperationMaxTime | Maximum room heating operation time when alternating with DHW; readback TOP158 | 30..7620 minutes, multiples of 30 (wire range)
+SET54 | SetDHWHeatupMaxTime | Maximum DHW heat-up time; readback TOP159 | integer 1..254 minutes (wire range)
+SET55 | SetQuietModeSchedule | Enable/disable the existing quiet-mode schedule; readback TOP3 | 0=off, 1=on
+
+SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples but have not been hardware-tested here. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
+
+Example: publish `21` to `panasonic_heat_pump/commands/SetHeatToCoolTemp`, `90` to `panasonic_heat_pump/commands/SetRoomOperationMaxTime`, or `1` to `panasonic_heat_pump/commands/SetQuietModeSchedule` (replace the base topic as configured).
 
 
 *If you operate your heatpump in water mode with direct temperature setup: topics ending xxxRequestTemperature will set the absolute target temperature.*

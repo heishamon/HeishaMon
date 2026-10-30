@@ -14,6 +14,11 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
 void decode_heatpump_data_extra(char* data, char* actDataExtra, PubSubClient &mqtt_client, void (*log_message)(char*), char* mqtt_topic_base, unsigned int updateAllTime);
 void decode_optional_heatpump_data(char* data, char* actOptDat, PubSubClient &mqtt_client, void (*log_message)(char*), char* mqtt_topic_base, unsigned int updateAllTime);
 
+String getRawByte(byte input);
+String getHeaterCapacity(byte input);
+String getIntMinus1Times30(byte input);
+String getZone2Active(byte input);
+String getZone1Active(byte input);
 String unknown(byte input);
 String getBit1(byte input);
 String getBit1and2(byte input);
@@ -42,7 +47,7 @@ static const char _unknown[] PROGMEM = "unknown";
 
 
 
-#define NUMBER_OF_TOPICS 144 //last topic number + 1
+#define NUMBER_OF_TOPICS 170 //last topic number + 1
 #define NUMBER_OF_TOPICS_EXTRA 6 //last topic number + 1
 #define NUMBER_OF_OPT_TOPICS 7 //last topic number + 1
 #define MAX_TOPIC_LEN 42 // max length + 1
@@ -220,6 +225,32 @@ static const char topics[][MAX_TOPIC_LEN] PROGMEM = {
   "Quiet_Mode_Priority",     //TOP141
   "Expansion_Valve",         //TOP142
   "DHW_Sensor_Selection",    //TOP143
+  "Dry_Concrete_State", //TOP144
+  "DHW_Capacity_Mode", //TOP145
+  "Zone_Configuration", //TOP146
+  "Internal_Heater_Capacity", //TOP147
+  "DHW_Heater_Type", //TOP148
+  "SG_Ready_Control", //TOP149
+  "Demand_Control", //TOP150
+  "DHW_Defrost", //TOP151
+  "Dry_Concrete_Target_Temp", //TOP152
+  "Pool_Delta", //TOP153
+  "SG_Ready_1_Heat_Capacity", //TOP154
+  "SG_Ready_1_DHW_Capacity", //TOP155
+  "SG_Ready_2_Heat_Capacity", //TOP156
+  "SG_Ready_2_DHW_Capacity", //TOP157
+  "Room_Operation_Max_Time", //TOP158
+  "DHW_Heatup_Max_Time", //TOP159
+  "Quiet_Mode_Actual_State", //TOP160
+  "Powerful_Mode_Actual_State", //TOP161
+  "Heat_Cool_Switch_State", //TOP162
+  "External_Switch_State", //TOP163
+  "Bivalent_Boiler_Contact_State", //TOP164
+  "Z2_Active", //TOP165
+  "Z1_Active", //TOP166
+  "Backup_Heater_Enable", //TOP167
+  "Cooling_Enable", //TOP168
+  "Heat_Request_Temp_With_Buffer", //TOP169
 };
 
 static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit unsigned humber) as there aren't more then 255 bytes (actually only 203 bytes) to decode
@@ -367,6 +398,32 @@ static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit 
   11,    //TOP141
   175,   //TOP142
   11,    //TOP143
+  5, //TOP144
+  9, //TOP145
+  21, //TOP146
+  25, //TOP147
+  25, //TOP148
+  27, //TOP149
+  27, //TOP150
+  30, //TOP151
+  46, //TOP152
+  58, //TOP153
+  71, //TOP154
+  72, //TOP155
+  73, //TOP156
+  74, //TOP157
+  97, //TOP158
+  98, //TOP159
+  110, //TOP160
+  110, //TOP161
+  110, //TOP162
+  110, //TOP163
+  112, //TOP164
+  117, //TOP165
+  117, //TOP166
+  120, //TOP167
+  120, //TOP168
+  152, //TOP169
 };
 
 
@@ -526,6 +583,32 @@ static const topicFP topicFunctions[] PROGMEM = {
   getBit3and4,       //TOP141
   getIntMinus1,      //TOP142
   getBit7and8,       //TOP143
+  getBit7and8, //TOP144
+  getBit3and4, //TOP145
+  getRawByte, //TOP146
+  getHeaterCapacity, //TOP147
+  getBit7and8, //TOP148
+  getBit5and6, //TOP149
+  getBit7and8, //TOP150
+  getBit7and8, //TOP151
+  getIntMinus128, //TOP152
+  getIntMinus128, //TOP153
+  getIntMinus1, //TOP154
+  getIntMinus1, //TOP155
+  getIntMinus1, //TOP156
+  getIntMinus1, //TOP157
+  getIntMinus1Times30, //TOP158
+  getIntMinus1, //TOP159
+  getBit1and2, //TOP160
+  getBit3and4, //TOP161
+  getBit5and6, //TOP162
+  getBit7and8, //TOP163
+  getBit1and2, //TOP164
+  getZone2Active, //TOP165
+  getZone1Active, //TOP166
+  getBit3and4, //TOP167
+  getBit5and6, //TOP168
+  getIntMinus128, //TOP169
 };
 
 static const char *DisabledEnabled[] PROGMEM = {"2", "Disabled", "Enabled"};
@@ -567,6 +650,12 @@ static const char *HeatingControl[] PROGMEM = {"2", "Comfort", "Efficiency"};
 static const char *SmartDHW[] PROGMEM = {"2", "Variable", "Standard"};
 static const char *QuietModePriority[] PROGMEM = {"2", "Sound", "Capacity"};
 static const char *DHWSensorType[] PROGMEM = {"2", "Top", "Center"};
+static const char *DHWCapacityMode[] PROGMEM = {"2", "Standard", "Variable"};
+static const char *DHWHeaterType[] PROGMEM = {"2", "Internal", "External"};
+static const char *Kilowatt[] PROGMEM = {"0", "kW"};
+static const char *HeatCoolSwitch[] PROGMEM = {"2", "Heat", "Cool"};
+static const char *ClosedOpen[] PROGMEM = {"2", "Closed", "Open"};
+static const char *ZoneConfiguration[] PROGMEM = {"0", "Configuration code"};
 static const char *Steps[] PROGMEM = {"0", "Steps"};
 
 static const char **opttopicDescription[] PROGMEM = {
@@ -733,4 +822,30 @@ static const char **topicDescription[] PROGMEM = {
   QuietModePriority, //TOP141
   Steps,             //TOP142
   DHWSensorType,     //TOP143
+  OffOn, //TOP144
+  DHWCapacityMode, //TOP145
+  ZoneConfiguration, //TOP146
+  Kilowatt, //TOP147
+  DHWHeaterType, //TOP148
+  DisabledEnabled, //TOP149
+  DisabledEnabled, //TOP150
+  DisabledEnabled, //TOP151
+  Celsius, //TOP152
+  Kelvin, //TOP153
+  Percent, //TOP154
+  Percent, //TOP155
+  Percent, //TOP156
+  Percent, //TOP157
+  Minutes, //TOP158
+  Minutes, //TOP159
+  OffOn, //TOP160
+  OffOn, //TOP161
+  HeatCoolSwitch, //TOP162
+  ClosedOpen, //TOP163
+  OffOn, //TOP164
+  InactiveActive, //TOP165
+  InactiveActive, //TOP166
+  InactiveActive, //TOP167
+  InactiveActive, //TOP168
+  Celsius, //TOP169
 };

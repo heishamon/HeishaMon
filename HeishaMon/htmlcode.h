@@ -1041,6 +1041,7 @@ document.body.onload=function(){
   startWebsockets();
   monitorWebSocket();
   refreshTable();
+  setInterval(refreshRelayStates,5000);
 };
 var dallasAliasEdit=function(){
   isEditing=false;
@@ -1145,6 +1146,7 @@ async function refreshTable(){
       var tb=document.getElementById('heishavalues');tb.innerHTML='';
       d.heatpump.forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
     }
+    renderRelayStates(d);
     if(d&&d['heatpump extra']&&Array.isArray(d['heatpump extra'])){
       var tb=document.getElementById('heishavalues');
       d['heatpump extra'].forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
@@ -1180,6 +1182,32 @@ async function refreshTable(){
       }}
     }
   } catch(e){console.error(e);}
+}
+var hasRelays=false;
+function renderRelayStates(data){
+  hasRelays=!!(data&&Array.isArray(data.relays)&&data.relays.length);
+  if(!hasRelays)return;
+  var tb=document.getElementById('heishavalues');
+  data.relays.forEach(function(item){
+    var row=document.getElementById(item.Topic+'-relay');
+    if(!row){
+      row=document.createElement('tr');row.id=item.Topic+'-relay';
+      for(var i=0;i<4;i++)row.appendChild(document.createElement('td'));
+      tb.appendChild(row);
+    }
+    row.children[0].textContent=item.Topic;
+    row.children[1].textContent=item.Name;
+    row.children[2].textContent=item.Value===1?'On':'Off';
+    row.children[3].textContent=item['MQTT topic'];
+    row.children[3].title='GPIO output state; no mechanical contact feedback';
+  });
+}
+async function refreshRelayStates(){
+  if(!hasRelays||document.hidden)return;
+  try{
+    var response=await fetch('/json');
+    renderRelayStates(await response.json());
+  }catch(e){console.error(e);}
 }
 function buildRow(item,idKey){
   var row=document.createElement('tr');

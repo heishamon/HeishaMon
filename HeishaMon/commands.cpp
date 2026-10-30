@@ -313,6 +313,54 @@ unsigned int set_force_defrost(char *msg, unsigned char *cmd, char *log_msg) {
   return sizeof(panasonicSendQuery);
 }
 
+// Validate the complete payload before touching the command buffer. The limits
+// below describe the nonzero wire encoding; the heat pump may impose narrower
+// model-specific installer-menu limits.
+static unsigned int set_integer_field(char *msg, unsigned char *cmd, char *log_msg,
+                                     byte address, int minimum, int maximum,
+                                     int step, int divisor, int offset, int multiplier) {
+  const size_t length = msg == NULL ? 0 : strlen(msg);
+  bool valid = length > 0 && length <= 5;
+  size_t index = valid && msg[0] == '-' ? 1 : 0;
+  const bool negative = index == 1;
+  valid = valid && index < length;
+  int value = 0;
+  for (; valid && index < length; ++index) {
+    valid = msg[index] >= '0' && msg[index] <= '9';
+    if (valid) value = value * 10 + msg[index] - '0';
+  }
+  if (negative) value = -value;
+  if (!valid || value < minimum || value > maximum || value % step != 0) {
+    snprintf_P(log_msg, 256, PSTR("Invalid setting for byte %u: expected integer %d..%d, step %d"),
+               address, minimum, maximum, step);
+    return 0;
+  }
+  memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
+  cmd[address] = (value / divisor + offset) * multiplier;
+  snprintf_P(log_msg, 256, PSTR("set byte %u to value %d"), address, value);
+  return sizeof(panasonicSendQuery);
+}
+
+unsigned int set_heat_to_cool_temp(char *msg, unsigned char *cmd, char *log_msg) {
+  return set_integer_field(msg, cmd, log_msg, 95, -127, 127, 1, 1, 128, 1);
+}
+
+unsigned int set_cool_to_heat_temp(char *msg, unsigned char *cmd, char *log_msg) {
+  return set_integer_field(msg, cmd, log_msg, 96, -127, 127, 1, 1, 128, 1);
+}
+
+unsigned int set_room_operation_max_time(char *msg, unsigned char *cmd, char *log_msg) {
+  return set_integer_field(msg, cmd, log_msg, 97, 30, 7620, 30, 30, 1, 1);
+}
+
+unsigned int set_dhw_heatup_max_time(char *msg, unsigned char *cmd, char *log_msg) {
+  return set_integer_field(msg, cmd, log_msg, 98, 1, 254, 1, 1, 1, 1);
+}
+
+unsigned int set_quiet_mode_schedule(char *msg, unsigned char *cmd, char *log_msg) {
+  return set_integer_field(msg, cmd, log_msg, 7, 0, 1, 1, 1, 1, 64);
+}
+
 unsigned int set_sterilization_temp(char *msg, unsigned char *cmd, char *log_msg) {
   if (msg == NULL || strlen(msg) != 2 || msg[0] < '0' || msg[0] > '9' || msg[1] < '0' || msg[1] > '9') {
     snprintf_P(log_msg, 256, PSTR("Invalid sterilization temperature: expected integer 55-75 C"));

@@ -1241,6 +1241,24 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
     client->content--; // The webserver also increases by 1
   } else if (client->content == (NUMBER_OF_TOPICS + extraTopics + numOptTopics + 1)) {
     webserver_send_content_P(client, PSTR("]"), 1);
+#ifdef ESP32
+    // Onboard outputs are independent of the heat pump's serial data block.
+    JsonDocument relaysDoc;
+    JsonArray relays = relaysDoc["relays"].to<JsonArray>();
+    const int relayPins[2] = {relayOnePin, relayTwoPin};
+    const char* relayNames[2] = {"one", "two"};
+    for (int i = 0; i < 2; i++) {
+      JsonObject relay = relays.add<JsonObject>();
+      relay["Topic"] = String("TOP") + (NUMBER_OF_TOPICS + i);
+      relay["Name"] = String("Relay ") + (i + 1);
+      relay["Value"] = digitalRead(relayPins[i]) ? 1 : 0;
+      relay["MQTT topic"] = String(heishamonSettings->mqtt_topic_base) + "/gpio/relay/" + relayNames[i] + "/state";
+    }
+    String relaysJson;
+    serializeJson(relays, relaysJson);
+    webserver_send_content_P(client, PSTR(",\"relays\":"), 10);
+    webserver_send_content(client, (char*)relaysJson.c_str(), relaysJson.length());
+#endif
     if (heishamonSettings->use_1wire) {
       webserver_send_content_P(client, PSTR(",\"1wire\":"), 9);
       dallasJsonOutput(client);

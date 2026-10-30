@@ -443,6 +443,41 @@ bool loadTlsCaFromFS(WiFiClientSecure *client) {
 #endif
 
 
+void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested) {
+  if (!mqtt_client.connected()) return;
+  JsonDocument doc;
+  doc["rule"] = name;
+  doc["rule_id"] = id;
+  doc["result"] = result;
+  doc["uptime_ms"] = millis();
+  doc["nested"] = nested;
+  if (!nested) doc["duration_us"] = duration;
+  String payload;
+  serializeJson(doc, payload);
+  char topic[256];
+  snprintf(topic, sizeof(topic), "%s/rules/executed", heishamonSettings.mqtt_topic_base);
+  mqtt_client.publish(topic, payload.c_str(), false);
+}
+
+void publishRulesState(bool force) {
+  static int reported = -1;
+  static unsigned long lastPublish = 0;
+  const unsigned long now = millis();
+  const int state = nrrules > 0 ? 1 : 0;
+  const bool periodic = (unsigned long)(now - lastPublish) >= heishamonSettings.updateAllTime * 1000UL;
+  if (!mqtt_client.connected()) return;
+  if (force || periodic || reported != state) {
+    char topic[256];
+    snprintf(topic, sizeof(topic), "%s/rules/state", heishamonSettings.mqtt_topic_base);
+    if (mqtt_client.publish(topic, state ? "1" : "0", true)) {
+      reported = state;
+      lastPublish = now;
+    } else {
+      reported = -1; // Retry on the next loop.
+    }
+  }
+}
+
 void mqtt_reconnect()
 {
   unsigned long now = millis();
@@ -488,6 +523,8 @@ void mqtt_reconnect()
     if (mqtt_client.connect(heishamonSettings.wifi_hostname, heishamonSettings.mqtt_username, heishamonSettings.mqtt_password, topic, 1, true, "Offline"))
     {
       mqttReconnects++;
+      publishRulesState(true);
+      publishRelayStates(mqtt_client, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime, true);
       if (heishamonSettings.opentherm) {
         sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_opentherm_read);
         mqtt_client.subscribe(topic);
@@ -1037,7 +1074,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       mqttOTCallback(topic_otcommand, msg);
     } else if (strncmp(topic_command, mqtt_topic_gpio, strlen(mqtt_topic_gpio)) == 0)  {
       char* topic_gpiocommand = topic_command + strlen(mqtt_topic_gpio) + 1; //strip the gpio subtopic from the topic
-      mqttGPIOCallback(topic_gpiocommand, msg);
+      mqttGPIOCallback(topic_gpiocommand, msg, mqtt_client, heishamonSettings.mqtt_topic_base);
     } else if (strncmp(topic_command, mqtt_topic_1wire, strlen(mqtt_topic_1wire)) == 0) { //this is a 1wire address topic, restore its retained value at boot
       char* topic_1wire_address = topic_command + strlen(mqtt_topic_1wire) + 1; //strip the "1wire/" from the topic to get the sensor address
       char* topic_1wire_sub = strchr(topic_1wire_address, '/');
@@ -1222,6 +1259,22 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
 
               memset(&cpy, 0, args->len + 1);
               snprintf((char *)&cpy, args->len + 1, "%.*s", args->len, args->value);
+
+#ifdef ESP32
+              if (strcmp((char *)args->name, "SetRelayOne") == 0 || strcmp((char *)args->name, "SetRelayTwo") == 0) {
+                const bool firstRelay = strcmp((char *)args->name, "SetRelayOne") == 0;
+                mqttGPIOCallback((char *)(firstRelay ? "relay/one" : "relay/two"), cpy, mqtt_client, heishamonSettings.mqtt_topic_base);
+                snprintf(log_msg, sizeof(log_msg), "%s: %d", (char *)args->name, digitalRead(firstRelay ? relayOnePin : relayTwoPin) ? 1 : 0);
+                if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
+                  loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
+                  ESP.restart();
+                  exit(-1);
+                }
+                strcat((char *)client->userdata, log_msg);
+                strcat((char *)client->userdata, "\n");
+                return 0;
+              }
+#endif
 
               for (uint8_t x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
                 cmdStruct tmp;
@@ -2266,6 +2319,8 @@ void loop() {
   }
 
   timerqueue_update();
+  publishRulesState(false);
+  publishRelayStates(mqtt_client, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
   #ifdef ESP32
   delay(1); // to keep watchdog happy
   #endif
