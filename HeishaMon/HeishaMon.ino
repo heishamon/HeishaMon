@@ -511,11 +511,17 @@ void mqtt_reconnect()
       }
 #endif
 
-      if (heishamonSettings.use_s0) { // connect to s0 topic to retrieve older watttotal from mqtt
-        sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/1"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
-        mqtt_client.subscribe(mqtt_topic);
-        sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/2"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
-        mqtt_client.subscribe(mqtt_topic);
+      if (heishamonSettings.use_s0) { // connect to s0 topic to retrieve older watttotal from mqtt, until restored once after boot
+        if (s0_restore_pending(1)) {
+          sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/1"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
+          mqtt_client.subscribe(mqtt_topic);
+          s0_restore_subscribed(1);
+        }
+        if (s0_restore_pending(2)) {
+          sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/2"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
+          mqtt_client.subscribe(mqtt_topic);
+          s0_restore_subscribed(2);
+        }
       }
       if (heishamonSettings.use_1wire && mqttReconnects == 1) { // only on first connect: retrieve previously known 1wire sensors from their retained mqtt topics
         sprintf_P(mqtt_topic, PSTR("%s/%s/+"), heishamonSettings.mqtt_topic_base, mqtt_topic_1wire);
@@ -1002,7 +1008,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     {
       char* topic_s0_watthour_port = topic_command + strlen(mqtt_topic_s0) + 15; //strip the first 17 "s0/WatthourTotal/" from the topic to get the s0 port
       int s0Port = String(topic_s0_watthour_port).toInt();
-      float watthour = String(msg).toFloat();
+      double watthour = strtod(msg, NULL); //String::toFloat() loses whole Wh above 16777216 Wh
       restore_s0_Watthour(s0Port, watthour);
       //unsubscribe after restoring the watthour values
       char mqtt_topic[256];
