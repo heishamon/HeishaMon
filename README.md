@@ -196,7 +196,7 @@ Prints a value to the console.
 Concatenates various values into a combined string. E.g.: `@SetCurves = concat('{zone1:{heat:{target:{high:', @Z1_Heat_Curve_Target_High_Temp, ',low:32}}}}');`
 
 - `gpio`
-Allows setting or getting a GPIO state. When called with a single argument, a GPIO state is returned. When called with two arguments the state of a GPIO is set. This function only sets digital pins so the state can only be 0 or 1. The two relays on the large heishamon are gpio21 and gpio47. See the example to switch them each two seconds.
+Allows setting or getting a GPIO state. When called with a single argument, a GPIO state is returned. When called with two arguments the state of a GPIO is set. This function only sets digital pins so the state can only be 0 or 1. The two relays on the large heishamon are gpio21 and gpio47. The user-configurable extra GPIOs (see below) can also be addressed by their pin number. See the example to switch the relays each two seconds.
 
 ```
 on System#Boot then
@@ -402,6 +402,44 @@ The ESP32 large board also supports relay control through the existing HTTP REST
 Both parameters may be combined, for example `/command?SetRelayOne=1&SetRelayTwo=0`. The plain-text response reports the resulting output level, for example `SetRelayOne: 1`. As with MQTT relay commands, `1`, `true`, `on`, and `enable` turn the relay on (text is case-insensitive); other values turn it off. REST switching works without an MQTT connection and publishes retained relay states when MQTT is connected. These commands are only available on ESP32.
 
 Read both output states with `GET http://<HeishaMon-IP>/json`: the `relays` array contains `Name` (`Relay 1` / `Relay 2`) and numeric `Value` (`0` / `1`). These are GPIO output levels, not mechanical contact feedback.
+
+## User-configurable extra GPIO
+In addition to the fixed relay pins, HeishaMon exposes a number of user-configurable GPIO pins that can each be independently set to Input (pull-up), Input, or Output mode. Configure them in the settings web menu, under the **Extra GPIO** panel.
+
+**Available pins per platform:**
+- **ESP8266:** 3 extra GPIOs (pins 1, 3, 16)
+- **ESP32:** 5 extra GPIOs (pins 33–37); relay pins 21 and 47 remain fixed
+
+Each pin is listed in the panel as "GPIO 1", "GPIO 2", etc., with its physical pin number shown alongside (e.g. "GPIO 1 (pin 1)"). The chosen mode is saved in settings and (re-)applied on boot and whenever settings are saved, so a pin already wired as an input can be safely repurposed as an output (or vice versa) without a firmware reflash.
+
+**Controlling output GPIOs over MQTT:**
+For pins set to Output, send `1`, `0`, `on`, `off`, `true`, or `false` to:
+```
+panasonic_heat_pump/gpio/extra/N
+```
+where `N` is the 1-based index of the extra GPIO shown in the settings panel (e.g. `extra/1` for "GPIO 1"), not its physical pin number. Values sent to a pin that isn't configured as Output are ignored.
+
+**Reading GPIO states over MQTT:**
+Both input and output pin states are automatically published (retained) to the same `panasonic_heat_pump/gpio/extra/N` topics whenever a state changes, and for all extra GPIOs on first MQTT connect.
+
+**HTTP API:**
+You can read all extra GPIO states as JSON via a GET request:
+```
+GET /gpio
+```
+Response example:
+```json
+[{"pin":33,"mode":2,"state":1},{"pin":34,"mode":0,"state":0}, ...]
+```
+where `pin` is the physical pin number, and `mode` is 0 = Input (pull-up), 1 = Input, 2 = Output.
+
+To set an output pin via HTTP POST, use the 1-based extra-GPIO index (same `N` as the MQTT topic, not the physical pin number):
+```
+POST /gpio?pin=N&value=1
+```
+
+**Using extra GPIOs in rules:**
+The `gpio()` rules function works with the extra GPIO pins by their physical pin number, the same as the relay pins (see the `gpio` command further up in this README).
 
 ## Opentherm support
 If your heishamon board supports opentherm the software can also be used to bridge opentherm information from a compatible thermostat to your home automation over MQTT or JSON and as mentioned above it can also be connected directly in the rules to connect opentherm information to the heatpump and back, for example to display the outside temperature from the heatpump on your opentherm thermostat. If you enable opentherm support in settings there will be a new tab visible in the web page. On that tab you will see opentherm values. Some are of type R(ead) and some are W(rite), and some are both. Read means that the thermostat can read that information from the heishamon. You provide that information over MQTT (or using the rules) by updating this value on the mqtt 'opentherm/read' topic, for example 'panasonic_heat_pump/opentherm/read/outsideTemp'. The write values are information from the thermostat, like 'roomTemp'. These are available on mqtt topic 'opentherm/write'. You can use these values to change the heatpump behaviour in anyway you want using your home automation and mqtt set-commands to heishamon on using the internal rules.
