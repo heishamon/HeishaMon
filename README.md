@@ -367,6 +367,16 @@ As until today we don't know how the commands sent to the heatpump are processed
 ## DS18b20 1-wire support
 The software also supports ds18b20 1-wire temperature sensors reading. A proper 1-wire configuration (with 4.7kohm pull-up resistor) connected to GPIO4 will be read each configured secs (minimal 5) and send at the panasonic_heat_pump/1wire/"sensor-hex-address" topic. On the pre-made boards this 4.7kohm resistor is already installed.
 
+### Calibration offset
+
+Each sensor can get a calibration offset (in °C, steps of 0.1, range -10.0 to +10.0) which is added to every raw reading. The corrected value is what is published to MQTT, shown on the web page, returned in the JSON output and used by the rules (`ds18b20#...`). The offset can be set:
+
+- in the web interface, in the "Offset" column of the 1-wire sensor table
+- over HTTP: `http://heishamon.local/dallasoffset?<sensor-hex-address>=0.3`
+- over MQTT: publish the value to `panasonic_heat_pump/1wire/<sensor-hex-address>/offset/set` (both `0.3` and `0,3` are accepted)
+
+The active offset is published (retained) on `panasonic_heat_pump/1wire/<sensor-hex-address>/offset` and returned as `Offset` in the `/json` output. Offsets are stored in `/dallasoffset.json` on the device and survive a reboot. A typical calibration: put all sensors together in one well-stirred container of water, compare them against a reference thermometer (or against their average) and set the difference as offset.
+
 ## Large board relay control
 The newer, large, heishamon contains two onboard relays which can be switched on and off using MQTT commands. The relays can be used for any contact switching, even 230V mains (max 5A). For example to switch the 230V contacts in the heatpump for controlling the 'external thermostat', switching a pump on or off or other lower power devices. I do not recommend to use the relay as a switch for a electric heater as they use too much power. To control the relay just send a value of 1 or 0 to the MQTT topic "panasonic_heat_pump/gpio/relay/one" for relay one or "panasonic_heat_pump/gpio/relay/two" for relay two.
 

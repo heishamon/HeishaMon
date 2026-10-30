@@ -523,6 +523,10 @@ void mqtt_reconnect()
           s0_restore_subscribed(2);
         }
       }
+      if (heishamonSettings.use_1wire) { // allow setting the per-sensor calibration offset over mqtt: <base>/1wire/<address>/offset/set
+        sprintf_P(mqtt_topic, PSTR("%s/%s/+/offset/set"), heishamonSettings.mqtt_topic_base, mqtt_topic_1wire);
+        mqtt_client.subscribe(mqtt_topic);
+      }
       if (heishamonSettings.use_1wire && mqttReconnects == 1) { // only on first connect: retrieve previously known 1wire sensors from their retained mqtt topics
         sprintf_P(mqtt_topic, PSTR("%s/%s/+"), heishamonSettings.mqtt_topic_base, mqtt_topic_1wire);
         mqtt_client.subscribe(mqtt_topic);
@@ -1036,8 +1040,12 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       mqttGPIOCallback(topic_gpiocommand, msg);
     } else if (strncmp(topic_command, mqtt_topic_1wire, strlen(mqtt_topic_1wire)) == 0) { //this is a 1wire address topic, restore its retained value at boot
       char* topic_1wire_address = topic_command + strlen(mqtt_topic_1wire) + 1; //strip the "1wire/" from the topic to get the sensor address
-      if ((strchr(topic_1wire_address, '/') == NULL) && (length > 0)) { //only handle the address topic itself (not .../alias) and skip empty (cleared) retained messages
+      char* topic_1wire_sub = strchr(topic_1wire_address, '/');
+      if ((topic_1wire_sub == NULL) && (length > 0)) { //only handle the address topic itself (not .../alias) and skip empty (cleared) retained messages
         restoreDallasFromMqtt(topic_1wire_address, String(msg).toFloat(), log_message);
+      } else if ((topic_1wire_sub != NULL) && (strcmp_P(topic_1wire_sub, PSTR("/offset/set")) == 0) && (length > 0)) { //set the calibration offset of a sensor
+        *topic_1wire_sub = '\0'; //terminate the address (topiccopy is a private copy of the topic)
+        changeDallasOffset(mqtt_client, heishamonSettings.mqtt_topic_base, topic_1wire_address, msg, log_message);
       }
     }
     free(topiccopy);
@@ -1096,6 +1104,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           client->route = 60;
         } else if (strcmp((char *)dat, "/removedallas") == 0) {
           client->route = 190;
+        } else if (strcmp((char *)dat, "/dallasoffset") == 0) {
+          client->route = 195;
         } else if (strcmp((char *)dat, "/togglelog") == 0) {
           client->route = 1;
           log_message(_F("Toggled mqtt log flag"));
@@ -1196,6 +1206,12 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 190: {
               removeDallasSensor(mqtt_client, heishamonSettings.mqtt_topic_base, (char *)args->name, log_message);
+              return 0;
+            } break;
+          case 195: {
+              char value[16];
+              snprintf(value, sizeof(value), "%.*s", (int)args->len, (char *)args->value);
+              changeDallasOffset(mqtt_client, heishamonSettings.mqtt_topic_base, (char *)args->name, value, log_message);
               return 0;
             } break;
           case 100: {
@@ -1340,6 +1356,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return 0;
             } break;
           case 190: {
+              return 0;
+            } break;
+          case 195: {
               return 0;
             } break;
           case 80: {
@@ -1487,7 +1506,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 60:
           case 70:
-          case 190: {
+          case 190:
+          case 195: {
               header->ptr += sprintf_P((char *)header->buffer, PSTR("Location: /"));
               return -1;
             } break;

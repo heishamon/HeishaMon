@@ -7,6 +7,7 @@
 #include "src/common/webserver.h"
 
 #define MAX_DALLAS_SENSORS 15
+#define DALLAS_OFFSET_MAX 10.0 // max absolute calibration offset in degrees Celsius (set in steps of 0.1)
 #if defined(ESP8266)
 #define ONE_WIRE_BUS 4
 #elif defined(ESP32)
@@ -21,6 +22,7 @@ struct dallasDataStruct {
   DeviceAddress sensor;
   char address[17] = "";
   char alias[32] = "NOT SET";
+  float offset = 0.0; // calibration offset (degrees Celsius) added to every raw reading of this sensor
 };
 
 void resetlastalldatatime_dallas();
@@ -29,6 +31,7 @@ void initDallasSensors(void (*log_message)(char*), unsigned int updataAllDallasT
 void rescanDallasSensors(void (*log_message)(char*), unsigned int dallasResolution);
 void dallasJsonOutput(struct webserver_t *client);
 void changeDallasAlias(char* address, char* alias);
+bool changeDallasOffset(PubSubClient &mqtt_client, char* mqtt_topic_base, char* address, const char* value, void (*log_message)(char*));
 void removeDallasSensor(PubSubClient &mqtt_client, char* mqtt_topic_base, char* address, void (*log_message)(char*));
 void restoreDallasFromMqtt(char* address, float temperature, void (*log_message)(char*));
 

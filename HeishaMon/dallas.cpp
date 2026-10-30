@@ -30,6 +30,8 @@ unsigned int updateAllDallasTime = 30000; // will be set using heishmonSettings
 unsigned int dallasTimerWait = 30000; // will be set using heishmonSettings
 void loadDallasAlias();
 void saveDallasAliasFile();
+void loadDallasOffset();
+void saveDallasOffsetFile();
 
 static int findDallasSlot(const char* address) {
   for (int i = 0; i < MAX_DALLAS_SENSORS; i++) {
@@ -87,6 +89,7 @@ void rescanDallasSensors(void (*log_message)(char*), unsigned int dallasResoluti
       actDallasData[slot].temperature = -127.0;
       actDallasData[slot].lastgoodtime = 0;
       strlcpy(actDallasData[slot].alias, "NOT SET", sizeof(actDallasData[slot].alias));
+      actDallasData[slot].offset = 0.0;
       sprintf_P(log_msg, PSTR("Found new 1wire sensor: %s"), addrStr); log_message(log_msg);
       sprintf_P(log_msg, PSTR("{\"data\": {\"dallasRescan\": true}}")); websocket_write_all(log_msg, strlen(log_msg)); // tell open browser tabs to reload the sensor table
     }
@@ -103,6 +106,7 @@ void rescanDallasSensors(void (*log_message)(char*), unsigned int dallasResoluti
 
   if (DALLASASYNC) DS18B20.setWaitForConversion(false); //async 1wire during next loops
   loadDallasAlias();
+  loadDallasOffset();
 }
 
 void initDallasSensors(void (*log_message)(char*), unsigned int updateAllDallasTimeSettings, unsigned int dallasTimerWaitSettings, unsigned int dallasResolution) {
@@ -151,7 +155,9 @@ void readNewDallasTemp(PubSubClient &mqtt_client, void (*log_message)(char*), ch
         websocket_write_all(log_msg, strlen(log_msg));
       }
       float allowedtempdiff = (((millis() - actDallasData[i].lastgoodtime)) / 1000.0) * MAXTEMPDIFFPERSEC;
-      if (fabs(temp - 85.0) < 0.0001) { // 85.0C is the DS18B20 power-on reset default, not a real reading; sensor is online, just not converted yet
+      bool powerOnReset = (fabs(temp - 85.0) < 0.0001); // check the raw value, before the calibration offset is applied
+      temp += actDallasData[i].offset; // apply the per-sensor calibration offset; everything below (filter, mqtt, json, rules) uses the corrected value
+      if (powerOnReset) { // 85.0C is the DS18B20 power-on reset default, not a real reading; sensor is online, just not converted yet
         sprintf_P(log_msg, PSTR("Ignoring 1wire sensor power-on-reset value (85.00): %s"), actDallasData[i].address);
         log_message(log_msg);
       } else if ((actDallasData[i].temperature != -127.0) and ((temp > (actDallasData[i].temperature + allowedtempdiff)) or (temp < (actDallasData[i].temperature - allowedtempdiff)))) {
@@ -168,6 +174,8 @@ void readNewDallasTemp(PubSubClient &mqtt_client, void (*log_message)(char*), ch
             sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[i].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
             sprintf_P(valueStr, PSTR("%s"), actDallasData[i].alias);
             sprintf_P(mqtt_topic, PSTR("%s/%s/%s/alias"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[i].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
+            sprintf_P(valueStr, PSTR("%.1f"), actDallasData[i].offset);
+            sprintf_P(mqtt_topic, PSTR("%s/%s/%s/offset"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[i].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
           } else {
             sprintf_P(valueStr, PSTR("{\"Temperature\":%.2f,\"Alias\":\"%s\"}"), actDallasData[i].temperature, actDallasData[i].alias);
             sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[i].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
@@ -214,7 +222,10 @@ void dallasJsonOutput(struct webserver_t *client) {
     webserver_send_content(client, str, strlen(str));
     webserver_send_content_P(client, PSTR(",\"Alias\":\""), 10);
     webserver_send_content(client, actDallasData[i].alias, strlen(actDallasData[i].alias));
-    webserver_send_content_P(client, PSTR("\",\"Present\":"), 12);
+    webserver_send_content_P(client, PSTR("\",\"Offset\":"), 11);
+    dtostrf(actDallasData[i].offset, 0, 1, str);
+    webserver_send_content(client, str, strlen(str));
+    webserver_send_content_P(client, PSTR(",\"Present\":"), 11);
     if (actDallasData[i].present) {
       webserver_send_content_P(client, PSTR("true"), 4);
     } else {
@@ -260,11 +271,13 @@ void removeDallasSensor(PubSubClient &mqtt_client, char* mqtt_topic_base, char* 
   // publishing an empty retained payload clears the previously retained message on the broker
   sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_1wire, address); mqtt_client.publish(mqtt_topic, "", true);
   sprintf_P(mqtt_topic, PSTR("%s/%s/%s/alias"), mqtt_topic_base, mqtt_topic_1wire, address); mqtt_client.publish(mqtt_topic, "", true);
+  sprintf_P(mqtt_topic, PSTR("%s/%s/%s/offset"), mqtt_topic_base, mqtt_topic_1wire, address); mqtt_client.publish(mqtt_topic, "", true);
 
   sprintf_P(log_msg, PSTR("Removed 1wire sensor: %s"), address); log_message(log_msg);
 
   actDallasData[slot] = dallasDataStruct();
   saveDallasAliasFile();
+  saveDallasOffsetFile();
   sprintf_P(log_msg, PSTR("{\"data\": {\"dallasRescan\": true}}")); websocket_write_all(log_msg, strlen(log_msg)); // tell open browser tabs to reload the sensor table
 }
 
@@ -281,6 +294,7 @@ void restoreDallasFromMqtt(char* address, float temperature, void (*log_message)
     strlcpy(actDallasData[slot].alias, "NOT SET", sizeof(actDallasData[slot].alias));
     sprintf_P(log_msg, PSTR("Restored previously known 1wire sensor from mqtt: %s"), address); log_message(log_msg);
     loadDallasAlias();
+    loadDallasOffset();
     sprintf_P(log_msg, PSTR("{\"data\": {\"dallasRescan\": true}}")); websocket_write_all(log_msg, strlen(log_msg)); // tell open browser tabs to reload the sensor table
   }
   if (actDallasData[slot].lastgoodtime == 0) { //only backfill if we haven't taken a real reading yet this boot
@@ -307,4 +321,102 @@ void loadDallasAlias() {
       }
     }
   }
+}
+
+// Calibration offsets are stored in their own file instead of being added to dallas.json,
+// so a downgrade to an older firmware (which expects plain alias strings in dallas.json) keeps working.
+void saveDallasOffsetFile() {
+  JsonDocument jsonDoc;
+  for (int i = 0 ; i < dallasDevicecount; i++) {
+    if (!actDallasData[i].known) continue;
+    if (actDallasData[i].offset == 0.0) continue; // only store sensors that actually have an offset
+    jsonDoc[actDallasData[i].address] = actDallasData[i].offset;
+  }
+  if (LittleFS.begin()) {
+    File configFile = LittleFS.open("/dallasoffset.json", "w");
+    if (configFile) {
+      serializeJson(jsonDoc, configFile);
+      configFile.close();
+    }
+  }
+}
+
+// rounds to 0.1 degree steps and clamps to +/- DALLAS_OFFSET_MAX
+static float sanitizeDallasOffset(float offset) {
+  offset = roundf(offset * 10.0) / 10.0;
+  if (offset > DALLAS_OFFSET_MAX) offset = DALLAS_OFFSET_MAX;
+  if (offset < -DALLAS_OFFSET_MAX) offset = -DALLAS_OFFSET_MAX;
+  if (offset == 0.0) offset = 0.0; // normalize -0.0
+  return offset;
+}
+
+void loadDallasOffset() {
+  if (LittleFS.begin()) {
+    if (LittleFS.exists("/dallasoffset.json")) {
+      File configFile = LittleFS.open("/dallasoffset.json", "r");
+      if (configFile) {
+        JsonDocument jsonDoc;
+        DeserializationError error = deserializeJson(jsonDoc, configFile);
+        configFile.close();
+        if (!error) {
+          for (int i = 0 ; i < dallasDevicecount; i++) {
+            if (!actDallasData[i].known) continue;
+            if (jsonDoc[actDallasData[i].address].is<float>()) {
+              actDallasData[i].offset = sanitizeDallasOffset(jsonDoc[actDallasData[i].address].as<float>());
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+bool changeDallasOffset(PubSubClient &mqtt_client, char* mqtt_topic_base, char* address, const char* value, void (*log_message)(char*)) {
+  char log_msg[256];
+  char mqtt_topic[256];
+  char valueStr[16];
+
+  int slot = findDallasSlot(address);
+  if (slot < 0) {
+    sprintf_P(log_msg, PSTR("Cannot set offset, unknown 1wire sensor: %s"), address); log_message(log_msg);
+    return false;
+  }
+  // from here on use the stored address: the caller's buffer may be reused by an mqtt publish
+
+  // accept both "0.3" and "0,3"
+  char buf[16];
+  strlcpy(buf, value, sizeof(buf));
+  for (char* p = buf; *p; p++) {
+    if (*p == ',') *p = '.';
+  }
+  char* end = NULL;
+  float newOffset = strtof(buf, &end);
+  while (end && (*end == ' ')) end++;
+  if ((end == buf) || (end && *end != '\0') || isnan(newOffset) || isinf(newOffset)) {
+    sprintf_P(log_msg, PSTR("Invalid 1wire offset value for %s: %s"), actDallasData[slot].address, value); log_message(log_msg);
+    return false;
+  }
+  newOffset = sanitizeDallasOffset(newOffset);
+
+  float diff = newOffset - actDallasData[slot].offset;
+  actDallasData[slot].offset = newOffset;
+  saveDallasOffsetFile();
+  sprintf_P(log_msg, PSTR("1wire sensor %s offset set to %.1f"), actDallasData[slot].address, newOffset); log_message(log_msg);
+
+  sprintf_P(valueStr, PSTR("%.1f"), newOffset);
+  sprintf_P(mqtt_topic, PSTR("%s/%s/%s/offset"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[slot].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
+
+  if (actDallasData[slot].temperature != -127.0) {
+    // shift the last known value right away, so mqtt, web and rules don't have to wait for the next reading
+    actDallasData[slot].temperature += diff;
+    sprintf_P(valueStr, PSTR("%.2f"), actDallasData[slot].temperature);
+    sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_1wire, actDallasData[slot].address); mqtt_client.publish(mqtt_topic, valueStr, MQTT_RETAIN_VALUES);
+    sprintf_P(log_msg, PSTR("{\"data\": {\"dallasvalues\": {\"sensorID\": \"%s\", \"value\": %.2f, \"offset\": %.1f}}}"), actDallasData[slot].address, actDallasData[slot].temperature, newOffset);
+    websocket_write_all(log_msg, strlen(log_msg));
+    rules_event_cb(_F("ds18b20#"), actDallasData[slot].address);
+  } else {
+    sprintf_P(log_msg, PSTR("{\"data\": {\"dallasvalues\": {\"sensorID\": \"%s\", \"offset\": %.1f}}}"), actDallasData[slot].address, newOffset);
+    websocket_write_all(log_msg, strlen(log_msg));
+  }
+  return true;
 }

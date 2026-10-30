@@ -334,6 +334,16 @@ input:disabled + .theme-slider-compact {
   background:var(--bg-elevated);
 }
 .alias-edit:focus{border-color:var(--border-focus);box-shadow:0 0 0 2px var(--accent-glow)}
+.offset-edit{
+  width:64px;
+  padding:3px 6px;
+  font-size:12.5px;
+  color:var(--text-secondary);
+  background:transparent;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+}
+.offset-edit:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 2px var(--accent-glow)}
 .tab-pane{display:none}
 .tab-pane.active{display:block}
 .settings-grid{
@@ -884,6 +894,10 @@ function startWebsockets(){
             var dID=j.data.dallasvalues.sensorID;
             if(j.data.dallasvalues.value!==undefined)updCell('SensorID-'+dID+'-Temperature',j.data.dallasvalues.value);
             if(j.data.dallasvalues.present!==undefined)updDallasPresence(dID,j.data.dallasvalues.present);
+            if(j.data.dallasvalues.offset!==undefined){
+              var oi=document.getElementById('SensorID-'+dID+'-OffsetInput');
+              if(oi&&document.activeElement!==oi)oi.value=Number(j.data.dallasvalues.offset).toFixed(1);
+            }
           } else if(j.data.s0values){
             updCell('s0port-'+j.data.s0values.s0port+'-Watt',j.data.s0values.Watt);
             updCell('s0port-'+j.data.s0values.s0port+'-Watthour',j.data.s0values.Watthour);
@@ -1036,6 +1050,17 @@ var dallasAliasEdit=function(){
   xhr.open('GET','/dallasalias?'+addr+'='+alias,true);
   xhr.send();
 };
+var dallasOffsetEdit=function(){
+  isEditing=false;
+  var addr=this.getAttribute('data-address');
+  var v=parseFloat(String(this.value).replace(',','.'));
+  if(isNaN(v))return;
+  v=Math.max(-10,Math.min(10,Math.round(v*10)/10));
+  this.value=v.toFixed(1);
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','/dallasoffset?'+addr+'='+encodeURIComponent(v.toFixed(1)),true);
+  xhr.send();
+};
 function rescanDallas(){
   var xhr=new XMLHttpRequest();
   xhr.open('GET','/scandallas',true);
@@ -1056,7 +1081,7 @@ function renderDallasTable(d){
     var row=document.createElement('tr');
     var sID=item['Sensor'];
     if(!item.Present)row.style.opacity='0.6';
-    ['Sensor','Temperature','Alias'].forEach(function(k){
+    ['Sensor','Temperature','Offset','Alias'].forEach(function(k){
       var cell=document.createElement('td');
       cell.id='SensorID-'+sID+'-'+k;
       if(k==='Alias'){
@@ -1068,6 +1093,18 @@ function renderDallasTable(d){
         div.addEventListener('focus',function(){isEditing=true;});
         div.addEventListener('blur',dallasAliasEdit);
         cell.appendChild(div);
+      } else if(k==='Offset'){
+        var inp=document.createElement('input');
+        inp.type='number';inp.step='0.1';inp.min='-10';inp.max='10';
+        inp.value=(item.Offset!==undefined?Number(item.Offset):0).toFixed(1);
+        inp.className='offset-edit';
+        inp.id='SensorID-'+sID+'-OffsetInput';
+        inp.title='Calibration offset in °C, added to the raw sensor reading';
+        inp.setAttribute('data-address',item.Sensor);
+        inp.addEventListener('focus',function(){isEditing=true;});
+        inp.addEventListener('blur',function(){isEditing=false;});
+        inp.addEventListener('change',dallasOffsetEdit);
+        cell.appendChild(inp);
       } else {cell.textContent=item[k];}
       row.appendChild(cell);
     });
@@ -1320,9 +1357,9 @@ static const char webBodyRootDallasValues[] FLASHPROG = R"====(
 <div class='panel'>
   <div class='panel-header'><h3>Dallas 1-Wire Sensors</h3><button onclick='rescanDallas()' class='btn btn-ghost' style='padding:4px 10px;font-size:11px;height:24px;'>&#8635; Rescan bus</button></div>
   <table><thead><tr>
-    <th>Sensor</th><th>Temperature</th><th>Alias</th><th>Status</th><th></th>
+    <th>Sensor</th><th>Temperature</th><th>Offset (&deg;C)</th><th>Alias</th><th>Status</th><th></th>
   </tr></thead><tbody id='dallasvalues'>
-    <tr><td colspan='5' style='color:var(--text-muted);padding:24px;text-align:center'>Loading…</td></tr>
+    <tr><td colspan='6' style='color:var(--text-muted);padding:24px;text-align:center'>Loading…</td></tr>
   </tbody></table>
 </div></div>
 )====";
