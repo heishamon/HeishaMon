@@ -31,6 +31,7 @@ static const char webCSS[] FLASHPROG = R"====(
   --green:#28a745;
   --green-glow:rgba(40,167,69,0.15);
   --orange:#fd7e14;
+  --switch-track:#c3c9d1;
   --radius:8px;
   --radius-sm:5px;
   --radius-lg:12px;
@@ -57,6 +58,7 @@ html.dark-mode {
   --green:#2ecc94;
   --green-glow:rgba(46,204,148,0.2);
   --orange:#f0a500;
+  --switch-track:#3a4257;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -276,6 +278,7 @@ tbody td:first-child{color:var(--text-primary);font-family:'JetBrains Mono',mono
   letter-spacing:0.3px;
 }
 .theme-switch-compact {
+  display:inline-block;
   position:relative;
   width:32px;
   height:18px;
@@ -292,7 +295,8 @@ tbody td:first-child{color:var(--text-primary);font-family:'JetBrains Mono',mono
   left:0;
   right:0;
   bottom:0;
-  background:var(--border);
+  background:var(--switch-track);
+  border:1px solid var(--border);
   transition:0.3s;
   border-radius:18px;
 }
@@ -309,6 +313,7 @@ tbody td:first-child{color:var(--text-primary);font-family:'JetBrains Mono',mono
 }
 input:checked + .theme-slider-compact {
   background:var(--accent);
+  border-color:var(--accent);
 }
 input:checked + .theme-slider-compact:before {
   transform:translateX(14px);
@@ -890,6 +895,10 @@ function startWebsockets(){
             updCell('s0port-'+j.data.s0values.s0port+'-WatthourTotal',j.data.s0values.WatthourTotal);
           } else if(j.data.opentherm){
             updCell(j.data.opentherm.name+'-value',j.data.opentherm.value);
+          } else if(j.data.gpio){
+            var gpioCell=document.getElementById('gpio-'+j.data.gpio.pin+'-state');
+            var gpioInput=gpioCell&&gpioCell.querySelector('input[type=checkbox]');
+            if(gpioInput)gpioInput.checked=!!j.data.gpio.state;
           } else if(j.data.dallasRescan){
             refreshDallasTable();
           }
@@ -1099,6 +1108,43 @@ async function refreshDallasTable(){
     renderDallasTable(d);
   }catch(e){}
 }
+var gpioModeNames={0:'Input (pull-up)',1:'Input',2:'Output'};
+function renderGpioTable(d){
+  if(!(d&&d.gpio&&Array.isArray(d.gpio)))return;
+  var tb=document.getElementById('gpiovalues');
+  if(!tb)return; // GPIO tab/pane isn't rendered at all in listen-only mode
+  tb.innerHTML='';
+  // first 2 pins are the fixed relays on boards that have them (ESP32); the rest are user-configurable GPIOs
+  // Fixed ESP32 relays are identified by physical pin, not the number of visible GPIOs.
+  // OpenTherm may reserve pins and reduce the visible count.
+  var extraIdx=0;
+  d.gpio.forEach(function(item,i){
+    var row=document.createElement('tr');
+    var nameCell=document.createElement('td');
+    var relayName=item.pin===21?'Relay 1':(item.pin===47?'Relay 2':null);
+    nameCell.textContent=relayName||('GPIO '+(++extraIdx));
+    row.appendChild(nameCell);
+    var pinCell=document.createElement('td');pinCell.textContent=item.pin;row.appendChild(pinCell);
+    var modeCell=document.createElement('td');modeCell.textContent=gpioModeNames[item.mode]||item.mode;row.appendChild(modeCell);
+    var stateCell=document.createElement('td');
+    stateCell.id='gpio-'+item.pin+'-state';
+    var label=document.createElement('label');label.className='theme-switch-compact';
+    var input=document.createElement('input');input.type='checkbox';input.checked=!!item.state;
+    if(item.mode===2){
+      input.onchange=function(){toggleGpio(item.pin,this.checked);};
+    } else {
+      input.disabled=true;
+    }
+    var slider=document.createElement('span');slider.className='theme-slider-compact';
+    label.appendChild(input);label.appendChild(slider);
+    stateCell.appendChild(label);
+    row.appendChild(stateCell);
+    tb.appendChild(row);
+  });
+}
+function toggleGpio(pin,on){
+  fetch('/gpio?pin='+pin+'&value='+(on?1:0)).catch(function(){});
+}
 async function refreshTable(){
   try{
     if(isEditing)return;
@@ -1117,6 +1163,7 @@ async function refreshTable(){
       d['heatpump optional'].forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
     }
     renderDallasTable(d);
+    renderGpioTable(d);
     if(d&&d.s0&&Array.isArray(d.s0)){
       var tb=document.getElementById('s0values');tb.innerHTML='';
       d.s0.forEach(function(item){
@@ -1295,6 +1342,9 @@ static const char webBodyRootS0Tab[] FLASHPROG = R"====(
 static const char webBodyRootOpenthermTab[] FLASHPROG = R"====(
 <button class='tabnav-btn' data-tab='Opentherm' onclick="openTable('Opentherm')">Opentherm</button>
 )====";
+static const char webBodyRootGpioTab[] FLASHPROG = R"====(
+<button class='tabnav-btn' data-tab='Gpio' onclick="openTable('Gpio')">GPIO</button>
+)====";
 static const char webTabnavClose[] FLASHPROG = R"====(
   <button class='tabnav-btn' data-tab='Console' onclick="openTable('Console')">Console</button>
 </nav>
@@ -1351,6 +1401,18 @@ static const char webBodyRootOpenthermValues[] FLASHPROG = R"====(
 </div></div>
 )====";
 
+static const char webBodyRootGpioValues[] FLASHPROG = R"====(
+<div id='Gpio' class='tab-pane'>
+<div class='panel'>
+  <div class='panel-header'><h3>GPIO</h3><span class='panel-meta'>Live</span></div>
+  <table><thead><tr>
+    <th>Name</th><th>Pin</th><th>Mode</th><th>State</th>
+  </tr></thead><tbody id='gpiovalues'>
+    <tr><td colspan='4' style='color:var(--text-muted);padding:24px;text-align:center'>Loading…</td></tr>
+  </tbody></table>
+</div></div>
+)====";
+
 static const char webBodyRootConsole[] FLASHPROG = R"====(
 <div id='Console' class='tab-pane'>
 <div class='panel' style='display:flex;flex-direction:column;height:calc(100vh - 180px)'>
@@ -1397,6 +1459,28 @@ function ShowHideDallasTable(cb){
 }
 function ShowHideS0Table(cb){
   document.getElementById('s0settings').style.display=cb.checked?'block':'none';
+}
+function updateGPIORowVisibility(){
+  // On ESP8266, two hardware facts make some Extra GPIO settings unusable:
+  // - Opentherm hardwires pins 1 and 3 (GPIO 1/GPIO 2) for its own TX/RX while it's enabled.
+  // - Listen-only mode skips enabling the shared level shifter/mosfets on boot, so ALL extra
+  //   GPIO pins are left unpowered/floating while it's enabled.
+  var otEl=document.getElementsByName('opentherm')[0];
+  var loEl=document.getElementsByName('listenonly')[0];
+  var otOn=!!(otEl&&otEl.checked);
+  var loOn=!!(loEl&&loEl.checked);
+  document.querySelectorAll('.gpio-row').forEach(function(row){
+    var hide=loOn||(otOn&&row.classList.contains('ot-conflict-gpio'));
+    row.style.display=hide?'none':'';
+    var sel=row.querySelector('select');
+    if(sel)sel.disabled=hide;
+  });
+  document.querySelectorAll('.ot-conflict-note').forEach(function(row){
+    row.style.display=(otOn&&!loOn)?'':'none';
+  });
+  document.querySelectorAll('.lo-conflict-note').forEach(function(row){
+    row.style.display=loOn?'':'none';
+  });
 }
 function changeMinWatt(port){
   var ppkwh=document.getElementById('s0_ppkwh_'+port).value;
@@ -1602,13 +1686,13 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Debug log to serial1 (GPIO2)</label><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Force load rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Listen Only</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div class='checkbox-wrap'><input type='checkbox' name='listenonly' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='listenonly' value='enabled'></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>1-Wire DS18B20</h3></div>
@@ -1661,6 +1745,15 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span></div>
   </div></div>
   </div>
+  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Extra GPIO</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row gpio-row ot-conflict-gpio'><label class='setting-label'>GPIO 1 (pin 1)</label><select name='gpio_1_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row gpio-row ot-conflict-gpio'><label class='setting-label'>GPIO 2 (pin 3)</label><select name='gpio_2_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row gpio-row'><label class='setting-label'>GPIO 3 (pin 16)</label><select name='gpio_3_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row ot-conflict-note' style='display:none'><span class='setting-hint' style='padding:8px 0'>GPIO 1 and GPIO 2 are reserved for Opentherm's TX/RX while it's enabled.</span></div>
+    <div class='setting-row lo-conflict-note' style='display:none'><span class='setting-hint' style='padding:8px 0'>Extra GPIOs can't be used while Listen Only is active.</span></div>
+  </div></div>
   <div class='form-actions'>
     <button type='submit' class='btn btn-primary'>Save Settings</button>
   </div>
@@ -1764,6 +1857,17 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span></div>
   </div></div>
   </div>
+  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Extra GPIO</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Relay 1 (pin 21)</label><select class='setting-input' disabled><option value='2' selected>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>Relay 2 (pin 47)</label><select class='setting-input' disabled><option value='2' selected>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>GPIO 1 (pin 33)</label><select name='gpio_1_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>GPIO 2 (pin 34)</label><select name='gpio_2_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>GPIO 3 (pin 35)</label><select name='gpio_3_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>GPIO 4 (pin 36)</label><select name='gpio_4_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+    <div class='setting-row'><label class='setting-label'>GPIO 5 (pin 37)</label><select name='gpio_5_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
+  </div></div>
   <div class='form-actions'>
     <button type='submit' class='btn btn-primary'>Save Settings</button>
   </div>
@@ -1807,6 +1911,7 @@ R"====(
           if(el[0].type.indexOf('select')>-1){var ch=el[0].childNodes;for(var x=0;x<ch.length;x++){if(ch[x].value==j[k])ch[x].selected=true;}}
         }
       }
+      if(typeof updateGPIORowVisibility==='function')updateGPIORowVisibility();
       document.getElementById('loading_settings').style.display='none';
       document.getElementById('settings_form').style.display='block';
       changeMinWatt(1);changeMinWatt(2);

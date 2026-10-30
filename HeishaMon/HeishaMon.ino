@@ -526,6 +526,7 @@ void mqtt_reconnect()
       if (mqttReconnects == 1) { //only resend all data on first connect to mqtt so a data bomb like and bad mqtt server will not cause a reconnect bomb everytime
         if (heishamonSettings.use_1wire) resetlastalldatatime_dallas(); //resend all 1wire values to mqtt
         resetlastalldatatime(); //resend all heatpump values to mqtt
+        publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, true, heishamonSettings.opentherm, heishamonSettings.listenonly); //publish all GPIO states on first connect
       }
       //use this to receive valid heishamon raw data from other heishamon to debug this OT code
 //#define RAWDEBUG
@@ -1027,7 +1028,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       mqttOTCallback(topic_otcommand, msg);
     } else if (strncmp(topic_command, mqtt_topic_gpio, strlen(mqtt_topic_gpio)) == 0)  {
       char* topic_gpiocommand = topic_command + strlen(mqtt_topic_gpio) + 1; //strip the gpio subtopic from the topic
-      mqttGPIOCallback(topic_gpiocommand, msg);
+      mqttGPIOCallback(topic_gpiocommand, msg, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
     } else if (strncmp(topic_command, mqtt_topic_1wire, strlen(mqtt_topic_1wire)) == 0) { //this is a 1wire address topic, restore its retained value at boot
       char* topic_1wire_address = topic_command + strlen(mqtt_topic_1wire) + 1; //strip the "1wire/" from the topic to get the sensor address
       if ((strchr(topic_1wire_address, '/') == NULL) && (length > 0)) { //only handle the address topic itself (not .../alias) and skip empty (cleared) retained messages
@@ -1110,6 +1111,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           client->route = 81;  //for Apple devices
         } else if (strcmp_P((char *)dat, PSTR("/factoryreset")) == 0) {
           client->route = 90;
+        } else if (strcmp_P((char *)dat, PSTR("/gpio")) == 0) {
+          client->route = 191;
         } else if (strcmp_P((char *)dat, PSTR("/command")) == 0) {
           if ((client->userdata = malloc(1)) == NULL) {
             loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
@@ -1246,6 +1249,34 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           case 110: {
               return cacheSettings(client, args);
             } break;
+          case 191: {
+              // GPIO web API: args "pin" (physical GPIO pin number) and "value" (0/1/on/off/true/false)
+              // Store the physical pin number in userdata between arg callbacks
+              if (strcmp_P((char *)args->name, PSTR("pin")) == 0) {
+                char pin_str[8];
+                snprintf(pin_str, sizeof(pin_str), "%.*s", args->len, args->value);
+                int phys_pin = atoi(pin_str);
+                client->userdata = (void*)(intptr_t)phys_pin;
+              } else if (strcmp_P((char *)args->name, PSTR("value")) == 0) {
+                int phys_pin = (int)(intptr_t)client->userdata;
+                char val_str[8];
+                snprintf(val_str, sizeof(val_str), "%.*s", args->len, args->value);
+                for (int i = 0; i < NUMGPIO; i++) {
+                  if ((int)heishamonSettings.gpioSettings.gpioPin[i] == phys_pin && heishamonSettings.gpioSettings.gpioMode[i] == OUTPUT) {
+                    char topic[16];
+                    if (i < NUMGPIO_RELAY) {
+                      snprintf_P(topic, sizeof(topic), i == 0 ? PSTR("relay/one") : PSTR("relay/two"));
+                    } else {
+                      snprintf_P(topic, sizeof(topic), PSTR("extra/%d"), i - NUMGPIO_RELAY + 1);
+                    }
+                    mqttGPIOCallback(topic, val_str, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                    break;
+                  }
+                }
+                client->userdata = NULL;
+              }
+              return 0;
+            } break;
           case 150: {
               if (Update.isRunning() && (!Update.hasError())) {
                 if ((strcmp((char *)args->name, "md5") == 0) && (args->len > 0)) {
@@ -1371,6 +1402,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 110: {
               int ret = saveSettings(client, &heishamonSettings);
+              setupGPIO(heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly); //re-apply GPIO pin modes if they changed
               #ifdef ESP8266
               if ((!heishamonSettings.opentherm) && (heishamonSettings.listenonly)) {
                 //make sure we disable TX to heatpump-RX using the mosfet so this line is floating and will not disturb cz-taw1
@@ -1465,6 +1497,16 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 180: {
               if (heishamonSettings.use_1wire) rescanDallasSensors(log_message, heishamonSettings.dallasResolution);
+            } break;
+          case 191: {
+              if (client->content == 0) {
+                webserver_send(client, 200, (char *)"application/json", 0);
+                return 0;
+              } else if (client->content == 1) {
+                gpioJsonOutput(client, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                return 0;
+              }
+              return -1;
             } break;
           default: {
               webserver_send(client, 301, (char *)"text/plain", 0);
@@ -1639,7 +1681,7 @@ void switchSerial() {
   proxySerial.flush();  
 #endif
 
-  setupGPIO(heishamonSettings.gpioSettings); //switch extra GPIOs to configured mode
+  setupGPIO(heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly); //switch extra GPIOs to configured mode
 
   //mosfet output enable
   pinMode(ENABLEPIN, OUTPUT);
@@ -2015,7 +2057,13 @@ void loop() {
   checkBootButton();
 
   //webserver function
+  // Diagnostic: a slow synchronous HTTP pass delays MQTT, OpenTherm and heat pump processing.
+  const uint32_t webStart = millis();
   webserver_loop();
+  const uint32_t webElapsed = millis() - webStart;
+  if (webElapsed >= 100) {
+    loggingSerial.printf("DIAG WEB loop=%lu ms\n", (unsigned long)webElapsed);
+  }
 
   // check wifi
   check_wifi();
@@ -2057,6 +2105,8 @@ void loop() {
   }
 
   if (heishamonSettings.use_s0) s0Loop(mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.s0Settings);
+
+  publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, false, heishamonSettings.opentherm, heishamonSettings.listenonly);
 
 #ifdef ESP8266
 //this only runs on ESP8266, the ESP32 does this in vTask
