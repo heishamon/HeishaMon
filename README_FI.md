@@ -450,3 +450,6 @@ TLS-tuki MQTT:lle on tällä hetkellä toteutettu vain ESP32-versiolle. TLS on o
 [IOBroker Manual](Integrations/ioBroker_manual)
 
 [Domoticz](Integrations/Domoticz)
+
+## Lisenssi
+HeishaMon on lisensoitu [Mozilla Public License 2.0](LICENSE) -lisenssillä (MPL-2.0). Lisenssi koskee kaikkia tämän repositorion tiedostoja, joissa ei ole muuta lisenssiotsaketta. Osalla mukana olevista tiedostoista ja laiteohjelmistoon linkitetyistä kirjastoista on oma lisenssinsä, katso [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

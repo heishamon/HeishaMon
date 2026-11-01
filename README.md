@@ -427,3 +427,8 @@ Currently, there is no possibility to delete a once-uploaded CA certificate. So 
 [IOBroker Manual](Integrations/ioBroker_manual)
 
 [Domoticz](Integrations/Domoticz)
+
+## License
+HeishaMon is licensed under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). This applies to all files in this repository that do not carry a different license header. You may use, modify and redistribute HeishaMon, also as compiled firmware, as long as you follow the MPL-2.0: keep the copyright and license notices, publish your changes to HeishaMon files under the MPL-2.0, and tell people who receive a firmware binary where they can get the source code.
+
+Some included code and the libraries linked into the firmware have their own licenses, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
