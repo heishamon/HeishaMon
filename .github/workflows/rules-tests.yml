@@ -1,0 +1,40 @@
+name: Rules engine tests
+
+# Builds the host-side rules harness (Examples/Rules/harness/, plain g++)
+# and runs every example ruleset's tests/ scenarios against the real
+# rules engine. No Arduino toolchain needed.
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'Examples/Rules/**'
+      - 'HeishaMon/src/rules/**'
+      - 'HeishaMon/src/common/**'
+      - 'HeishaMon/decode.h'
+      - 'HeishaMon/commands.h'
+      - '.github/workflows/rules-tests.yml'
+  pull_request:
+    paths:
+      - 'Examples/Rules/**'
+      - 'HeishaMon/src/rules/**'
+      - 'HeishaMon/src/common/**'
+      - 'HeishaMon/decode.h'
+      - 'HeishaMon/commands.h'
+      - '.github/workflows/rules-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build harness and run rules tests
+        run: Examples/Rules/run_tests.sh
+        shell: bash

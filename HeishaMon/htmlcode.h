@@ -1710,6 +1710,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Ethernet module (W5500)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='ethernet' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Disable on boards without the ethernet module to skip the W5500 probe and leave GPIO10-15 untouched. Needs a reboot.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>

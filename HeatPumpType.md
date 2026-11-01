@@ -83,6 +83,11 @@ Assuming that bytes from #129 to #138 are unique for each model of Aquarea heat 
 |76 | 12 D7 0D 98 11 39 94 0F 84 10 | WH-ADC0316M9E8AN2 | WH-WXG12ME8 | Monoblock | 12 | 3ph | T-CAP - M-series DHW 185l |
 |77 | 12 D7 0D 85 11 37 94 0E 84 10 | Monoblock | WH-WXG12ME8 | Monoblock | 12 | 3ph | T-CAP - M-series |
 |78 | E2 D5 0B 34 99 83 92 0D 29 98 | WH-SDC0509L3E5 | WH-WDG09LE5 | KIT-WC09L3E5 | 9 | 1 ph | HP - split L-series 3kW elec heating - revised model |
+|79 | E2 D5 0B 12 95 02 D6 0F 70 95 | WH-SXC12K6E5 | WH-UXZ12KE5 | KIT-WXC12K6E5 | 12 | 1 ph | T-CAP Bi-bloc K-series |
+|80 | 12 D7 0C 98 14 33 94 0C 83 10 | WH-SDC0316M9E8 | WH-WXG09ME8 | Monoblock | 9 | 3ph | T-CAP - M-series  |
+|81 | E2 D5 0D 99 94 02 D6 10 67 95 | WH-ADC0309K3E5 | WH-UDZ07KE5 | KIT-ADC07K3E5 | 7 | 1ph | HP - All-In-One K-series |
+|82 | E2 D5 0F 36 99 02 D6 10 68 95 | WH-ADC0309K3E5AN | WH-UDZ09KE5 | KIT-ADC09K3E5AN | 9 | 1ph | HP - All-In-One K-series - DHW 185l - AN |
+|83 | 42 D4 0B 83 71 42 D2 0B 72 66 | WH-ADC0309J3E5C | WH-UD09JE5-1 | KIT-ADC09JE5C-1 | 9 | 1ph | HP - All-In-One Compact J-series |
 All bytes are used for Heat Pump model identification in the code.
 
-Note: These are the heat pump types that users have verified and reported back the model. HeishaMon should work with all H and J generation Aquarea heat pumps.
+Note: These are the heat pump types that users have verified and reported back the model. HeishaMon should work with all H,J and M generation Aquarea heat pumps.

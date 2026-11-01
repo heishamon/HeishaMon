@@ -60,7 +60,7 @@ Deze variabelen leven binnen een regelblok. Als een regelblok eindigt, worden de
 Deze zijn dezelfde als vermeld op de documentatiepagina Manage Topics en op de HeishaMon-startpagina. De regelset volgt ook de R/W-logica zoals gebruikt via de MQTT en REST API. Dit betekent dat de leestopics verschillen van de schrijftopics. Het lezen van de warmtepompstatus gaat via `@Heatpump_State`, het wijzigen van de status via `@SetHeatpump`.
 
 - `%`: Datum- en tijdvariabelen
-Deze kunnen worden gebruikt voor datum- en tijdgebaseerde regels. Momenteel worden `%hour` (0-23), `%minute` (0-59), `%month` (1-12) en `day` (1-7) ondersteund. Alle zijn gewone integers. Een correcte NTP-configuratie is nodig om de juiste systeemdatum en -tijd in te stellen op de HeishaMon.
+Deze kunnen worden gebruikt voor datum- en tijdgebaseerde regels. Momenteel worden `%hour` (0-23), `%minute` (0-59), `%month` (1-12) en `%day` (1-7) ondersteund. Alle zijn gewone integers. Een correcte NTP-configuratie is nodig om de juiste systeemdatum en -tijd in te stellen op de HeishaMon.
 
 - `?`: Thermostaatparameters
 Deze variabelen weerspiegelen parameters die worden gelezen van de aangesloten thermostaat bij gebruik van de OpenTherm-functionaliteit. De namen zijn hetzelfde voor lezen en schrijven, maar niet alle waarden ondersteunen lezen en/of schrijven.
@@ -166,7 +166,7 @@ Geeft de maximale waarde van de invoerparameters terug.
 Geeft de minimale waarde van de invoerparameters terug.
 
 - `isset`
-Geeft boolean true terug wanneer de invoervariabele nog `NULL` is, in alle andere gevallen false.
+Geeft `1` terug wanneer de invoervariabele een numerieke waarde heeft en `0` wanneer deze nog `NULL` is (een tekstwaarde geeft ook `0`). Gebruik dit om op `NULL` te testen: een vergelijking met `NULL` (bijv. `#g == NULL`) geeft altijd `NULL`, wat false is, dus schrijf in plaats daarvan `if isset(#g) == 0 then`.
 
 - `round`
 Rondt de invoer-float af op het dichtstbijzijnde gehele getal.
@@ -450,3 +450,6 @@ TLS-ondersteuning voor MQTT is momenteel alleen geïmplementeerd voor de ESP32-v
 [IOBroker Handleiding](Integrations/ioBroker_manual)
 
 [Domoticz](Integrations/Domoticz)
+
+## Licentie
+HeishaMon valt onder de [Mozilla Public License 2.0](LICENSE) (MPL-2.0). Dit geldt voor alle bestanden in deze repository zonder een andere licentieheader. Sommige meegeleverde bestanden en de bibliotheken die in de firmware worden gelinkt hebben een eigen licentie, zie [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,65 @@
+# DHW finishes in mild weather while the heat request is still high and
+# heat power reads 0: smart pause must stay locked during the post-DHW
+# ramp-down and only re-evaluate once the lock timer (timer=25) expires.
+time 12 30
+silent Heatpump_State 1
+silent Operating_Mode_State 0
+silent ThreeWay_Valve_State 0
+silent Defrosting_State 0
+silent Max_Pump_Duty 112
+silent DHW_Temp 40
+silent DHW_Target_Temp 47
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 22
+silent Outside_Temp 15
+silent Heating_Off_Outdoor_Temp 16
+silent Main_Outlet_Temp 50
+silent Main_Target_Temp 56
+silent Z1_Heat_Request_Temp 5
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+silent Heat_Power_Consumption 0
+silent DHW_Power_Consumption 1000
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 45
+note DHW started from the remote: valve flips to tank
+silent Operating_Mode_State 4
+set ThreeWay_Valve_State 1
+expectcmd SetCurves {zone1:{heat:{target:{high:53,low:53}}}}
+adv 30
+expectcmd SetOperationMode 4
+adv 30
+expectcmd SetMaxPumpDuty 170
+expectcmd SetPump 1
+note tank reached target, DHW power drops to 0
+silent DHW_Temp 47
+set DHW_Power_Consumption 0
+adv 1
+expectcmd SetOperationMode 0
+expectcmd SetHeatpump 1
+silent Operating_Mode_State 0
+note valve follows a few seconds later: pending timer=25 must be cancelled
+adv 5
+set ThreeWay_Valve_State 0
+note heat power flickers while switching back to room: no pause
+set Heat_Power_Consumption 100
+set Heat_Power_Consumption 0
+expectnone
+adv 240
+expectcmd SetZ1HeatRequestTemperature 5
+expectcmd SetCurves {zone1:{heat:{target:{high:40,low:31}}}}
+adv 30
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 30
+expectcmd SetOperationMode 0
+expectcmd SetHeatpump 1
+expectnone
+note lock expires 300s after the last timer=24: smart pause re-evaluates
+adv 299
+expectnone
+adv 1
+expectcmd SetHeatpump 0
+expectnone

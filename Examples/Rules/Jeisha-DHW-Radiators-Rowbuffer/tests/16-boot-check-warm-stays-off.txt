@@ -1,0 +1,23 @@
+# Reboot while off in warm weather (at/above Heating_Off_Outdoor_Temp):
+# treated as a manual/summer stop, so 08:00 does not restart the unit.
+time 7 58
+silent Heatpump_State 0
+silent Operating_Mode_State 0
+silent ThreeWay_Valve_State 0
+silent Defrosting_State 0
+silent Max_Pump_Duty 112
+silent DHW_Temp 45
+silent DHW_Target_Temp 48
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 21
+silent Outside_Temp 18
+silent Heating_Off_Outdoor_Temp 16
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+silent Z1_Heat_Request_Temp 0
+silent Heat_Power_Consumption 0
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 150
+expectnone

@@ -183,6 +183,10 @@ int timerqueue_size = 0;
 #define ETH_SPI_MOSI    11
 
 void setupETH() {
+  if (!heishamonSettings.ethernet) {
+    loggingSerial.println(F("Ethernet disabled in settings, skipping W5500 init"));
+    return;
+  }
   SPI.begin(ETH_SPI_SCK, ETH_SPI_MISO, ETH_SPI_MOSI);
   if (ETH.begin(ETH_TYPE, ETH_ADDR, ETH_CS, ETH_IRQ, ETH_RST, SPI)) {
     //sethostname on ESP32 after eth.begin (!! for wifi is most be before...!!)

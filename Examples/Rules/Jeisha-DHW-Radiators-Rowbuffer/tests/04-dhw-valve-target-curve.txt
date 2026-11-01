@@ -5,6 +5,7 @@ silent Heatpump_State 1
 silent Operating_Mode_State 0
 silent Max_Pump_Duty 112
 silent Outside_Temp 10
+silent Heating_Off_Outdoor_Temp 16
 silent DHW_Target_Temp 48
 silent DHW_Heat_Delta -8
 silent Room_Thermostat_Temp 21

@@ -14,11 +14,31 @@ on System#Boot then
    #quietMinimumValue = 0;
    #dhwStartHour = 13;
    #dhwStarted = 0;
+   #smartPauseLock = 0;
+   #smartPauseLockSeconds = 300;
+   #bootCheck = 1;
+   #throttleHold = 0;
    setTimer(10, 40);
 end
 
 on timer=10 then
    setTimer(10, 30);
+   if #bootCheck == 1 && isset(@Heatpump_State) && isset(@Operating_Mode_State) && isset(@Outside_Temp) && isset(@Heating_Off_Outdoor_Temp) && isset(@ThreeWay_Valve_State) && isset(@Z1_Heat_Curve_Target_High_Temp) && isset(@Z1_Heat_Curve_Target_Low_Temp) then
+      #bootCheck = 0;
+      if @Operating_Mode_State >= 3 then
+         #smartPauseLock = 1;
+      end
+      if @ThreeWay_Valve_State == 0 && @Z1_Heat_Curve_Target_High_Temp == @Z1_Heat_Curve_Target_Low_Temp && @Z1_Heat_Curve_Target_Low_Temp > #targetHighBeforeDHW then
+         setTimer(22, 30);
+      end
+      if @Outside_Temp < @Heating_Off_Outdoor_Temp then
+         if @Heatpump_State == 0 && @Operating_Mode_State == 0 then
+            #offAtNight = 2;
+         elseif @Heatpump_State == 1 && @Operating_Mode_State == 4 then
+            #stateBeforeDHW = 1;
+         end
+      end
+   end
    if @Operating_Mode_State < 3 && #dhwStarted == 0 then
       #stateBeforeDHW = @Heatpump_State;
       #opModeBeforeDHW = @Operating_Mode_State;
@@ -67,6 +87,8 @@ on timer=10 then
 end
 on dhw_start then
    #dhwStarted = 1;
+   #smartPauseLock = 1;
+   setTimer(25, 0);
    @SetHeatpump = 1;
    if @Outside_Temp < 5 then
       @SetForceDefrost = 1;
@@ -78,6 +100,8 @@ end
 
 on @DHW_Power_Consumption then
    if @Heatpump_State == 1 && @Operating_Mode_State >= 3 && @DHW_Power_Consumption == 0 && ( @DHW_Temp >= @DHW_Target_Temp || @Main_Outlet_Temp >= @Main_Target_Temp ) then
+      #smartPauseLock = 1;
+      setTimer(25, 0);
       setTimer(24, 1);
    end
 end
@@ -86,6 +110,8 @@ on @Defrosting_State then
       if @Defrosting_State == 1 && @ThreeWay_Valve_State == 1 then
          #defrostWhileDHW = 2;
          #dhwStarted = 1;
+         #smartPauseLock = 1;
+         setTimer(25, 0);
          @SetOperationMode = 0;
          setTimer(22, 30);
          setTimer(23, 60);
@@ -96,9 +122,11 @@ on @Defrosting_State then
    end
 end
 on @ThreeWay_Valve_State then
-   if @Heatpump_State == 1 then
-      if @ThreeWay_Valve_State == 1 then
+   if @ThreeWay_Valve_State == 1 then
+      if @Heatpump_State == 1 then
          #dhwStarted = 1;
+         #smartPauseLock = 1;
+         setTimer(25, 0);
          $minDHWTarget = 43;
          $minOutside = -5;
          $maxDHWTarget = 50;
@@ -114,7 +142,11 @@ on @ThreeWay_Valve_State then
          setCurves(@DHW_Target_Temp + 6, @DHW_Target_Temp + 6);
          setTimer(20, 30);
          setTimer(21, 60);
-      elseif #defrostWhileDHW < 2 then
+      end
+   else
+      #smartPauseLock = 1;
+      setTimer(25, 0);
+      if #defrostWhileDHW < 2 then
          setTimer(22, 240);
          setTimer(23, 270);
          setTimer(24, 300);
@@ -130,16 +162,27 @@ on timer=21 then
    @SetPump = 1;
 end
 on timer=22 then
+   #throttleHold = 1;
+   setTimer(26, 30);
    @SetZ1HeatRequestTemperature = 5;
    setCurves(#targetHighBeforeDHW, #targetLowBeforeDHW);
+end
+on timer=26 then
+   #throttleHold = 0;
 end
 on timer=23 then
    @SetMaxPumpDuty = #maxPumpDutyBeforeDHW;
    @SetPump = 0;
 end
 on timer=24 then
+   #smartPauseLock = 1;
+   setTimer(25, #smartPauseLockSeconds);
    @SetOperationMode = #opModeBeforeDHW;
    @SetHeatpump = #stateBeforeDHW;
+end
+on timer=25 then
+   #smartPauseLock = 0;
+   smart_pause();
 end
 on setCurves($high, $low) then
    @SetCurves = concat('{zone1:{heat:{target:{high:', $high, ',low:', $low, '}}}}');
@@ -174,7 +217,7 @@ on throttle then
          if $newHeatRequest <= 0 && ( @Main_Outlet_Temp - @Main_Target_Temp ) < 2 then
             $newHeatRequest = $roomDelta;
          end
-         if @Z1_Heat_Request_Temp != $newHeatRequest then
+         if @Z1_Heat_Request_Temp != $newHeatRequest && #throttleHold == 0 then
             @SetZ1HeatRequestTemperature = $newHeatRequest;
          end
       else
@@ -199,7 +242,10 @@ on throttle then
 end
 
 on @Heat_Power_Consumption then
-   if @Heatpump_State == 1 && @Operating_Mode_State == 0 && #offAtNight == 1 && @Z1_Heat_Request_Temp > 2 && @Heat_Power_Consumption == 0 && @Outside_Temp > 10 then
+   smart_pause();
+end
+on smart_pause then
+   if @Heatpump_State == 1 && @Operating_Mode_State == 0 && #offAtNight == 1 && #smartPauseLock == 0 && @Z1_Heat_Request_Temp > 2 && @Heat_Power_Consumption == 0 && @Outside_Temp > 10 then
       #offAtNight = 2;
       @SetHeatpump = 0;
    end

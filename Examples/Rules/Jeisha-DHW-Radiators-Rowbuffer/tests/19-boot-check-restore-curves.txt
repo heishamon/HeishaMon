@@ -1,0 +1,36 @@
+# Reboot after DHW left the narrow holding curves behind (high == low,
+# above the normal curve) and the recovery chain timers were lost: the
+# boot check re-runs timer=22, which restores the curve seeds.
+time 3 0
+silent Heatpump_State 0
+silent Operating_Mode_State 0
+silent ThreeWay_Valve_State 0
+silent Defrosting_State 0
+silent Max_Pump_Duty 112
+silent DHW_Temp 45
+silent DHW_Target_Temp 47
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 21
+silent Outside_Temp 12
+silent Heating_Off_Outdoor_Temp 16
+silent Z1_Heat_Request_Temp 0
+silent Z1_Heat_Curve_Target_Low_Temp 53
+silent Z1_Heat_Curve_Target_High_Temp 53
+silent Heat_Power_Consumption 0
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 69
+expectnone
+adv 1
+expectcmd SetZ1HeatRequestTemperature 5
+expectcmd SetCurves {zone1:{heat:{target:{high:40,low:31}}}}
+expectnone
+note normal curves after a reboot are left alone
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 120
+expectnone

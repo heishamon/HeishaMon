@@ -6,6 +6,9 @@ silent ThreeWay_Valve_State 1
 silent Operating_Mode_State 3
 silent DHW_Temp 45
 silent Outside_Temp 3
+silent Heating_Off_Outdoor_Temp 16
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
 boot
 expectcmd SetMaxPumpDuty 112
 expectcmd SetPump 0

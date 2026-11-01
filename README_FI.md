@@ -60,7 +60,7 @@ Nämä muuttujat elävät sääntöblokin sisällä. Kun sääntöblokki päätt
 Nämä ovat samat kuin Manage Topics -dokumentaatiosivulla ja HeishaMonin etusivulla listatut. Sääntöjoukko noudattaa myös MQTT:n ja REST API:n kautta käytettävää R/W-logiikkaa. Tämä tarkoittaa, että lukuaihiot eroavat kirjoitusaihioista. Lämpöpumpun tilan lukeminen tapahtuu `@Heatpump_State`:lla, tilan muuttaminen `@SetHeatpump`:lla.
 
 - `%`: Päivämäärä- ja aikamuuttujat
-Näitä voidaan käyttää päivämäärä- ja aikapohjaisiin sääntöihin. Tällä hetkellä tuetaan `%hour` (0-23), `%minute` (0-59), `%month` (1-12) ja `day` (1-7). Kaikki ovat tavallisia kokonaislukuja. Oikea NTP-konfiguraatio tarvitaan oikean järjestelmäpäivämäärän ja -ajan asettamiseen HeishaMoniin.
+Näitä voidaan käyttää päivämäärä- ja aikapohjaisiin sääntöihin. Tällä hetkellä tuetaan `%hour` (0-23), `%minute` (0-59), `%month` (1-12) ja `%day` (1-7). Kaikki ovat tavallisia kokonaislukuja. Oikea NTP-konfiguraatio tarvitaan oikean järjestelmäpäivämäärän ja -ajan asettamiseen HeishaMoniin.
 
 - `?`: Termostaattiparametrit
 Nämä muuttujat heijastavat parametreja, jotka luetaan yhdistetyltä termostaatilta OpenTherm-toiminnallisuutta käytettäessä. Nimet ovat samat lukemiseen ja kirjoittamiseen, mutta kaikki arvot eivät tue lukemista ja/tai kirjoittamista.
@@ -166,7 +166,7 @@ Palauttaa syöteparametrien maksimiarvo.
 Palauttaa syöteparametrien minimiarvo.
 
 - `isset`
-Palauttaa boolean true, kun syötemuuttuja on vielä `NULL`, muissa tapauksissa false.
+Palauttaa `1`, kun syötemuuttujalla on numeroarvo, ja `0`, kun se on vielä `NULL` (myös merkkijonoarvo palauttaa `0`). Käytä tätä `NULL`-arvon testaamiseen: vertailu `NULL`-arvoon (esim. `#g == NULL`) antaa aina `NULL`, joka on false, joten kirjoita sen sijaan `if isset(#g) == 0 then`.
 
 - `round`
 Pyöristää syöte-floatin lähimpään kokonaislukuun.
@@ -450,3 +450,6 @@ TLS-tuki MQTT:lle on tällä hetkellä toteutettu vain ESP32-versiolle. TLS on o
 [IOBroker Manual](Integrations/ioBroker_manual)
 
 [Domoticz](Integrations/Domoticz)
+
+## Lisenssi
+HeishaMon on lisensoitu [Mozilla Public License 2.0](LICENSE) -lisenssillä (MPL-2.0). Lisenssi koskee kaikkia tämän repositorion tiedostoja, joissa ei ole muuta lisenssiotsaketta. Osalla mukana olevista tiedostoista ja laiteohjelmistoon linkitetyistä kirjastoista on oma lisenssinsä, katso [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

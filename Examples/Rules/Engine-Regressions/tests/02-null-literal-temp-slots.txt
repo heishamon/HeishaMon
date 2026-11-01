@@ -1,0 +1,16 @@
+# heishamon/HeishaMon#1009: a literal NULL in a block made vm_heap_next()
+# count the NULL constant's heap slot as a temporary slot, so the
+# allocator handed out the same temp slot twice. In `$c = $a / $b` both
+# operands were loaded into one slot and the division computed
+# `$b / $b` = 1 instead of 0.5.
+#
+# Both the event block (literal NULL in a comparison) and the helper block
+# (literal NULL in an assignment) must compute 0.5.
+boot
+set Outside_Temp 12
+expectcmd SetDHWTemp 50
+expectcmd SetZ1HeatRequestTemperature 5
+set Outside_Temp 13
+expectcmd SetDHWTemp 50
+expectcmd SetZ1HeatRequestTemperature 5
+expectnone

@@ -1,0 +1,59 @@
+# DHW on a unit that was off before (#stateBeforeDHW = 0): timer=24 turns
+# it off again, and the valve flip back to room can arrive after
+# Heatpump_State is already 0. The recovery chain must still run so the
+# holding curves, pump duty and pump test mode are restored.
+time 12 30
+silent Heatpump_State 0
+silent Operating_Mode_State 0
+silent ThreeWay_Valve_State 0
+silent Defrosting_State 0
+silent Max_Pump_Duty 112
+silent DHW_Temp 40
+silent DHW_Target_Temp 47
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 22
+silent Outside_Temp 20
+silent Heating_Off_Outdoor_Temp 16
+silent Main_Outlet_Temp 50
+silent Main_Target_Temp 56
+silent Z1_Heat_Request_Temp 0
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+silent Heat_Power_Consumption 0
+silent DHW_Power_Consumption 1000
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 45
+note DHW run: unit switched on, valve to tank
+silent Heatpump_State 1
+silent Operating_Mode_State 4
+set ThreeWay_Valve_State 1
+expectcmd SetDHWTemp 48
+expectcmd SetCurves {zone1:{heat:{target:{high:53,low:53}}}}
+adv 30
+expectcmd SetOperationMode 4
+adv 30
+expectcmd SetMaxPumpDuty 170
+expectcmd SetPump 1
+silent DHW_Temp 48
+silent DHW_Target_Temp 48
+set DHW_Power_Consumption 0
+adv 1
+expectcmd SetOperationMode 0
+expectcmd SetHeatpump 0
+note unit reports off before the valve flips back
+silent Operating_Mode_State 0
+set Heatpump_State 0
+adv 5
+set ThreeWay_Valve_State 0
+adv 240
+expectcmd SetZ1HeatRequestTemperature 5
+expectcmd SetCurves {zone1:{heat:{target:{high:40,low:31}}}}
+adv 30
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 30
+expectcmd SetOperationMode 0
+expectcmd SetHeatpump 0
+expectnone

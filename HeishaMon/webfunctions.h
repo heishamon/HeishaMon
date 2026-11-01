@@ -70,6 +70,7 @@ struct settingsStruct {
   bool proxy = true; //cztaw proxy port enable flag
   bool modbus = false; //modbus tcp server enable flag
   bool modbusWrites = false; //allow modbus clients to write commands and relays
+  bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)
 #endif
   s0SettingsStruct s0Settings[NUM_S0_COUNTERS];
   gpioSettingsStruct gpioSettings;

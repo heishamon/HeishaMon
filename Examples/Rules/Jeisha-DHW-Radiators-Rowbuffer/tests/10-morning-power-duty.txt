@@ -8,6 +8,10 @@ silent DHW_Target_Temp 48
 silent DHW_Heat_Delta -8
 silent Room_Thermostat_Temp 21
 silent Outside_Temp 5
+silent Heating_Off_Outdoor_Temp 16
+silent ThreeWay_Valve_State 0
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
 boot
 expectcmd SetMaxPumpDuty 112
 expectcmd SetPump 0

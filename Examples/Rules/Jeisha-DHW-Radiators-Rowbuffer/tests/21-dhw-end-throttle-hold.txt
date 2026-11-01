@@ -1,0 +1,65 @@
+# DHW end in mild weather: timer=22 sends heat request 5, then the curves,
+# and holds throttle()'s heat request for 30 s (timer=26). Without the hold
+# the first reply (holding curve 52 + 5 = target 57) made throttle() send
+# heat request 0 three times (target/outlet/inlet events); on the ESP8266
+# these stale commands interleaved with newer ones, the target dropped below
+# the outlet and the compressor stopped.
+time 13 44
+silent Heatpump_State 1
+silent ThreeWay_Valve_State 1
+silent Operating_Mode_State 0
+silent Max_Pump_Duty 112
+silent DHW_Temp 47
+silent DHW_Target_Temp 46
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 23
+silent Outside_Temp 12
+silent Heating_Off_Outdoor_Temp 16
+silent Z1_Heat_Curve_Target_Low_Temp 52
+silent Z1_Heat_Curve_Target_High_Temp 52
+silent Main_Target_Temp 52
+silent Main_Outlet_Temp 50
+silent Main_Inlet_Temp 45
+silent Z1_Heat_Request_Temp 0
+silent Quiet_Mode_Level 0
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 45
+expectnone
+note valve back to room, holding curves 52/52 still active
+set ThreeWay_Valve_State 0
+set Main_Outlet_Temp 37
+set Main_Inlet_Temp 33
+expectnone
+adv 240
+expectcmd SetZ1HeatRequestTemperature 5
+expectcmd SetCurves {zone1:{heat:{target:{high:40,low:31}}}}
+expectnone
+note reply 1: heat request 5 on the holding curve -> target 57: hold, no reset to 0
+silent Z1_Heat_Request_Temp 5
+set Main_Target_Temp 57
+set Main_Outlet_Temp 37.5
+set Main_Inlet_Temp 33.5
+expectnone
+note reply 2: curves 40/31 active -> target 36; quiet mode still works
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+set Main_Target_Temp 36
+expectcmd SetQuietMode 3
+silent Quiet_Mode_Level 3
+note outlet falls during the hold: heat request stays 5
+set Main_Outlet_Temp 35
+set Main_Inlet_Temp 32
+expectnone
+adv 30
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+note hold released by timer=26: throttle() controls the heat request again
+set Main_Outlet_Temp 34.5
+expectcmd SetZ1HeatRequestTemperature 2
+silent Z1_Heat_Request_Temp 2
+adv 30
+expectcmd SetOperationMode 0
+expectcmd SetHeatpump 1
+expectnone

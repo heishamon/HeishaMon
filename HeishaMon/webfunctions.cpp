@@ -263,6 +263,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
           heishamonSettings->modbus = ( jsonDoc[F("modbus")] == "enabled" ) ? true : false;
           heishamonSettings->modbusWrites = ( jsonDoc[F("modbusWrites")] == "enabled" ) ? true : false;
+          heishamonSettings->ethernet = ( jsonDoc[F("ethernet")] == "disabled" ) ? false : true; //default to true if not found in settings
 #endif          
           if ( jsonDoc[F("waitTime")]) heishamonSettings->waitTime = jsonDoc[F("waitTime")];
           if (heishamonSettings->waitTime < 5) heishamonSettings->waitTime = 5;
@@ -504,6 +505,11 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("modbusWrites")] = "disabled";
   }
+  if (heishamonSettings->ethernet) {
+    jsonDoc[F("ethernet")] = "enabled";
+  } else {
+    jsonDoc[F("ethernet")] = "disabled";
+  }
 #endif 
   jsonDoc[F("waitTime")] = heishamonSettings->waitTime;
   jsonDoc[F("waitDallasTime")] = heishamonSettings->waitDallasTime;
@@ -647,6 +653,7 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("proxy")] = String("disabled");
   jsonDoc[F("modbus")] = String("disabled");
   jsonDoc[F("modbusWrites")] = String("disabled");
+  jsonDoc[F("ethernet")] = String("disabled");
 #endif  
 #ifdef TLS_SUPPORT
   jsonDoc[F("mqtt_tls_enabled")] = String("disabled");
@@ -700,6 +707,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("modbus")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "modbusWrites") == 0) {
       jsonDoc[F("modbusWrites")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "ethernet") == 0) {
+      jsonDoc[F("ethernet")] = tmp->value;
 #endif      
     } else if (strcmp(tmp->name.c_str(), "ntp_servers") == 0) {
       jsonDoc[F("ntp_servers")] = tmp->value;

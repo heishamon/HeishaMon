@@ -5,6 +5,9 @@ silent Operating_Mode_State 0
 silent ThreeWay_Valve_State 0
 silent Quiet_Mode_Level 1
 silent Outside_Temp 10
+silent Heating_Off_Outdoor_Temp 16
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
 silent Room_Thermostat_Temp 21
 silent Main_Target_Temp 36
 silent Z1_Heat_Request_Temp 0
