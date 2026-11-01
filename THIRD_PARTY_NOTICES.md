@@ -28,5 +28,7 @@ These are not part of this repository. The build (see [LIBSUSED.md](LIBSUSED.md)
 | DallasTemperature by Miles Burton | MIT |
 | OneWire by Jim Studt, Paul Stoffregen et al. | MIT-style |
 | Adafruit NeoPixel (large board only) | LGPL-3.0 |
+| Async TCP by ESP32Async (large board only) | LGPL-3.0 |
+| eModbus by Michael Harwerth, Bert Melis and contributors (large board only) | MIT |
 
 The LGPL libraries let anyone who receives a firmware binary rebuild it against a modified version of those libraries. The complete HeishaMon source code and build instructions in this repository allow exactly that. If you distribute a modified firmware binary, also publish the matching source code.
