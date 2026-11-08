@@ -39,13 +39,13 @@ Om één waarde op te vragen voeg je een van deze argumenten toe (één per verz
 
 | Argument | Waarde | Voorbeeld | Geeft |
 |---|---|---|---|
-| `topic=` | een warmtepomp-topicnummer (`TOP1`, `XTOP3`, `OPT0`) of -naam (`Main_Outlet_Temp`, hoofdletterongevoelig); `TOP170`/`TOP171` zijn de relais op het grote board | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `topic=` | een warmtepomp-topicnummer (`TOP1`, `XTOP3`, `OPT0`) of -naam (`Main_Outlet_Temp`, hoofdletterongevoelig) | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
 | `opentherm=` | de naam van een OpenTherm-waarde | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
 | `1wire=` | het adres of de alias van een sensor | `/json?1wire=28ff123456789abc` | de regel van die sensor uit de `1wire` lijst |
 | `s0=` | de S0-poort, `1` of `2` | `/json?s0=1` | de regel van die poort uit de `s0` lijst, zonder `Watthour` |
-| `gpio=` | de MQTT-naam van de GPIO (`extra/1`, of `relay/one`/`relay/two` op het grote board) of alleen het nummer van de extra GPIO | `/json?gpio=1` | de regel van die pin uit de `gpio` lijst |
+| `gpio=` | de MQTT-naam van de GPIO, hoofdletterongevoelig (`extra/1`, of `relay/one`/`relay/two` op het grote board) of alleen het nummer van de extra GPIO | `/json?gpio=1` | de regel van die pin uit de `gpio` lijst; de relais zijn `gpio=relay/one` en `gpio=relay/two` |
 
-`Watthour` in de volledige uitvoer is de energie sinds het vorige `/json` verzoek, daarom laten losse S0-verzoeken die weg en zetten ze hem niet terug. Een onbekende waarde, of een onderdeel dat niet aan staat, geeft HTTP 404. Meer dan één van deze argumenten in één verzoek geeft HTTP 400.
+`Watthour` in de volledige uitvoer is de energie sinds het vorige `/json` verzoek, daarom laten losse S0-verzoeken die weg en zetten ze hem niet terug. Een onbekende waarde, of een onderdeel dat niet aan staat, geeft HTTP 404. Meer dan één van deze argumenten in één verzoek geeft HTTP 400. Een warmtepomp-topic dat wordt opgevraagd voordat er gegevens van de warmtepomp binnen zijn (na het opstarten, of zonder aangesloten warmtepomp) geeft HTTP 503.
 
 In de map 'integrations' vind je voorbeelden hoe je je automatiseringsplatform kunt koppelen aan de HeishaMon.
 
@@ -404,14 +404,15 @@ GET /gpio
 ```
 Voorbeeldantwoord:
 ```json
-[{"pin":33,"mode":2,"state":1},{"pin":34,"mode":0,"state":0}, ...]
+[{"pin":33,"mode":2,"state":1,"name":"extra/1","topic":"panasonic_heat_pump/gpio/extra/1/state"}, ...]
 ```
-waarbij `mode` 0 = Ingang (pull-up), 1 = Ingang, 2 = Uitgang is.
+waarbij `pin` het fysieke pinnummer is, `mode` 0 = Ingang (pull-up), 1 = Ingang, 2 = Uitgang, `name` de MQTT-naam en `topic` het MQTT-state-topic. Op het grote board staan ook de relais (`relay/one`, `relay/two`) in deze lijst.
 
-Een uitgangspin instellen via HTTP POST:
+Een uitgangspin instellen, met het fysieke pinnummer:
 ```
-POST /gpio?pin=N&value=1
+GET /gpio?pin=33&value=1
 ```
+De volgorde van de argumenten maakt niet uit. Ontbreekt er een, of is de pin geen beschikbare uitgang, dan is het antwoord HTTP 400 met een `error`.
 
 **Extra GPIO's gebruiken in regels:**
 De `gpio()`-regelfunctie werkt met de extra GPIO-pinnen via hun fysieke pinnummer, hetzelfde als de relaispennen.

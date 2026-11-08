@@ -15,6 +15,7 @@ void readS0Readings(bool enabled, S0Reading readings[NUM_S0_COUNTERS]) {
     const unsigned long bad = actS0Data[i].badPulses;
     readings[i].watt = actS0Data[i].watt;
     readings[i].watthourTotal = total * (1000.0 / pulsesPerKwh);
+    readings[i].watthourTotalWh = (uint32_t)readings[i].watthourTotal;
     readings[i].watthour = actS0Data[i].lastReportWatthour;
     // Same startup convention as the S0 UI: no pulses yet means 100% quality.
     readings[i].pulseQuality = 100.0 * (double(good) + 1) / (double(good) + bad + 1);

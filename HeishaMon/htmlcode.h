@@ -1050,7 +1050,6 @@ document.body.onload=function(){
   startWebsockets();
   monitorWebSocket();
   refreshTable();
-  setInterval(refreshRelayStates,5000);
 };
 var dallasAliasEdit=function(){
   isEditing=false;
@@ -1152,14 +1151,13 @@ function renderGpioTable(d){
   var tb=document.getElementById('gpiovalues');
   if(!tb)return; // GPIO tab/pane isn't rendered at all in listen-only mode
   tb.innerHTML='';
-  // first 2 pins are the fixed relays on boards that have them (ESP32); the rest are user-configurable GPIOs
-  // Fixed ESP32 relays are identified by physical pin, not the number of visible GPIOs.
-  // OpenTherm may reserve pins and reduce the visible count.
+  // the fixed relays on boards that have them (ESP32) are named relay/one and relay/two; the rest are
+  // user-configurable GPIOs. OpenTherm may reserve pins and reduce the visible count.
   var extraIdx=0;
   d.gpio.forEach(function(item,i){
     var row=document.createElement('tr');
     var nameCell=document.createElement('td');
-    var relayName=item.pin===21?'Relay 1':(item.pin===47?'Relay 2':null);
+    var relayName=item.name==='relay/one'?'Relay 1':(item.name==='relay/two'?'Relay 2':null);
     nameCell.textContent=relayName||('GPIO '+(++extraIdx));
     row.appendChild(nameCell);
     var pinCell=document.createElement('td');pinCell.textContent=item.pin;row.appendChild(pinCell);
@@ -1192,7 +1190,6 @@ async function refreshTable(){
       var tb=document.getElementById('heishavalues');tb.innerHTML='';
       d.heatpump.forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
     }
-    renderRelayStates(d);
     if(d&&d['heatpump extra']&&Array.isArray(d['heatpump extra'])){
       var tb=document.getElementById('heishavalues');
       d['heatpump extra'].forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
@@ -1229,32 +1226,6 @@ async function refreshTable(){
       }}
     }
   } catch(e){console.error(e);}
-}
-var hasRelays=false;
-function renderRelayStates(data){
-  hasRelays=!!(data&&Array.isArray(data.relays)&&data.relays.length);
-  if(!hasRelays)return;
-  var tb=document.getElementById('heishavalues');
-  data.relays.forEach(function(item){
-    var row=document.getElementById(item.Topic+'-relay');
-    if(!row){
-      row=document.createElement('tr');row.id=item.Topic+'-relay';
-      for(var i=0;i<4;i++)row.appendChild(document.createElement('td'));
-      tb.appendChild(row);
-    }
-    row.children[0].textContent=item.Topic;
-    row.children[1].textContent=item.Name;
-    row.children[2].textContent=item.Value===1?'On':'Off';
-    row.children[3].textContent=item['MQTT topic'];
-    row.children[3].title='GPIO output state; no mechanical contact feedback';
-  });
-}
-async function refreshRelayStates(){
-  if(!hasRelays||document.hidden)return;
-  try{
-    var response=await fetch('/json');
-    renderRelayStates(await response.json());
-  }catch(e){console.error(e);}
 }
 function buildRow(item,idKey){
   var row=document.createElement('tr');
@@ -1758,6 +1729,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Force load rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Listen Only</h3></div>
@@ -1870,11 +1842,12 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Ethernet module (W5500)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='ethernet' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Disable on boards without the ethernet module to skip the W5500 probe and leave GPIO10-15 untouched. Needs a reboot.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Modbus TCP</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Enable Modbus TCP server (port 502)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbus' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>No authentication, so only enable on a trusted network. Reboot required.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Enable Modbus TCP server (port 502)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbus' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>No authentication, so only enable on a trusted network.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Allow Modbus writes</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbusWrites' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Lets Modbus clients send heat pump commands (including SetReset) and switch the relays.</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>

@@ -245,6 +245,10 @@ void dallasJsonOutput(struct webserver_t *client) {
   webserver_send_content_P(client, PSTR("]"), 1);
 }
 
+bool dallasJsonKnown(int i) {
+  return i >= 0 && i < dallasDevicecount && actDallasData[i].known;
+}
+
 // find a known sensor by address or alias (case-insensitive), -1 if none
 int dallasJsonFind(const char *name) {
   if (name[0] == '\0') return -1;

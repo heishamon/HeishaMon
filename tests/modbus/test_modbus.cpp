@@ -75,7 +75,16 @@ void expectError16(uint16_t start, const std::vector<uint16_t> &words, uint8_t e
 
 int main() {
   HeishaModbusServer server;
+  // Before the first datagram, main and optional registers answer BUSY instead of decoded zeros.
   server.setup(true, false, true);
+  server.loop(false, true);
+  for (auto &group : readings) for (auto &value : group) value = "1";
+  expectError(3, 14, 1, SERVER_DEVICE_BUSY);
+  expectError(3, ModbusMap::floatAddress(14), 2, SERVER_DEVICE_BUSY);
+  expectError(3, 2001, 1, SERVER_DEVICE_BUSY);
+  assert(read(32000) == 3); // device registers don't depend on heat pump data
+  actData[0] = 0x71;    // a datagram has been received
+  actOptData[0] = 0x71;
   server.loop(false, true);
   for (auto &group : readings) for (auto &value : group) value = "1";
   assert(read(32000) == 3);
@@ -167,6 +176,23 @@ int main() {
     expectError(3, 16012 + port * 200, 1, ILLEGAL_DATA_ADDRESS);
     auto block = call(3, 16000 + port * 200, 12);
     assert(block.bytes.size() == 27); // all six floats in one request
+    // WatthourTotal as exact uint32 Wh (MSW, LSW), read as a pair from one sample
+    const uint32_t totalWh = port == 0 ? 5000 : 4000000000U;
+    auto total = call(3, 3010 + port * 100, 2);
+    assert(total.bytes == std::vector<uint8_t>({1, 3, 4, uint8_t(totalWh >> 24), uint8_t(totalWh >> 16),
+                                               uint8_t(totalWh >> 8), uint8_t(totalWh)}));
+    expectError(6, 3010 + port * 100, 0, ILLEGAL_DATA_ADDRESS); // read-only
+    expectError(3, 3012 + port * 100, 1, ILLEGAL_DATA_ADDRESS);
+  }
+  {
+    // 16,777,217 Wh: the float32 register rounds, the uint32 pair is exact
+    actS0Settings[0].ppkwh = 1000;
+    actS0Data[0].pulsesTotal = 16777217U;
+    assert(readFloat(16002) == 16777216.0f);
+    auto exact = call(3, 3010, 2);
+    assert(exact.bytes == std::vector<uint8_t>({1, 3, 4, 0x01, 0x00, 0x00, 0x01}));
+    actS0Settings[0].ppkwh = 2000;
+    actS0Data[0].pulsesTotal = 10001;
   }
   assert(actS0Data[0].pulses == 17 && actS0Data[0].pulsesTotal == 10001);
   assert(actS0Data[0].lastReportWatthour == 0.5f); // reading never resets an interval
@@ -328,6 +354,41 @@ int main() {
   call(5, 30000, 0);
   server.loop(false, true);
 
+  // A value the command itself refuses is rejected before it is acknowledged.
+  lastCommand.clear();
+  expectError(6, 5000, uint16_t(-32768), ILLEGAL_DATA_VALUE);
+  server.loop(false, true);
+  assert(lastCommand.empty());
+
+  // Listen-only: commands are refused (they would never be sent), relays still switch.
+  server.configure(true, true, true, true);
+  expectError(6, 5000, 1, ILLEGAL_FUNCTION);
+  expectError16(20000, floatWords(1), ILLEGAL_FUNCTION);
+  call(5, 30000, 0xFF00);
+  server.loop(false, true);
+  assert(relays[0] && lastCommand.empty());
+  call(5, 30000, 0);
+  server.configure(true, true, true, false);
+  server.loop(false, true);
+
+  // Disabling Modbus at runtime drops queued writes; enabling it again works without a reboot.
+  call(6, 5000, 1);
+  server.configure(false, true, true, false);
+  server.configure(true, true, true, false);
+  server.loop(false, true);
+  assert(lastCommand.empty());
+  call(6, 5000, 1);
+  server.loop(false, true);
+  assert(lastCommand == "SetHeatpump");
+
+  // Losing the heat pump data again (e.g. raw debug input) also answers BUSY.
+  actData[0] = 0;
+  server.loop(false, true);
+  expectError(3, 14, 1, SERVER_DEVICE_BUSY);
+  actData[0] = 0x71;
+  server.loop(false, true);
+  read(14);
+
   // A full write queue answers with a busy exception instead of dropping requests silently.
   for (int i = 0; i < 16; ++i) call(6, 5000, 1);
   expectError(6, 5000, 1, SERVER_DEVICE_BUSY);
@@ -381,6 +442,7 @@ int main() {
     assert(count < 1000);
   }
   assert(count == NUMBER_OF_TOPICS + NUMBER_OF_TOPICS_EXTRA + NUMBER_OF_OPT_TOPICS +
-                  arraySize(MAIN_COMMANDS) + arraySize(OPTIONAL_COMMANDS) + 5 + NUM_S0_COUNTERS * S0_FIELD_COUNT);
+                  arraySize(MAIN_COMMANDS) + arraySize(OPTIONAL_COMMANDS) + 5 + NUM_S0_COUNTERS * S0_FIELD_COUNT +
+                  NUM_S0_COUNTERS);
   std::puts("PASS: complete map, expansion, scaling, S0 values, command dispatch, coils, boundaries and register page");
 }

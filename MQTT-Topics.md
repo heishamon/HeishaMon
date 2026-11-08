@@ -1,6 +1,6 @@
 # MQTT Topics for HeishaMon
 
-`TOP...` IDs identify the normal decoded heat pump values; `XTOP...` and `OPT...` identify values from the extra data block and optional PCB. Not every MQTT topic needs such an ID: device status and event topics such as `LWT`, `log`, `stats`, `rules/state`, and `rules/executed` are documented separately without a TOP number. The ESP32 relay states are a separate extension with `TOP170` and `TOP171` IDs for the web/JSON display.
+`TOP...` IDs identify the normal decoded heat pump values; `XTOP...` and `OPT...` identify values from the extra data block and optional PCB. Not every MQTT topic needs such an ID: device status and event topics such as `LWT`, `log`, `stats`, `rules/state`, and `rules/executed` are documented separately without a TOP number, and so are the GPIO and relay states (`gpio/...`).
 
 ## Availability Topic:
 
@@ -20,7 +20,7 @@ This reports loaded rules, not whether a rule is executing at that instant. `0` 
 
 ## Rule Execution Events:
 
-`<base>/rules/executed` (for example `panasonic_heat_pump/rules/executed`) publishes a read-only JSON event after a rule execution returns. It is **not retained**.
+`<base>/rules/executed` (for example `panasonic_heat_pump/rules/executed`) publishes a read-only JSON event after a rule execution returns, when **Publish rule executions to MQTT** is enabled in the settings (off by default, because every rule run adds a publish). It is **not retained**.
 
 ```json
 {"rule":"timer=1","rule_id":2,"result":0,"uptime_ms":123456,"nested":false,"duration_us":245}
@@ -215,10 +215,6 @@ TOP166 | main/Z1_Active | Actual zone 1 activity (0=inactive, 1=active)
 TOP167 | main/Backup_Heater_Enable | Backup heater custom-menu setting (0=inactive, 1=active)
 TOP168 | main/Cooling_Enable | Cooling custom-menu setting (0=inactive, 1=active)
 TOP169 | main/Heat_Request_Temp_With_Buffer | Heating water shift/direct target including buffer delta (°C)
-TOP170 | gpio/relay/one/state | Onboard relay 1 GPIO output state (ESP32 only, 0=off, 1=on, retained)
-TOP171 | gpio/relay/two/state | Onboard relay 2 GPIO output state (ESP32 only, 0=off, 1=on, retained)
-
-TOP170 and TOP171 are displayed on the main web page as Relay 1 and Relay 2 with On/Off and their full configured MQTT topics. They are read directly from GPIO21 and GPIO47, independent of MQTT connectivity, and exposed in the `/json` response's `relays` array. The page refreshes these states every five seconds. These values report GPIO output levels, not mechanical contact feedback.
 
 The relay states are published on change and after each MQTT (re)connect. Commands go to `gpio/relay/one` and `gpio/relay/two` (without `/state`). The extra GPIOs use the same layout: commands to `gpio/extra/N`, states (retained) on `gpio/extra/N/state`. After a reboot the outputs are restored once from their retained `/state` topics; see the README section *GPIO states and restore at boot*.
 

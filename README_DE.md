@@ -39,22 +39,22 @@ Um einen einzelnen Wert abzufragen, füge eines dieser Argumente hinzu (eines pr
 
 | Argument | Wert | Beispiel | Liefert |
 |---|---|---|---|
-| `topic=` | eine Wärmepumpen-Topic-Nummer (`TOP1`, `XTOP3`, `OPT0`) oder einen Namen (`Main_Outlet_Temp`, Groß-/Kleinschreibung egal); `TOP170`/`TOP171` sind die Relais auf der großen Platine | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `topic=` | eine Wärmepumpen-Topic-Nummer (`TOP1`, `XTOP3`, `OPT0`) oder einen Namen (`Main_Outlet_Temp`, Groß-/Kleinschreibung egal) | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
 | `opentherm=` | der Name eines OpenTherm-Werts | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
 | `1wire=` | Adresse oder Alias eines Sensors | `/json?1wire=28ff123456789abc` | der Eintrag des Sensors aus der `1wire`-Liste |
 | `s0=` | der S0-Port, `1` oder `2` | `/json?s0=1` | der Eintrag des Ports aus der `s0`-Liste, ohne `Watthour` |
-| `gpio=` | der MQTT-Name des GPIO (`extra/1`, oder `relay/one`/`relay/two` auf der großen Platine) oder nur die Nummer des Extra-GPIO | `/json?gpio=1` | der Eintrag des Pins aus der `gpio`-Liste |
+| `gpio=` | der MQTT-Name des GPIO, Groß-/Kleinschreibung egal (`extra/1`, oder `relay/one`/`relay/two` auf der großen Platine) oder nur die Nummer des Extra-GPIO | `/json?gpio=1` | der Eintrag des Pins aus der `gpio`-Liste; die Relais sind `gpio=relay/one` und `gpio=relay/two` |
 
-`Watthour` in der vollständigen Ausgabe ist die Energie seit der vorherigen `/json`-Anfrage, daher lassen einzelne S0-Anfragen ihn weg und setzen ihn nicht zurück. Ein unbekannter Wert, oder ein Abschnitt, der nicht aktiviert ist, liefert HTTP 404. Mehr als eines dieser Argumente in einer Anfrage liefert HTTP 400.
+`Watthour` in der vollständigen Ausgabe ist die Energie seit der vorherigen `/json`-Anfrage, daher lassen einzelne S0-Anfragen ihn weg und setzen ihn nicht zurück. Ein unbekannter Wert, oder ein Abschnitt, der nicht aktiviert ist, liefert HTTP 404. Mehr als eines dieser Argumente in einer Anfrage liefert HTTP 400. Ein Wärmepumpen-Topic, das abgefragt wird, bevor Daten von der Wärmepumpe angekommen sind (nach dem Start, oder ohne angeschlossene Wärmepumpe), liefert HTTP 503.
 
 Im Ordner 'integrations' findest du Beispiele, wie du deine Automatisierungsplattform mit dem HeishaMon verbinden kannst.
 
 # Regeln-Funktionalität
 Die Regeln-Funktionalität ermöglicht es dir, die Wärmepumpe direkt vom HeishaMon aus zu steuern. Das macht es viel zuverlässiger als die Steuerung über externe Hausautomatisierung über WLAN. Wenn ein neues Regelwerk veröffentlicht wird, wird es sofort validiert und bei Gültigkeit übernommen. Wenn ein neues Regelwerk ungültig ist, wird es ignoriert und das alte Regelwerk wieder geladen. Du kannst die Konsole auf Rückmeldungen überprüfen. Falls ein neues gültiges Regelwerk den HeishaMon zum Absturz bringt, wird es beim nächsten Neustart automatisch deaktiviert, sodass du Änderungen vornehmen kannst. Dies verhindert eine Boot-Schleife des HeishaMon.
 
-Zur Überwachung gibt es die schreibgeschützten MQTT-Topics `<base>/rules/state` und `<base>/rules/executed`. `rules/state` meldet mit Retain `1`, wenn mindestens ein Regelblock geladen ist, andernfalls `0`. `rules/executed` meldet nach einer Regelausführung ein JSON-Ereignis ohne Retain mit Regelname, Block-ID, Ergebniscode, Geräte-Uptime und der Kennzeichnung verschachtelter Hilfsblöcke. Bei äußeren Aufrufen wird zusätzlich die Laufzeit in Mikrosekunden mitgesendet. Der Standardwert für `<base>` ist `panasonic_heat_pump`. Payload-Details und Einschränkungen stehen in der [MQTT-Dokumentation](MQTT-Topics.md#rules-engine-status).
+Zur Überwachung gibt es die schreibgeschützten MQTT-Topics `<base>/rules/state` und `<base>/rules/executed`. `rules/state` meldet mit Retain `1`, wenn mindestens ein Regelblock geladen ist, andernfalls `0`. `rules/executed` meldet nach einer Regelausführung ein JSON-Ereignis ohne Retain (nur wenn **Publish rule executions to MQTT** in den Einstellungen aktiviert ist, standardmäßig aus) mit Regelname, Block-ID, Ergebniscode, Geräte-Uptime und der Kennzeichnung verschachtelter Hilfsblöcke. Bei äußeren Aufrufen wird zusätzlich die Laufzeit in Mikrosekunden mitgesendet. Der Standardwert für `<base>` ist `panasonic_heat_pump`. Payload-Details und Einschränkungen stehen in der [MQTT-Dokumentation](MQTT-Topics.md#rules-engine-status).
 
-Nicht jedes MQTT-Topic erhält eine `TOP…`-Nummer: `TOP…` kennzeichnet die normalen decodierten Wärmepumpenwerte, `XTOP…` den zusätzlichen Datenblock und `OPT…` die optionale Platine. Geräteinformationen und Ereignisse wie `LWT`, `log`, `stats`, `rules/state` und `rules/executed` werden separat ohne TOP-Nummer dokumentiert. Die ESP32-Relaiszustände sind eine gesonderte Erweiterung mit `TOP170` und `TOP171` für die Web-/JSON-Anzeige. Die beiden Rules-Topics sind MQTT-Meldungen für externe Abonnenten und keine `@`-Variablen im Regelwerk.
+Nicht jedes MQTT-Topic erhält eine `TOP…`-Nummer: `TOP…` kennzeichnet die normalen decodierten Wärmepumpenwerte, `XTOP…` den zusätzlichen Datenblock und `OPT…` die optionale Platine. Geräteinformationen und Ereignisse wie `LWT`, `log`, `stats`, `rules/state` und `rules/executed` werden separat ohne TOP-Nummer dokumentiert, ebenso die GPIO- und Relaiszustände (`gpio/...`). Die beiden Rules-Topics sind MQTT-Meldungen für externe Abonnenten und keine `@`-Variablen im Regelwerk.
 
 Die im Regelwerk verwendeten Techniken ermöglichen die Arbeit mit sehr großen Regelwerken, aber Best Practice ist es, sie unter 10.000 Bytes zu halten.
 
@@ -418,14 +418,15 @@ GET /gpio
 ```
 Beispielantwort:
 ```json
-[{"pin":33,"mode":2,"state":1},{"pin":34,"mode":0,"state":0}, ...]
+[{"pin":33,"mode":2,"state":1,"name":"extra/1","topic":"panasonic_heat_pump/gpio/extra/1/state"}, ...]
 ```
-wobei `mode` 0 = Eingang (Pull-up), 1 = Eingang, 2 = Ausgang bedeutet.
+wobei `pin` die physische Pinnummer ist, `mode` 0 = Eingang (Pull-up), 1 = Eingang, 2 = Ausgang, `name` der MQTT-Name und `topic` das MQTT-State-Topic. Auf der großen Platine stehen auch die Relais (`relay/one`, `relay/two`) in dieser Liste.
 
-Einen Ausgangspin per HTTP POST setzen:
+Einen Ausgangspin setzen, mit der physischen Pinnummer:
 ```
-POST /gpio?pin=N&value=1
+GET /gpio?pin=33&value=1
 ```
+Die Reihenfolge der Argumente ist egal. Fehlt eines, oder ist der Pin kein verfügbarer Ausgang, lautet die Antwort HTTP 400 mit einem `error`.
 
 **Extra-GPIOs in Regeln verwenden:**
 Die `gpio()`-Regelfunktion funktioniert mit den Extra-GPIO-Pins über ihre physische Pin-Nummer, genauso wie die Relais-Pins.

@@ -250,6 +250,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->mqtt_tls_enabled = ( jsonDoc[F("mqtt_tls_enabled")] == "enabled" ) ? true : false; 
 #endif
           heishamonSettings->force_rules = ( jsonDoc[F("force_rules")] == "enabled" ) ? true : false;
+          heishamonSettings->rules_mqtt_events = ( jsonDoc[F("rules_mqtt_events")] == "enabled" ) ? true : false;
           heishamonSettings->use_1wire = ( jsonDoc[F("use_1wire")] == "enabled" ) ? true : false;
           heishamonSettings->use_s0 = ( jsonDoc[F("use_s0")] == "enabled" ) ? true : false;
           heishamonSettings->hotspot = ( jsonDoc[F("hotspot")] == "disabled" ) ? false : true; //default to true if not found in settings
@@ -468,7 +469,13 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
     jsonDoc[F("listenonly")] = "enabled";
   } else {
     jsonDoc[F("listenonly")] = "disabled";
-  }  if (heishamonSettings->force_rules) {
+  }
+  if (heishamonSettings->rules_mqtt_events) {
+    jsonDoc[F("rules_mqtt_events")] = "enabled";
+  } else {
+    jsonDoc[F("rules_mqtt_events")] = "disabled";
+  }
+  if (heishamonSettings->force_rules) {
     jsonDoc[F("force_rules")] = "enabled";
   } else {
     jsonDoc[F("force_rules")] = "disabled";
@@ -655,6 +662,7 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   settingsToJson(jsonDoc, heishamonSettings); //stores current settings in a json document
 
   jsonDoc[F("force_rules")] = String("disabled");
+  jsonDoc[F("rules_mqtt_events")] = String("disabled");
   jsonDoc[F("hotspot")] = String("disabled");
   jsonDoc[F("listenonly")] = String("disabled");
   jsonDoc[F("logMqtt")] = String("disabled");
@@ -704,6 +712,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("listenonly")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "force_rules") == 0) {
       jsonDoc[F("force_rules")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "rules_mqtt_events") == 0) {
+      jsonDoc[F("rules_mqtt_events")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "logMqtt") == 0) {
       jsonDoc[F("logMqtt")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "logHexdump") == 0) {
@@ -1160,7 +1170,7 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
 
 /*
  * Single values from /json, one argument per request:
- *   /json?topic=<TOPn, XTOPn, OPTn or topic name>   (TOP170/TOP171 are the relays on the large board)
+ *   /json?topic=<TOPn, XTOPn, OPTn or topic name>
  *   /json?opentherm=<name>   /json?1wire=<address or alias>   /json?s0=<1 or 2>   /json?gpio=<extra/N, N or relay/one|two>
  * The request is kept in client->userdata as ((kind << 8) | index) + 1, so no memory is
  * allocated; NULL means the full document.
@@ -1168,7 +1178,6 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
 #define JSON_KIND_TOP       1
 #define JSON_KIND_XTOP      2
 #define JSON_KIND_OPT       3
-#define JSON_KIND_RELAY     4 // the two relays are reported as TOP<NUMBER_OF_TOPICS> and TOP<NUMBER_OF_TOPICS + 1>
 #define JSON_KIND_OPENTHERM 5
 #define JSON_KIND_1WIRE     6
 #define JSON_KIND_S0        7
@@ -1177,6 +1186,8 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
 #define JSON_KIND_UNKNOWN   0xFF
 
 #define JSON_REQUEST(kind, index) ((uint16_t)(((kind) << 8) | ((index) & 0xFF)))
+// the index is 8 bits (and the list loops use uint8_t counters)
+static_assert(NUMBER_OF_TOPICS <= 256, "topic numbers no longer fit in 8 bits, widen JSON_REQUEST and the /json loop counters");
 
 // parse "<prefix><number>" (case-insensitive), returns -1 if it doesn't match
 static int jsonTopicNumber(const char *token, const char *prefix, unsigned int count) {
@@ -1194,12 +1205,11 @@ static int jsonTopicNumber(const char *token, const char *prefix, unsigned int c
   return nr < count ? (int)nr : -1;
 }
 
-static int jsonTopicName(const char *token, const char (*names)[MAX_TOPIC_LEN], unsigned int count) {
-  char name[MAX_TOPIC_LEN];
+// find a topic by name (case-insensitive) in a PROGMEM name table, -1 if none
+template <size_t N>
+static int jsonTopicName(const char *token, const char (*names)[N], unsigned int count) {
   for (unsigned int i = 0; i < count; i++) {
-    strncpy_P(name, names[i], MAX_TOPIC_LEN);
-    name[MAX_TOPIC_LEN - 1] = '\0';
-    if (strcasecmp(token, name) == 0) {
+    if (strcasecmp_P(token, names[i]) == 0) {
       return i;
     }
   }
@@ -1214,19 +1224,9 @@ static uint16_t jsonTopicLookup(const char *token) {
   if ((nr = jsonTopicNumber(token, "TOP", NUMBER_OF_TOPICS)) >= 0 || (nr = jsonTopicName(token, topics, NUMBER_OF_TOPICS)) >= 0) {
     return JSON_REQUEST(JSON_KIND_TOP, nr);
   }
-  if ((nr = jsonTopicNumber(token, "OPT", NUMBER_OF_OPT_TOPICS)) >= 0) {
+  if ((nr = jsonTopicNumber(token, "OPT", NUMBER_OF_OPT_TOPICS)) >= 0 || (nr = jsonTopicName(token, optTopics, NUMBER_OF_OPT_TOPICS)) >= 0) {
     return JSON_REQUEST(JSON_KIND_OPT, nr);
   }
-  for (unsigned int i = 0; i < NUMBER_OF_OPT_TOPICS; i++) {
-    if (strcasecmp_P(token, optTopics[i]) == 0) {
-      return JSON_REQUEST(JSON_KIND_OPT, i);
-    }
-  }
-#ifdef ESP32
-  if ((nr = jsonTopicNumber(token, "TOP", NUMBER_OF_TOPICS + 2)) >= 0) {
-    return JSON_REQUEST(JSON_KIND_RELAY, nr - NUMBER_OF_TOPICS);
-  }
-#endif
   return JSON_REQUEST(JSON_KIND_UNKNOWN, 0);
 }
 
@@ -1334,17 +1334,6 @@ static void sendJsonOptTopic(struct webserver_t *client, char* actOptData, uint8
   sendJsonTopic(client, PSTR("OPT"), topic, optTopics[topic], getOptDataValue(actOptData, topic), true, opttopicDescription[topic], actOptData[0] == '\0');
 }
 
-#ifdef ESP32
-// Onboard outputs are independent of the heat pump's serial data block.
-static void addJsonRelay(JsonObject relay, int i, settingsStruct *heishamonSettings) {
-  const int relayPins[2] = {relayOnePin, relayTwoPin};
-  const char* relayNames[2] = {"one", "two"};
-  relay["Topic"] = String("TOP") + (NUMBER_OF_TOPICS + i);
-  relay["Name"] = String("Relay ") + (i + 1);
-  relay["Value"] = digitalRead(relayPins[i]) ? 1 : 0;
-  relay["MQTT topic"] = String(heishamonSettings->mqtt_topic_base) + "/gpio/relay/" + relayNames[i] + "/state";
-}
-#endif
 
 static int handleJsonSingle(struct webserver_t *client, char* actData, char* actDataExtra, char* actOptData, settingsStruct *heishamonSettings, bool extraDataBlockAvailable) {
   uint16_t request = (uint16_t)((intptr_t)client->userdata - 1);
@@ -1357,6 +1346,10 @@ static int handleJsonSingle(struct webserver_t *client, char* actData, char* act
   if ((kind == JSON_KIND_XTOP && !extraDataBlockAvailable) || (kind == JSON_KIND_OPT && !heishamonSettings->optionalPCB)) {
     kind = JSON_KIND_UNKNOWN;
   }
+  // the sensor may have been removed since the arguments were parsed
+  if (kind == JSON_KIND_1WIRE && !dallasJsonKnown(nr)) {
+    kind = JSON_KIND_UNKNOWN;
+  }
   if (kind == JSON_KIND_MULTIPLE) {
     webserver_send(client, 400, (char *)"application/json", 0);
     webserver_send_content_P(client, PSTR("{\"error\":\"only one value per request\"}"), 38);
@@ -1367,24 +1360,21 @@ static int handleJsonSingle(struct webserver_t *client, char* actData, char* act
     webserver_send_content_P(client, PSTR("{\"error\":\"unknown value\"}"), 25);
     return 0;
   }
+  // no datagram received yet (after boot or without a heat pump): don't report decoded zeros as a value
+  if ((kind == JSON_KIND_TOP && actData[0] == '\0') || (kind == JSON_KIND_XTOP && actDataExtra[0] == '\0') || (kind == JSON_KIND_OPT && actOptData[0] == '\0')) {
+    webserver_send(client, 503, (char *)"application/json", 0);
+    webserver_send_content_P(client, PSTR("{\"error\":\"no data yet\"}"), 23);
+    return 0;
+  }
   webserver_send(client, 200, (char *)"application/json", 0);
   switch (kind) {
     case JSON_KIND_TOP: sendJsonHeatpumpTopic(client, actData, nr); break;
     case JSON_KIND_XTOP: sendJsonExtraTopic(client, actDataExtra, nr); break;
     case JSON_KIND_OPT: sendJsonOptTopic(client, actOptData, nr); break;
-#ifdef ESP32
-    case JSON_KIND_RELAY: {
-        JsonDocument relayDoc;
-        addJsonRelay(relayDoc.to<JsonObject>(), nr, heishamonSettings);
-        String relayJson;
-        serializeJson(relayDoc, relayJson);
-        webserver_send_content(client, (char*)relayJson.c_str(), relayJson.length());
-      } break;
-#endif
     case JSON_KIND_OPENTHERM: openthermJsonMember(client, nr); break;
     case JSON_KIND_1WIRE: dallasJsonSensor(client, nr); break;
     case JSON_KIND_S0: s0JsonSingle(client, nr); break;
-    case JSON_KIND_GPIO: gpioJsonPin(client, nr, heishamonSettings->gpioSettings); break;
+    case JSON_KIND_GPIO: gpioJsonPin(client, nr, heishamonSettings->gpioSettings, heishamonSettings->mqtt_topic_base); break;
   }
   return 0;
 }
@@ -1436,17 +1426,6 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
     client->content--; // The webserver also increases by 1
   } else if (client->content == (NUMBER_OF_TOPICS + extraTopics + numOptTopics + 1)) {
     webserver_send_content_P(client, PSTR("]"), 1);
-#ifdef ESP32
-    JsonDocument relaysDoc;
-    JsonArray relays = relaysDoc["relays"].to<JsonArray>();
-    for (int i = 0; i < 2; i++) {
-      addJsonRelay(relays.add<JsonObject>(), i, heishamonSettings);
-    }
-    String relaysJson;
-    serializeJson(relays, relaysJson);
-    webserver_send_content_P(client, PSTR(",\"relays\":"), 10);
-    webserver_send_content(client, (char*)relaysJson.c_str(), relaysJson.length());
-#endif
     if (heishamonSettings->use_1wire) {
       webserver_send_content_P(client, PSTR(",\"1wire\":"), 9);
       dallasJsonOutput(client);
@@ -1460,7 +1439,7 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
       openthermJsonOutput(client);
     }
     webserver_send_content_P(client, PSTR(",\"gpio\":"), 8);
-    gpioJsonOutput(client, heishamonSettings->gpioSettings, heishamonSettings->opentherm, heishamonSettings->listenonly);
+    gpioJsonOutput(client, heishamonSettings->gpioSettings, heishamonSettings->mqtt_topic_base, heishamonSettings->opentherm, heishamonSettings->listenonly);
     webserver_send_content_P(client, PSTR("}"), 1);
   }
   return 0;

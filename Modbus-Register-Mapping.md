@@ -8,11 +8,14 @@ ESP32 supports Modbus TCP; ESP8266 does not.
 
 Modbus TCP has no authentication, so it is **off by default**. In **Settings**:
 
-- **Enable Modbus TCP server (port 502)**: starts the server after a reboot. Without
-  further options the server is read-only.
-- **Allow Modbus writes**: additionally accepts FC05 (relays) and FC06 (heat pump
+- **Enable Modbus TCP server (port 502)**: starts the server. Without further
+  options the server is read-only. Unticking it stops the server and drops
+  writes that were queued but not executed yet.
+- **Allow Modbus writes**: additionally accepts FC05 (relays) and FC06/FC16 (heat pump
   commands, including `SetReset`). While this is off, write requests are answered
   with `ILLEGAL_FUNCTION`.
+
+Both settings take effect when the settings are saved, without a reboot.
 
 Only enable Modbus on a network you trust.
 
@@ -22,6 +25,19 @@ refreshes, and accepted writes are queued and executed by the main loop like any
 MQTT command. A write is therefore acknowledged when it is queued, not when the
 heat pump has processed it. If the queue is full the request is answered with
 `SERVER_DEVICE_BUSY`; retry it later.
+
+A command write is only acknowledged when it will be sent:
+
+- In **listen-only** mode HeishaMon never sends commands to the heat pump, so command
+  writes are answered with `ILLEGAL_FUNCTION`. The relays can still be switched.
+- A heat pump command value the command itself refuses (out of its range) is answered
+  with `ILLEGAL_DATA_VALUE` instead of being acknowledged and dropped. Optional PCB
+  values are only range-checked by the Modbus layer.
+
+Before HeishaMon has received data from the heat pump (after boot, or with no heat
+pump connected) the main and optional PCB registers answer `SERVER_DEVICE_BUSY`
+instead of values decoded from an empty buffer. Retry later; device registers
+(version, relay state) and S0 are always available.
 
 ## Address map at a glance
 
@@ -152,11 +168,15 @@ Adding S0 does not change existing addresses or the register map version (3).
 | PulseQuality | % | 3003 | 16006 / 16007 | 3103 | 16206 / 16207 |
 | AvgPulseWidth | ms | 3004 | 16008 / 16009 | 3104 | 16208 / 16209 |
 | Enabled | 0/1 | 3005 | 16010 / 16011 | 3105 | 16210 / 16211 |
+| WatthourTotal (uint32) | Wh | 3010 / 3011 | - | 3110 / 3111 | - |
 
 All S0 values use **x1**. Integer readings truncate fractions and saturate at 32767.
-**Use floats for energy totals**, high power and fractional readings. Floats retain
-about seven significant decimal digits; this is not an exact 64-bit energy counter.
-To display kWh, divide the Wh total by 1000 in the client.
+Use floats for high power and fractional readings. A float32 has a 24-bit mantissa,
+so the float `WatthourTotal` is only exact up to 16,777,216 Wh (16.7 MWh) and moves in
+steps of 2 Wh or more above that. **For the energy total use the uint32 pair**
+3010/3011 (port 2: 3110/3111): whole Wh as an unsigned 32-bit value, MSW first, exact
+up to 4,294,967,295 Wh. Read both registers in one request so they come from the same
+reading. To display kWh, divide the Wh total by 1000 in the client.
 
 - `Watt` uses the S0 subsystem's calculated power, including its low-power decay.
 - `WatthourTotal` uses accumulated pulses and the configured pulses/kWh. It includes

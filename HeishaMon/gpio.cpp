@@ -156,9 +156,34 @@ void mqttGPIOCallback(char* topic, char* value, gpioSettingsStruct &gpioSettings
     digitalWrite(gpioSettings.gpioPin[i], toGPIOValue(value));
     return;
   }
-  snprintf_P(log_msg, sizeof(log_msg), PSTR("GPIO: set %s (pin %d) = %s"), topic, gpioSettings.gpioPin[i], value);
+  gpioWriteOutput(i, toGPIOValue(value), gpioSettings, openthermEnabled, listenOnly);
+}
+
+bool gpioValueFromString(const char* value) {
+  return toGPIOValue((char*)value);
+}
+
+// The GPIO index of an available pin, by physical pin number, -1 if none
+int gpioIndexFromPin(int pin, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
+  for (int i = 0; i < NUMGPIO; i++) {
+    if ((int)gpioSettings.gpioPin[i] == pin && !isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) return i;
+  }
+  return -1;
+}
+
+// Switch an output by GPIO index, for MQTT, the web API (/gpio, /command SetRelayOne/Two) and anything
+// else that controls a pin. Returns false (and does nothing) when the pin is unavailable or not an output.
+bool gpioWriteOutput(int i, bool state, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
+  if (i < 0 || i >= NUMGPIO) return false;
+  if (isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) return false;
+  if (gpioSettings.gpioMode[i] != OUTPUT) return false;
+  char name[16];
+  char log_msg[96];
+  gpioTopicName(i, name, sizeof(name));
+  snprintf_P(log_msg, sizeof(log_msg), PSTR("GPIO: set %s (pin %d) = %d"), name, gpioSettings.gpioPin[i], state ? 1 : 0);
   log_message(log_msg);
-  writeOutput(i, toGPIOValue(value), gpioSettings);
+  writeOutput(i, state, gpioSettings);
+  return true;
 }
 
 void publishGPIOStates(PubSubClient &mqtt_client, gpioSettingsStruct &gpioSettings, char* mqtt_topic_base, bool openthermEnabled, bool listenOnly, unsigned int updateAllTime) {
@@ -203,38 +228,47 @@ void publishGPIOStates(PubSubClient &mqtt_client, gpioSettingsStruct &gpioSettin
   if (resendInputs && success) lastInputResend = millis();
 }
 
-// one pin object, used for the full list and for /json?gpio=<name>
-void gpioJsonPin(struct webserver_t *client, int i, gpioSettingsStruct &gpioSettings) {
-  char buf[64];
+// one pin object, used for the full list and for /json?gpio=<name>:
+// {"pin":21,"mode":2,"state":1,"name":"relay/one","topic":"<base>/gpio/relay/one/state"}
+void gpioJsonPin(struct webserver_t *client, int i, gpioSettingsStruct &gpioSettings, const char* mqtt_topic_base) {
+  char name[16];
+  char buf[96];
   int state = digitalRead(gpioSettings.gpioPin[i]);
   int mode = (i < NUMGPIO_RELAY) ? GPIO_MODE_OUTPUT : gpioSettings.gpioUserMode[i - NUMGPIO_RELAY];
-  int len = snprintf_P(buf, sizeof(buf), PSTR("{\"pin\":%d,\"mode\":%d,\"state\":%d}"), gpioSettings.gpioPin[i], mode, state);
+  gpioTopicName(i, name, sizeof(name));
+  int len = snprintf_P(buf, sizeof(buf), PSTR("{\"pin\":%d,\"mode\":%d,\"state\":%d,\"name\":\"%s\",\"topic\":\""),
+                       gpioSettings.gpioPin[i], mode, state, name);
+  webserver_send_content(client, buf, len);
+  webserver_send_content(client, (char*)mqtt_topic_base, strlen(mqtt_topic_base));
+  len = snprintf_P(buf, sizeof(buf), PSTR("/gpio/%s/state\"}"), name);
   webserver_send_content(client, buf, len);
 }
 
-void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
+void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, const char* mqtt_topic_base, bool openthermEnabled, bool listenOnly) {
   webserver_send_content_P(client, PSTR("["), 1);
   bool first = true;
   for (int i = 0; i < NUMGPIO; i++) {
     if (isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) continue;
     if (!first) webserver_send_content_P(client, PSTR(","), 1);
     first = false;
-    gpioJsonPin(client, i, gpioSettings);
+    gpioJsonPin(client, i, gpioSettings, mqtt_topic_base);
   }
   webserver_send_content_P(client, PSTR("]"), 1);
 }
 
-// find an available pin by its MQTT name ("extra/N", "relay/one", "relay/two") or by the
-// extra GPIO number alone ("N"), -1 if none
+// find an available pin by its MQTT name ("extra/N", "relay/one", "relay/two", case-insensitive)
+// or by the extra GPIO number alone ("N"), -1 if none
 int gpioJsonFind(const char *name, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
   int i = -1;
   if (name[0] >= '1' && name[0] <= '9' && name[1] == '\0') {
     i = NUMGPIO_RELAY + (name[0] - '1');
     if (i >= NUMGPIO) i = -1;
   } else {
-    bool isState = false;
-    i = gpioIndexFromTopic(name, isState);
-    if (isState) i = -1;
+    char topicName[16];
+    for (int j = 0; j < NUMGPIO && i < 0; j++) {
+      gpioTopicName(j, topicName, sizeof(topicName));
+      if (strcasecmp(name, topicName) == 0) i = j;
+    }
   }
   if (i < 0 || isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) return -1;
   return i;

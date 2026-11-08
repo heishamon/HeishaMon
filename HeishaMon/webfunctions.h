@@ -57,6 +57,7 @@ struct settingsStruct {
 #endif
 
   bool force_rules = false; //force rules on boot, even after a crash
+  bool rules_mqtt_events = false; //publish an event to <base>/rules/executed for every rule run
   bool listenonly = false; //listen only so heishamon can be installed parallel to cz-taw1, set commands will not work though
   bool optionalPCB = false; //do we emulate an optional PCB?
   bool use_1wire = false; //1wire enabled?

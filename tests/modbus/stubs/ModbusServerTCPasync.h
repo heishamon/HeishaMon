@@ -44,4 +44,5 @@ public:
   inline static std::map<uint8_t, Handler> workers;
   void registerWorker(uint8_t, uint8_t function, Handler handler) { workers[function] = handler; }
   void start(int, int, int) {}
+  void stop() {}
 };

@@ -34,7 +34,8 @@ struct s0DataStruct {
 // per request so both words of a float are generated from the same reading.
 struct S0Reading {
   float watt = 0;
-  float watthourTotal = 0;
+  double watthourTotal = 0;     // double: a float loses whole Wh above 16,777,216 Wh
+  uint32_t watthourTotalWh = 0;  // the same total as whole Wh, for the uint32 register pair
   float watthour = 0;
   float pulseQuality = 0;
   float avgPulseWidth = 0;

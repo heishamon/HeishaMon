@@ -9,6 +9,8 @@
 class HeishaModbusServer {
 public:
     void setup(bool isOptionalPCB, bool isS0Enabled, bool allowWrites);
+    // Apply the settings at runtime: starts/stops the server and updates the write/PCB/listen-only flags.
+    void configure(bool enabled, bool isOptionalPCB, bool allowWrites, bool listenOnly);
     // Call from the main loop: refreshes the data snapshot and executes queued writes.
     void loop(bool isS0Enabled, bool extraDataBlockAvailable);
     static bool registerRow(uint16_t index, String &html);
@@ -23,5 +25,7 @@ private:
 
 private:
     ModbusServerTCPasync _mbServer;
+    bool _running = false;
+    bool _workersRegistered = false;
 };
 #endif

@@ -21,6 +21,9 @@ constexpr uint16_t OPTIONAL_TOPIC_BASE = 2000;
 constexpr uint16_t S0_TOPIC_BASE = 3000;
 constexpr uint16_t S0_PORT_STRIDE = 100;
 constexpr uint16_t S0_FIELD_COUNT = 6;
+// WatthourTotal as an unsigned 32-bit Wh count in two int16-block registers (MSW, LSW) per port:
+// exact over the whole meter range, unlike the float32 register (24-bit mantissa, exact up to 16,777,216 Wh).
+constexpr uint16_t S0_TOTAL_UINT32_OFFSET = 10;
 constexpr uint16_t VERSION_REGISTER = 32000;
 constexpr uint16_t RELAY_STATE_REGISTER = 32010;  // 32010 = relay 1, 32011 = relay 2 (0/1)
 constexpr uint16_t FLOAT_BASE = 10000;

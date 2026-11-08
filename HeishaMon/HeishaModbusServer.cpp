@@ -63,6 +63,17 @@ char snapshotMain[DATASIZE] = { 0 };
 char snapshotExtra[DATASIZE] = { 0 };
 char snapshotOpt[OPTDATASIZE] = { 0 };
 bool snapshotExtraAvailable = false;
+bool snapshotMainAvailable = false;  // a heat pump datagram has been received
+bool snapshotOptAvailable = false;   // an optional PCB datagram has been received
+
+// The data last copied into the snapshot, compared in loop() so the lock is only taken on a change.
+// Main task only (no lock needed).
+bool lastValid = false;
+char lastMain[DATASIZE] = { 0 };
+char lastExtra[DATASIZE] = { 0 };
+char lastOpt[OPTDATASIZE] = { 0 };
+bool lastRelay[RELAY_COUNT] = { false, false };
+bool lastExtraAvailable = false;
 bool snapshotRelay[RELAY_COUNT] = { false, false };
 
 struct WriteRequest {
@@ -77,10 +88,11 @@ WriteRequest writeQueue[WRITE_QUEUE_SIZE];
 size_t writeQueueHead = 0;
 size_t writeQueueCount = 0;
 
-// Set once in setup() before the server accepts connections.
-bool optionalPCB = false;
+// Updated from loop() (settings can change at runtime), read by the async callbacks.
+std::atomic<bool> optionalPCB{false};
 std::atomic<bool> s0Enabled{false};
 std::atomic<bool> writesAllowed{false};
+std::atomic<bool> listenOnlyMode{false};  // commands are not sent to the heat pump
 
 static_assert(NUM_S0_COUNTERS * S0_PORT_STRIDE <= TOPIC_CAPACITY, "S0 Modbus block is full");
 static_assert(S0_FIELD_COUNT <= S0_PORT_STRIDE, "S0 port block is full");
@@ -102,10 +114,28 @@ bool decodeS0Address(uint16_t address, uint16_t &port, uint16_t &field, bool &fl
   return false;
 }
 
+// The uint32 WatthourTotal pair: S0_TOTAL_UINT32_OFFSET (MSW) and +1 (LSW) in each port block.
+bool decodeS0TotalAddress(uint16_t address, uint16_t &port, bool &highWord) {
+  for (port = 0; port < NUM_S0_COUNTERS; ++port) {
+    const uint16_t msw = S0_TOPIC_BASE + port * S0_PORT_STRIDE + S0_TOTAL_UINT32_OFFSET;
+    if (address == msw || address == msw + 1) {
+      highWord = address == msw;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool isS0Address(uint16_t address) {
+  uint16_t port, field;
+  bool floating, highWord;
+  return decodeS0Address(address, port, field, floating, highWord) || decodeS0TotalAddress(address, port, highWord);
+}
+
 float s0FieldValue(const S0Reading &reading, uint16_t field) {
   switch (field) {
     case 0: return reading.watt;
-    case 1: return reading.watthourTotal;
+    case 1: return float(reading.watthourTotal);
     case 2: return reading.watthour;
     case 3: return reading.pulseQuality;
     case 4: return reading.avgPulseWidth;
@@ -117,6 +147,11 @@ float s0FieldValue(const S0Reading &reading, uint16_t field) {
 bool s0ToRegisterValue(uint16_t address, const S0Reading readings[NUM_S0_COUNTERS], uint16_t &result) {
   uint16_t port, field;
   bool floating, highWord;
+  if (decodeS0TotalAddress(address, port, highWord)) {
+    const uint32_t total = readings[port].watthourTotalWh;
+    result = highWord ? uint16_t(total >> 16) : uint16_t(total & 0xFFFF);
+    return true;
+  }
   if (!decodeS0Address(address, port, field, floating, highWord)) return false;
   const float value = s0FieldValue(readings[port], field);
   if (floating) {
@@ -136,6 +171,7 @@ enum class CommandWriteResult {
   InvalidAddress,
   UnsupportedValue,
   Unavailable,
+  Refused,  // listen-only mode: commands are never sent to the heat pump
   Busy
 };
 
@@ -258,7 +294,7 @@ bool decodeTopicAddress(uint16_t address, TopicSource &source, uint16_t &topicIn
 bool fetchTopicString(TopicSource source, uint16_t topicIndex, String &value) {
   switch (source) {
     case TopicSource::Main:
-      if (topicIndex >= NUMBER_OF_TOPICS) {
+      if (topicIndex >= NUMBER_OF_TOPICS || !snapshotMainAvailable) {
         return false;
       }
       value = getDataValue(snapshotMain, topicIndex);
@@ -270,7 +306,7 @@ bool fetchTopicString(TopicSource source, uint16_t topicIndex, String &value) {
       value = getDataValueExtra(snapshotExtra, topicIndex);
       return true;
     case TopicSource::Optional:
-      if (topicIndex >= NUMBER_OF_OPT_TOPICS || !optionalPCB) {
+      if (topicIndex >= NUMBER_OF_OPT_TOPICS || !optionalPCB || !snapshotOptAvailable) {
         return false;
       }
       value = getOptDataValue(snapshotOpt, topicIndex);
@@ -299,6 +335,24 @@ void stringToFloatWords(const String &value, uint16_t &msw, uint16_t &lsw) {
   memcpy(&raw, &fValue, sizeof(raw));
   msw = static_cast<uint16_t>(raw >> 16);
   lsw = static_cast<uint16_t>(raw & 0xFFFF);
+}
+
+// Must be called with stateMutex held. True for a main or optional PCB topic register whose data
+// has not been received yet (after boot, or no heat pump connected): the caller answers BUSY
+// so a client retries instead of storing a value decoded from an empty buffer.
+bool topicDataPending(uint16_t address) {
+  TopicSource source;
+  uint16_t topicIndex = 0;
+  bool highWord = false;
+  if (!decodeTopicAddress(address, source, topicIndex) && !decodeFloatTopicAddress(address, source, topicIndex, highWord)) {
+    return false;
+  }
+  switch (source) {
+    case TopicSource::Main: return topicIndex < NUMBER_OF_TOPICS && !snapshotMainAvailable;
+    case TopicSource::Optional: return topicIndex < NUMBER_OF_OPT_TOPICS && optionalPCB && !snapshotOptAvailable;
+    case TopicSource::Extra: return false;  // a missing extra block is permanent: illegal data address
+  }
+  return false;
 }
 
 bool topicToRegisterValue(uint16_t address, uint16_t &registerValue) {
@@ -423,6 +477,25 @@ bool dequeueWrite(WriteRequest &request) {
   return true;
 }
 
+// The main set_* functions only build a command buffer from the payload (no side effects), so they
+// can run here to reject a value the command would refuse (length 0) before it is acknowledged.
+// Optional PCB setters change the shared optionalPCBQuery directly, so those are only checked in loop().
+bool mainCommandAccepts(const char *name, const char *payload) {
+  for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+    cmdStruct command;
+    memcpy_P(&command, &commands[i], sizeof(command));
+    if (strcmp(name, command.name) == 0) {
+      unsigned char cmd[256];
+      char logMsg[256];
+      char value[16];
+      strncpy(value, payload, sizeof(value) - 1);
+      value[sizeof(value) - 1] = '\0';
+      return command.func(value, cmd, logMsg) > 0;
+    }
+  }
+  return false;
+}
+
 // Runs in the async task: only validates and queues, the command is executed by loop().
 // commandRegister is the int16 command register. For a float32 write, second is the low word
 // and registerValue the high word.
@@ -440,11 +513,15 @@ CommandWriteResult handleWriteCommand(uint16_t commandRegister, uint16_t registe
   if (target.optional && !optionalPCB) {
     return CommandWriteResult::Unavailable;
   }
+  // send_command() drops every command in listen-only mode; don't acknowledge what won't be sent.
+  if (listenOnlyMode.load()) {
+    return CommandWriteResult::Refused;
+  }
 
   WriteRequest request = { false, commandRegister, false, { 0 } };
   const bool valid = isFloat ? floatToPayload(target, registerValue, second, request.payload, sizeof(request.payload))
                              : int16ToPayload(target, registerValue, request.payload, sizeof(request.payload));
-  if (!valid) {
+  if (!valid || (!target.optional && !mainCommandAccepts(target.name, request.payload))) {
     return CommandWriteResult::UnsupportedValue;
   }
   return enqueueWrite(request) ? CommandWriteResult::Success : CommandWriteResult::Busy;
@@ -538,6 +615,19 @@ bool HeishaModbusServer::registerRow(uint16_t index, String &html) {
     return true;
   }
   index -= NUM_S0_COUNTERS * S0_FIELD_COUNT;
+  if (index < NUM_S0_COUNTERS) {
+    const uint16_t msw = S0_TOPIC_BASE + index * S0_PORT_STRIDE + S0_TOTAL_UINT32_OFFSET;
+    html = "<tr data-kind='read'><td>S0 ";
+    html += String(index + 1);
+    html += "</td><td>WatthourTotal (uint32)</td><td>";
+    html += String(msw);
+    html += " / ";
+    html += String(msw + 1);
+    html += "</td><td>-</td><td>Read / FC03</td><td>Wh; uint32, MSW first: read both registers in one request;";
+    html += " exact over the whole meter range (float32 is exact up to 16,777,216 Wh)</td></tr>";
+    return true;
+  }
+  index -= NUM_S0_COUNTERS;
   const char *name;
   uint16_t address;
   bool optional = false;
@@ -630,9 +720,7 @@ ModbusMessage HeishaModbusServer::FC_03(ModbusMessage request) {
   bool sampledS0 = false;
   // Sample once per request; never mix two readings in one float register pair.
   for (uint16_t i = 0; i < words && !sampledS0; ++i) {
-    uint16_t port, field;
-    bool floating, highWord;
-    if (decodeS0Address(addr + i, port, field, floating, highWord)) {
+    if (isS0Address(addr + i)) {
       readS0Readings(s0Enabled.load(), s0Readings);
       sampledS0 = true;
     }
@@ -640,6 +728,13 @@ ModbusMessage HeishaModbusServer::FC_03(ModbusMessage request) {
 
   // Serve the whole request from one consistent snapshot of the heat pump data.
   std::lock_guard<std::mutex> lock(stateMutex);
+
+  for (uint16_t i = 0; i < words; ++i) {
+    if (topicDataPending(addr + i)) {
+      response.setError(request.getServerID(), request.getFunctionCode(), SERVER_DEVICE_BUSY);
+      return response;
+    }
+  }
 
   response.add(request.getServerID(), request.getFunctionCode(), (uint8_t)(words * 2));
 
@@ -699,6 +794,9 @@ static ModbusMessage writeError(ModbusMessage request, CommandWriteResult result
       break;
     case CommandWriteResult::UnsupportedValue:
       response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_DATA_VALUE);
+      break;
+    case CommandWriteResult::Refused:
+      response.setError(request.getServerID(), request.getFunctionCode(), ILLEGAL_FUNCTION);
       break;
     case CommandWriteResult::Busy:
     case CommandWriteResult::Success:
@@ -804,16 +902,39 @@ ModbusMessage HeishaModbusServer::FC_16(ModbusMessage request) {
 
 void HeishaModbusServer::setup(bool isOptionalPCB, bool isS0Enabled, bool allowWrites)
 {
-  optionalPCB = isOptionalPCB;
   s0Enabled.store(isS0Enabled);
-  writesAllowed.store(allowWrites);
+  configure(true, isOptionalPCB, allowWrites, listenOnlyMode.load());
+}
 
-  _mbServer.registerWorker(1, READ_COIL,            &HeishaModbusServer::FC_01);
-  _mbServer.registerWorker(1, WRITE_COIL,           &HeishaModbusServer::FC_05);
-  _mbServer.registerWorker(1, READ_HOLD_REGISTER,   &HeishaModbusServer::FC_03);
-  _mbServer.registerWorker(1, WRITE_HOLD_REGISTER,  &HeishaModbusServer::FC_06);
-  _mbServer.registerWorker(1, WRITE_MULT_REGISTERS,  &HeishaModbusServer::FC_16);
-  _mbServer.start(502, 1, 20000);
+// Settings are applied at runtime (saving the settings page does not reboot): call every loop().
+void HeishaModbusServer::configure(bool enabled, bool isOptionalPCB, bool allowWrites, bool listenOnly)
+{
+  optionalPCB.store(isOptionalPCB);
+  writesAllowed.store(allowWrites);
+  listenOnlyMode.store(listenOnly);
+  if (enabled == _running) {
+    return;
+  }
+  if (enabled) {
+    if (!_workersRegistered) {
+      _mbServer.registerWorker(1, READ_COIL,            &HeishaModbusServer::FC_01);
+      _mbServer.registerWorker(1, WRITE_COIL,           &HeishaModbusServer::FC_05);
+      _mbServer.registerWorker(1, READ_HOLD_REGISTER,   &HeishaModbusServer::FC_03);
+      _mbServer.registerWorker(1, WRITE_HOLD_REGISTER,  &HeishaModbusServer::FC_06);
+      _mbServer.registerWorker(1, WRITE_MULT_REGISTERS, &HeishaModbusServer::FC_16);
+      _workersRegistered = true;
+    }
+    _mbServer.start(502, 1, 20000);
+    log_message((char *)"Modbus TCP server started");
+  } else {
+    _mbServer.stop();
+    // writes queued before the stop are dropped, never executed later
+    std::lock_guard<std::mutex> lock(stateMutex);
+    writeQueueHead = 0;
+    writeQueueCount = 0;
+    log_message((char *)"Modbus TCP server stopped");
+  }
+  _running = enabled;
 }
 
 void HeishaModbusServer::loop(bool isS0Enabled, bool extraDataBlockAvailable)
@@ -828,12 +949,32 @@ void HeishaModbusServer::loop(bool isS0Enabled, bool extraDataBlockAvailable)
   }
 
   // Refresh the snapshot after the writes so a relay reads back the state that was just set.
+  // Only take the lock when something changed: the data changes once per heat pump poll, while
+  // loop() runs thousands of times in between. actData is written by this (main) task only.
   const bool relays[RELAY_COUNT] = { getRelay1(), getRelay2() };
-  std::lock_guard<std::mutex> lock(stateMutex);
-  memcpy(snapshotMain, actData, sizeof(snapshotMain));
-  memcpy(snapshotExtra, actDataExtra, sizeof(snapshotExtra));
-  memcpy(snapshotOpt, actOptData, sizeof(snapshotOpt));
-  snapshotExtraAvailable = extraDataBlockAvailable;
-  for (uint16_t i = 0; i < RELAY_COUNT; ++i) snapshotRelay[i] = relays[i];
+  const bool mainAvailable = actData[0] != '\0';
+  const bool optAvailable = actOptData[0] != '\0';
+  if (!lastValid ||
+      memcmp(lastMain, actData, sizeof(lastMain)) != 0 ||
+      memcmp(lastExtra, actDataExtra, sizeof(lastExtra)) != 0 ||
+      memcmp(lastOpt, actOptData, sizeof(lastOpt)) != 0 ||
+      memcmp(lastRelay, relays, sizeof(lastRelay)) != 0 ||
+      lastExtraAvailable != extraDataBlockAvailable) {
+    memcpy(lastMain, actData, sizeof(lastMain));
+    memcpy(lastExtra, actDataExtra, sizeof(lastExtra));
+    memcpy(lastOpt, actOptData, sizeof(lastOpt));
+    memcpy(lastRelay, relays, sizeof(lastRelay));
+    lastExtraAvailable = extraDataBlockAvailable;
+    lastValid = true;
+
+    std::lock_guard<std::mutex> lock(stateMutex);
+    memcpy(snapshotMain, actData, sizeof(snapshotMain));
+    memcpy(snapshotExtra, actDataExtra, sizeof(snapshotExtra));
+    memcpy(snapshotOpt, actOptData, sizeof(snapshotOpt));
+    snapshotMainAvailable = mainAvailable;
+    snapshotOptAvailable = optAvailable;
+    snapshotExtraAvailable = extraDataBlockAvailable;
+    for (uint16_t i = 0; i < RELAY_COUNT; ++i) snapshotRelay[i] = relays[i];
+  }
 }
 #endif

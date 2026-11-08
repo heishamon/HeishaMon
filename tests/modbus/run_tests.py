@@ -20,7 +20,12 @@ definitions = []
 for result, signature in re.findall(r"^(String|unsigned int) ([^;\n]+);", decode + commands, re.M):
     if signature.startswith(("getDataValue(", "getDataValueExtra(", "getOptDataValue(")):
         continue
-    definitions.append(f"{result} {signature} {{ return " + ('"0"' if result == "String" else "0") + "; }")
+    if result == "unsigned int" and "char *msg" in signature:
+        # command setters: accept every payload except "-32768", so the tests can check that a
+        # value the command refuses is rejected before the Modbus write is acknowledged
+        definitions.append(f"{result} {signature} {{ return (msg && std::strcmp(msg, \"-32768\") == 0) ? 0 : 1; }}")
+    else:
+        definitions.append(f"{result} {signature} {{ return " + ('"0"' if result == "String" else "0") + "; }")
 (OUT / "generated_stubs.h").write_text("\n".join(definitions) + "\n", encoding="utf-8")
 
 source = HERE / "test_modbus.cpp"

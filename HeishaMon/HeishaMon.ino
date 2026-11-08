@@ -135,6 +135,13 @@ unsigned long dallasMqttRestoreStart = 0;
 // can't have too much in buffer due to memory shortage
 #define MAXCOMMANDSINBUFFER 10
 
+// /gpio request arguments, collected in client->userdata until the response is written
+#define GPIO_ARG_PIN_MASK    0xFF   // physical pin + 1, 0 = not given
+#define GPIO_ARG_PIN_INVALID 0xFF   // pin argument was not a number
+#define GPIO_ARG_VALUE_SET   0x100
+#define GPIO_ARG_VALUE_ON    0x200
+#define GPIO_ARG_ERROR_SENT  0x400  // an error response was sent, skip the pin list
+
 // buffer for commands to send
 struct cmdbuffer_t {
   uint8_t length;
@@ -448,20 +455,24 @@ bool loadTlsCaFromFS(WiFiClientSecure *client) {
 #endif
 
 
+// Opt-in (setting "Publish rule executions to MQTT"): one event per rule run adds a publish for
+// every changed topic that triggers a rule, which is a lot of traffic for a debugging aid.
 void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested) {
-  if (!mqtt_client.connected()) return;
-  JsonDocument doc;
-  doc["rule"] = name;
-  doc["rule_id"] = id;
-  doc["result"] = result;
-  doc["uptime_ms"] = millis();
-  doc["nested"] = nested;
-  if (!nested) doc["duration_us"] = duration;
-  String payload;
-  serializeJson(doc, payload);
+  if (!heishamonSettings.rules_mqtt_events || !mqtt_client.connected()) return;
+  // rule names are plain identifiers (no characters that need JSON escaping)
+  char payload[160];
+  int len;
+  if (nested) {
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":true}"),
+                     name, id, result, (unsigned long)millis());
+  } else {
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":false,\"duration_us\":%lu}"),
+                     name, id, result, (unsigned long)millis(), (unsigned long)duration);
+  }
+  if (len <= 0 || len >= (int)sizeof(payload)) return;
   char topic[256];
   snprintf(topic, sizeof(topic), "%s/rules/executed", heishamonSettings.mqtt_topic_base);
-  mqtt_client.publish(topic, payload.c_str(), false);
+  mqtt_client.publish(topic, payload, false);
 }
 
 void publishRulesState(bool force) {
@@ -1277,7 +1288,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
 #ifdef ESP32
               if (strcmp((char *)args->name, "SetRelayOne") == 0 || strcmp((char *)args->name, "SetRelayTwo") == 0) {
                 const bool firstRelay = strcmp((char *)args->name, "SetRelayOne") == 0;
-                mqttGPIOCallback((char *)(firstRelay ? "relay/one" : "relay/two"), cpy, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                gpioWriteOutput(firstRelay ? 0 : 1, gpioValueFromString(cpy), heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
                 snprintf(log_msg, sizeof(log_msg), "%s: %d", (char *)args->name, digitalRead(firstRelay ? relayOnePin : relayTwoPin) ? 1 : 0);
                 if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
                   loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
@@ -1336,31 +1347,26 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return cacheSettings(client, args);
             } break;
           case 191: {
-              // GPIO web API: args "pin" (physical GPIO pin number) and "value" (0/1/on/off/true/false)
-              // Store the physical pin number in userdata between arg callbacks
+              // GPIO web API: /gpio?pin=<physical pin>&value=<0/1/on/off/true/false>, in any order.
+              // Both are collected first (packed in userdata, see GPIO_ARG_*) and applied when the
+              // response is written, so the argument order doesn't matter.
+              uintptr_t state = (uintptr_t)client->userdata;
+              char str[8];
+              snprintf(str, sizeof(str), "%.*s", (int)args->len, args->value == NULL ? "" : (char *)args->value);
               if (strcmp_P((char *)args->name, PSTR("pin")) == 0) {
-                char pin_str[8];
-                snprintf(pin_str, sizeof(pin_str), "%.*s", args->len, args->value);
-                int phys_pin = atoi(pin_str);
-                client->userdata = (void*)(intptr_t)phys_pin;
+                char *end = NULL;
+                long pin = strtol(str, &end, 10);
+                state &= ~(uintptr_t)GPIO_ARG_PIN_MASK;
+                state |= (str[0] != '\0' && *end == '\0' && pin >= 0 && pin < 0xFE) ? (uintptr_t)(pin + 1) : (uintptr_t)GPIO_ARG_PIN_INVALID;
               } else if (strcmp_P((char *)args->name, PSTR("value")) == 0) {
-                int phys_pin = (int)(intptr_t)client->userdata;
-                char val_str[8];
-                snprintf(val_str, sizeof(val_str), "%.*s", args->len, args->value);
-                for (int i = 0; i < NUMGPIO; i++) {
-                  if ((int)heishamonSettings.gpioSettings.gpioPin[i] == phys_pin && heishamonSettings.gpioSettings.gpioMode[i] == OUTPUT) {
-                    char topic[16];
-                    if (i < NUMGPIO_RELAY) {
-                      snprintf_P(topic, sizeof(topic), i == 0 ? PSTR("relay/one") : PSTR("relay/two"));
-                    } else {
-                      snprintf_P(topic, sizeof(topic), PSTR("extra/%d"), i - NUMGPIO_RELAY + 1);
-                    }
-                    mqttGPIOCallback(topic, val_str, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
-                    break;
-                  }
+                state |= GPIO_ARG_VALUE_SET;
+                if (gpioValueFromString(str)) {
+                  state |= GPIO_ARG_VALUE_ON;
+                } else {
+                  state &= ~(uintptr_t)GPIO_ARG_VALUE_ON;
                 }
-                client->userdata = NULL;
               }
+              client->userdata = (void *)state;
               return 0;
             } break;
           case 150: {
@@ -1594,10 +1600,37 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 191: {
               if (client->content == 0) {
+                // apply a pin/value request (see the WEBSERVER_CLIENT_ARGS case), then report all pins
+                uintptr_t state = (uintptr_t)client->userdata;
+                client->userdata = NULL;
+                uintptr_t pinArg = state & GPIO_ARG_PIN_MASK;
+                bool valueSet = (state & GPIO_ARG_VALUE_SET) != 0;
+                if (pinArg != 0 || valueSet) {
+                  int i = -1;
+                  if (pinArg != 0 && pinArg != GPIO_ARG_PIN_INVALID) {
+                    i = gpioIndexFromPin((int)pinArg - 1, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                  }
+                  const char *error = NULL;
+                  if (pinArg == 0 || !valueSet) {
+                    error = PSTR("{\"error\":\"pin and value are both required\"}");
+                  } else if (i < 0 || !gpioWriteOutput(i, (state & GPIO_ARG_VALUE_ON) != 0, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly)) {
+                    error = PSTR("{\"error\":\"not an available output pin\"}");
+                  }
+                  if (error != NULL) {
+                    webserver_send(client, 400, (char *)"application/json", 0);
+                    webserver_send_content_P(client, error, strlen_P(error));
+                    client->userdata = (void *)(uintptr_t)GPIO_ARG_ERROR_SENT;
+                    return 0;
+                  }
+                }
                 webserver_send(client, 200, (char *)"application/json", 0);
                 return 0;
               } else if (client->content == 1) {
-                gpioJsonOutput(client, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                if ((uintptr_t)client->userdata == GPIO_ARG_ERROR_SENT) {
+                  client->userdata = NULL;
+                  return -1;
+                }
+                gpioJsonOutput(client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, heishamonSettings.opentherm, heishamonSettings.listenonly);
                 return 0;
               }
               return -1;
@@ -2017,10 +2050,8 @@ void setup() {
 #endif
 
 #ifdef ESP32
-  if (heishamonSettings.modbus) {
-    loggingSerial.println(F("Setup Modbus TCP server.."));
-    modbusServer.setup(heishamonSettings.optionalPCB, heishamonSettings.use_s0, heishamonSettings.modbusWrites);
-  }
+  // starts the server when enabled; loop() applies later settings changes without a reboot
+  modbusServer.configure(heishamonSettings.modbus, heishamonSettings.optionalPCB, heishamonSettings.modbusWrites, heishamonSettings.listenonly);
 #endif
 
   loggingSerial.println(F("Setup HTTP..."));
@@ -2159,13 +2190,7 @@ void loop() {
   checkBootButton();
 
   //webserver function
-  // Diagnostic: a slow synchronous HTTP pass delays MQTT, OpenTherm and heat pump processing.
-  const uint32_t webStart = millis();
   webserver_loop();
-  const uint32_t webElapsed = millis() - webStart;
-  if (webElapsed >= 100) {
-    loggingSerial.printf("DIAG WEB loop=%lu ms\n", (unsigned long)webElapsed);
-  }
 
   // check wifi
   check_wifi();
@@ -2173,6 +2198,7 @@ void loop() {
   ArduinoOTA.handle();
 
 #ifdef ESP32
+  modbusServer.configure(heishamonSettings.modbus, heishamonSettings.optionalPCB, heishamonSettings.modbusWrites, heishamonSettings.listenonly);
   if (heishamonSettings.modbus) modbusServer.loop(heishamonSettings.use_s0, extraDataBlockAvailable);
 #endif
 

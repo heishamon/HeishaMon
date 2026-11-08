@@ -571,31 +571,30 @@ int openthermJsonFind(const char *name) {
 // RW (both) or R (provided to the thermostat)
 static void openthermJsonPair(struct webserver_t *client, int i) {
   struct heishaOTDataStruct_t *member = &heishaOTDataStruct[i];
-  char str[64];
+  char value[16];
+  char buf[96];
 
-  webserver_send_content_P(client, PSTR("\""), 1);
-  webserver_send_content(client, (char *)member->name, strlen(member->name));
-  webserver_send_content_P(client, PSTR("\":{\"type\": \""), 12);
-  switch (member->rw) {
-    case 3: webserver_send_content_P(client, PSTR("W"), 1); break;
-    case 2: webserver_send_content_P(client, PSTR("RW"), 2); break;
-    default: webserver_send_content_P(client, PSTR("R"), 1); break;
-  }
-  webserver_send_content_P(client, PSTR("\",\"value\":"), 10);
   switch (member->type) {
     case TBOOL:
-      member->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
+      strcpy_P(value, member->value.b ? PSTR("true") : PSTR("false"));
       break;
     case TFLOAT:
-      dtostrf(member->value.f, 0, 2, str);
-      webserver_send_content(client, str, strlen(str));
+      dtostrf(member->value.f, 0, 2, value);
       break;
     case TINT8:
-      itoa(member->value.s8, str, 10);
-      webserver_send_content(client, str, strlen(str));
+      itoa(member->value.s8, value, 10);
+      break;
+    default:
+      strcpy_P(value, PSTR("null"));
       break;
   }
-  webserver_send_content_P(client, PSTR("}"), 1);
+  // built in one buffer so each value is a single send (the webserver queues every send separately)
+  int len = snprintf_P(buf, sizeof(buf), PSTR("\"%s\":{\"type\": \"%s\",\"value\":%s}"), member->name,
+                       member->rw == 3 ? "W" : (member->rw == 2 ? "RW" : "R"), value);
+  if (len >= (int)sizeof(buf)) {
+    len = sizeof(buf) - 1;
+  }
+  webserver_send_content(client, buf, len);
 }
 
 // all values, in the order of heishaOTDataStruct[]
