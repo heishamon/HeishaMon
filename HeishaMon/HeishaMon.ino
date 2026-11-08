@@ -45,6 +45,9 @@
 #include "commands.h"
 #include "rules.h"
 #include "version.h"
+#ifdef ESP32
+#include "HeishaModbusServer.h"
+#endif
 
 DNSServer dnsServer;
 
@@ -132,6 +135,13 @@ unsigned long dallasMqttRestoreStart = 0;
 // can't have too much in buffer due to memory shortage
 #define MAXCOMMANDSINBUFFER 10
 
+// /gpio request arguments, collected in client->userdata until the response is written
+#define GPIO_ARG_PIN_MASK    0xFF   // physical pin + 1, 0 = not given
+#define GPIO_ARG_PIN_INVALID 0xFF   // pin argument was not a number
+#define GPIO_ARG_VALUE_SET   0x100
+#define GPIO_ARG_VALUE_ON    0x200
+#define GPIO_ARG_ERROR_SENT  0x400  // an error response was sent, skip the pin list
+
 // buffer for commands to send
 struct cmdbuffer_t {
   uint8_t length;
@@ -142,7 +152,9 @@ static uint8_t cmdstart = 0;
 static uint8_t cmdend = 0;
 static uint8_t cmdnrel = 0;
 
-
+#ifdef ESP32
+HeishaModbusServer modbusServer;
+#endif
 
 // mqtt
 #ifdef TLS_SUPPORT
@@ -443,6 +455,45 @@ bool loadTlsCaFromFS(WiFiClientSecure *client) {
 #endif
 
 
+// Opt-in (setting "Publish rule executions to MQTT"): one event per rule run adds a publish for
+// every changed topic that triggers a rule, which is a lot of traffic for a debugging aid.
+void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested) {
+  if (!heishamonSettings.rules_mqtt_events || !mqtt_client.connected()) return;
+  // rule names are plain identifiers (no characters that need JSON escaping)
+  char payload[160];
+  int len;
+  if (nested) {
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":true}"),
+                     name, id, result, (unsigned long)millis());
+  } else {
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":false,\"duration_us\":%lu}"),
+                     name, id, result, (unsigned long)millis(), (unsigned long)duration);
+  }
+  if (len <= 0 || len >= (int)sizeof(payload)) return;
+  char topic[256];
+  snprintf(topic, sizeof(topic), "%s/rules/executed", heishamonSettings.mqtt_topic_base);
+  mqtt_client.publish(topic, payload, false);
+}
+
+void publishRulesState(bool force) {
+  static int reported = -1;
+  static unsigned long lastPublish = 0;
+  const unsigned long now = millis();
+  const int state = nrrules > 0 ? 1 : 0;
+  const bool periodic = (unsigned long)(now - lastPublish) >= heishamonSettings.updateAllTime * 1000UL;
+  if (!mqtt_client.connected()) return;
+  if (force || periodic || reported != state) {
+    char topic[256];
+    snprintf(topic, sizeof(topic), "%s/rules/state", heishamonSettings.mqtt_topic_base);
+    if (mqtt_client.publish(topic, state ? "1" : "0", true)) {
+      reported = state;
+      lastPublish = now;
+    } else {
+      reported = -1; // Retry on the next loop.
+    }
+  }
+}
+
 void mqtt_reconnect()
 {
   unsigned long now = millis();
@@ -488,6 +539,7 @@ void mqtt_reconnect()
     if (mqtt_client.connect(heishamonSettings.wifi_hostname, heishamonSettings.mqtt_username, heishamonSettings.mqtt_password, topic, 1, true, "Offline"))
     {
       mqttReconnects++;
+      publishRulesState(true);
       if (heishamonSettings.opentherm) {
         sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_opentherm_read);
         mqtt_client.subscribe(topic);
@@ -495,7 +547,8 @@ void mqtt_reconnect()
       sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_commands);
       mqtt_client.subscribe(topic);
       sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_gpio);
-      mqtt_client.subscribe(topic);      
+      mqtt_client.subscribe(topic);
+      gpioMqttConnected(mqttReconnects == 1); // publish all GPIO states, and on the first connect restore the outputs from their retained states first
       sprintf(topic, "%s/%s", heishamonSettings.mqtt_topic_base, mqtt_send_raw_value_topic);
       mqtt_client.subscribe(topic);
       sprintf(topic, "%s/%s", heishamonSettings.mqtt_topic_base, mqtt_willtopic);
@@ -511,10 +564,20 @@ void mqtt_reconnect()
       }
 #endif
 
-      if (heishamonSettings.use_s0) { // connect to s0 topic to retrieve older watttotal from mqtt
-        sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/1"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
-        mqtt_client.subscribe(mqtt_topic);
-        sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/2"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
+      if (heishamonSettings.use_s0) { // connect to s0 topic to retrieve older watttotal from mqtt, until restored once after boot
+        if (s0_restore_pending(1)) {
+          sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/1"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
+          mqtt_client.subscribe(mqtt_topic);
+          s0_restore_subscribed(1);
+        }
+        if (s0_restore_pending(2)) {
+          sprintf_P(mqtt_topic, PSTR("%s/%s/WatthourTotal/2"), heishamonSettings.mqtt_topic_base, mqtt_topic_s0);
+          mqtt_client.subscribe(mqtt_topic);
+          s0_restore_subscribed(2);
+        }
+      }
+      if (heishamonSettings.use_1wire) { // allow setting the per-sensor calibration offset over mqtt: <base>/1wire/<address>/offset/set
+        sprintf_P(mqtt_topic, PSTR("%s/%s/+/offset/set"), heishamonSettings.mqtt_topic_base, mqtt_topic_1wire);
         mqtt_client.subscribe(mqtt_topic);
       }
       if (heishamonSettings.use_1wire && mqttReconnects == 1) { // only on first connect: retrieve previously known 1wire sensors from their retained mqtt topics
@@ -1002,7 +1065,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     {
       char* topic_s0_watthour_port = topic_command + strlen(mqtt_topic_s0) + 15; //strip the first 17 "s0/WatthourTotal/" from the topic to get the s0 port
       int s0Port = String(topic_s0_watthour_port).toInt();
-      float watthour = String(msg).toFloat();
+      double watthour = strtod(msg, NULL); //String::toFloat() loses whole Wh above 16777216 Wh
       restore_s0_Watthour(s0Port, watthour);
       //unsubscribe after restoring the watthour values
       char mqtt_topic[256];
@@ -1027,11 +1090,15 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       mqttOTCallback(topic_otcommand, msg);
     } else if (strncmp(topic_command, mqtt_topic_gpio, strlen(mqtt_topic_gpio)) == 0)  {
       char* topic_gpiocommand = topic_command + strlen(mqtt_topic_gpio) + 1; //strip the gpio subtopic from the topic
-      mqttGPIOCallback(topic_gpiocommand, msg);
+      mqttGPIOCallback(topic_gpiocommand, msg, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
     } else if (strncmp(topic_command, mqtt_topic_1wire, strlen(mqtt_topic_1wire)) == 0) { //this is a 1wire address topic, restore its retained value at boot
       char* topic_1wire_address = topic_command + strlen(mqtt_topic_1wire) + 1; //strip the "1wire/" from the topic to get the sensor address
-      if ((strchr(topic_1wire_address, '/') == NULL) && (length > 0)) { //only handle the address topic itself (not .../alias) and skip empty (cleared) retained messages
+      char* topic_1wire_sub = strchr(topic_1wire_address, '/');
+      if ((topic_1wire_sub == NULL) && (length > 0)) { //only handle the address topic itself (not .../alias) and skip empty (cleared) retained messages
         restoreDallasFromMqtt(topic_1wire_address, String(msg).toFloat(), log_message);
+      } else if ((topic_1wire_sub != NULL) && (strcmp_P(topic_1wire_sub, PSTR("/offset/set")) == 0) && (length > 0)) { //set the calibration offset of a sensor
+        *topic_1wire_sub = '\0'; //terminate the address (topiccopy is a private copy of the topic)
+        changeDallasOffset(mqtt_client, heishamonSettings.mqtt_topic_base, topic_1wire_address, msg, log_message);
       }
     }
     free(topiccopy);
@@ -1077,6 +1144,10 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
     case WEBSERVER_CLIENT_REQUEST_URI: {
         if (strcmp_P((char *)dat, PSTR("/")) == 0) {
           client->route = 1;
+#ifdef ESP32
+        } else if (strcmp_P((char *)dat, PSTR("/modbus")) == 0) {
+          client->route = 200;
+#endif
         } else if (strcmp_P((char *)dat, PSTR("/json")) == 0) {
           client->route = 20;
         } else if (strcmp_P((char *)dat, PSTR("/reboot")) == 0) {
@@ -1090,6 +1161,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           client->route = 60;
         } else if (strcmp((char *)dat, "/removedallas") == 0) {
           client->route = 190;
+        } else if (strcmp((char *)dat, "/dallasoffset") == 0) {
+          client->route = 195;
         } else if (strcmp((char *)dat, "/togglelog") == 0) {
           client->route = 1;
           log_message(_F("Toggled mqtt log flag"));
@@ -1110,6 +1183,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           client->route = 81;  //for Apple devices
         } else if (strcmp_P((char *)dat, PSTR("/factoryreset")) == 0) {
           client->route = 90;
+        } else if (strcmp_P((char *)dat, PSTR("/gpio")) == 0) {
+          client->route = 191;
         } else if (strcmp_P((char *)dat, PSTR("/command")) == 0) {
           if ((client->userdata = malloc(1)) == NULL) {
             loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
@@ -1182,6 +1257,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
     case WEBSERVER_CLIENT_ARGS: {
         struct arguments_t *args = (struct arguments_t *)dat;
         switch (client->route) {
+          case 20: {
+              return handleJsonArgs(client, args, &heishamonSettings);
+            } break;
           case 60: {
               sprintf_P(log_msg, PSTR("Dallas alias changed address %s to alias %s"), args->name, args->value);
               log_message(log_msg);
@@ -1192,6 +1270,12 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               removeDallasSensor(mqtt_client, heishamonSettings.mqtt_topic_base, (char *)args->name, log_message);
               return 0;
             } break;
+          case 195: {
+              char value[16];
+              snprintf(value, sizeof(value), "%.*s", (int)args->len, (char *)args->value);
+              changeDallasOffset(mqtt_client, heishamonSettings.mqtt_topic_base, (char *)args->name, value, log_message);
+              return 0;
+            } break;
           case 100: {
               unsigned char cmd[256] = { 0 };
               char cpy[args->len + 1];
@@ -1200,6 +1284,22 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
 
               memset(&cpy, 0, args->len + 1);
               snprintf((char *)&cpy, args->len + 1, "%.*s", args->len, args->value);
+
+#ifdef ESP32
+              if (strcmp((char *)args->name, "SetRelayOne") == 0 || strcmp((char *)args->name, "SetRelayTwo") == 0) {
+                const bool firstRelay = strcmp((char *)args->name, "SetRelayOne") == 0;
+                gpioWriteOutput(firstRelay ? 0 : 1, gpioValueFromString(cpy), heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                snprintf(log_msg, sizeof(log_msg), "%s: %d", (char *)args->name, digitalRead(firstRelay ? relayOnePin : relayTwoPin) ? 1 : 0);
+                if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
+                  loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
+                  ESP.restart();
+                  exit(-1);
+                }
+                strcat((char *)client->userdata, log_msg);
+                strcat((char *)client->userdata, "\n");
+                return 0;
+              }
+#endif
 
               for (uint8_t x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
                 cmdStruct tmp;
@@ -1245,6 +1345,29 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 110: {
               return cacheSettings(client, args);
+            } break;
+          case 191: {
+              // GPIO web API: /gpio?pin=<physical pin>&value=<0/1/on/off/true/false>, in any order.
+              // Both are collected first (packed in userdata, see GPIO_ARG_*) and applied when the
+              // response is written, so the argument order doesn't matter.
+              uintptr_t state = (uintptr_t)client->userdata;
+              char str[8];
+              snprintf(str, sizeof(str), "%.*s", (int)args->len, args->value == NULL ? "" : (char *)args->value);
+              if (strcmp_P((char *)args->name, PSTR("pin")) == 0) {
+                char *end = NULL;
+                long pin = strtol(str, &end, 10);
+                state &= ~(uintptr_t)GPIO_ARG_PIN_MASK;
+                state |= (str[0] != '\0' && *end == '\0' && pin >= 0 && pin < 0xFE) ? (uintptr_t)(pin + 1) : (uintptr_t)GPIO_ARG_PIN_INVALID;
+              } else if (strcmp_P((char *)args->name, PSTR("value")) == 0) {
+                state |= GPIO_ARG_VALUE_SET;
+                if (gpioValueFromString(str)) {
+                  state |= GPIO_ARG_VALUE_ON;
+                } else {
+                  state &= ~(uintptr_t)GPIO_ARG_VALUE_ON;
+                }
+              }
+              client->userdata = (void *)state;
+              return 0;
             } break;
           case 150: {
               if (Update.isRunning() && (!Update.hasError())) {
@@ -1309,6 +1432,11 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           case 1: {
               return handleRoot(client, readpercentage, mqttReconnects, &heishamonSettings);
             } break;
+#ifdef ESP32
+          case 200: {
+              return handleModbus(client);
+            } break;
+#endif
           case 20: {
               return handleJsonOutput(client, actData, actDataExtra, actOptData, &heishamonSettings, extraDataBlockAvailable);
             } break;
@@ -1334,6 +1462,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return 0;
             } break;
           case 190: {
+              return 0;
+            } break;
+          case 195: {
               return 0;
             } break;
           case 80: {
@@ -1371,6 +1502,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 110: {
               int ret = saveSettings(client, &heishamonSettings);
+              setupGPIO(heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly); //re-apply GPIO pin modes if they changed
               #ifdef ESP8266
               if ((!heishamonSettings.opentherm) && (heishamonSettings.listenonly)) {
                 //make sure we disable TX to heatpump-RX using the mosfet so this line is floating and will not disturb cz-taw1
@@ -1466,6 +1598,43 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           case 180: {
               if (heishamonSettings.use_1wire) rescanDallasSensors(log_message, heishamonSettings.dallasResolution);
             } break;
+          case 191: {
+              if (client->content == 0) {
+                // apply a pin/value request (see the WEBSERVER_CLIENT_ARGS case), then report all pins
+                uintptr_t state = (uintptr_t)client->userdata;
+                client->userdata = NULL;
+                uintptr_t pinArg = state & GPIO_ARG_PIN_MASK;
+                bool valueSet = (state & GPIO_ARG_VALUE_SET) != 0;
+                if (pinArg != 0 || valueSet) {
+                  int i = -1;
+                  if (pinArg != 0 && pinArg != GPIO_ARG_PIN_INVALID) {
+                    i = gpioIndexFromPin((int)pinArg - 1, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                  }
+                  const char *error = NULL;
+                  if (pinArg == 0 || !valueSet) {
+                    error = PSTR("{\"error\":\"pin and value are both required\"}");
+                  } else if (i < 0 || !gpioWriteOutput(i, (state & GPIO_ARG_VALUE_ON) != 0, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly)) {
+                    error = PSTR("{\"error\":\"not an available output pin\"}");
+                  }
+                  if (error != NULL) {
+                    webserver_send(client, 400, (char *)"application/json", 0);
+                    webserver_send_content_P(client, error, strlen_P(error));
+                    client->userdata = (void *)(uintptr_t)GPIO_ARG_ERROR_SENT;
+                    return 0;
+                  }
+                }
+                webserver_send(client, 200, (char *)"application/json", 0);
+                return 0;
+              } else if (client->content == 1) {
+                if ((uintptr_t)client->userdata == GPIO_ARG_ERROR_SENT) {
+                  client->userdata = NULL;
+                  return -1;
+                }
+                gpioJsonOutput(client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, heishamonSettings.opentherm, heishamonSettings.listenonly);
+                return 0;
+              }
+              return -1;
+            } break;
           default: {
               webserver_send(client, 301, (char *)"text/plain", 0);
             } break;
@@ -1481,7 +1650,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 60:
           case 70:
-          case 190: {
+          case 190:
+          case 195: {
               header->ptr += sprintf_P((char *)header->buffer, PSTR("Location: /"));
               return -1;
             } break;
@@ -1639,7 +1809,7 @@ void switchSerial() {
   proxySerial.flush();  
 #endif
 
-  setupGPIO(heishamonSettings.gpioSettings); //switch extra GPIOs to configured mode
+  setupGPIO(heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly); //switch extra GPIOs to configured mode
 
   //mosfet output enable
   pinMode(ENABLEPIN, OUTPUT);
@@ -1879,6 +2049,11 @@ void setup() {
   setupETH();
 #endif
 
+#ifdef ESP32
+  // starts the server when enabled; loop() applies later settings changes without a reboot
+  modbusServer.configure(heishamonSettings.modbus, heishamonSettings.optionalPCB, heishamonSettings.modbusWrites, heishamonSettings.listenonly);
+#endif
+
   loggingSerial.println(F("Setup HTTP..."));
   setupHttp();
 
@@ -2021,6 +2196,11 @@ void loop() {
   check_wifi();
   // Handle OTA first.s
   ArduinoOTA.handle();
+
+#ifdef ESP32
+  modbusServer.configure(heishamonSettings.modbus, heishamonSettings.optionalPCB, heishamonSettings.modbusWrites, heishamonSettings.listenonly);
+  if (heishamonSettings.modbus) modbusServer.loop(heishamonSettings.use_s0, extraDataBlockAvailable);
+#endif
 
   mqtt_client.loop();
 
@@ -2240,6 +2420,8 @@ void loop() {
   }
 
   timerqueue_update();
+  publishRulesState(false);
+  publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, heishamonSettings.opentherm, heishamonSettings.listenonly, heishamonSettings.updateAllTime); // after the rules timers, so rule changes are published in the same loop
   #ifdef ESP32
   delay(1); // to keep watchdog happy
   #endif

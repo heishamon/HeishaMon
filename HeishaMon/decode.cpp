@@ -9,6 +9,27 @@ unsigned long lastalldatatime = 0;
 unsigned long lastallextradatatime = 0;
 unsigned long lastalloptdatatime = 0;
 
+String getRawByte(byte input) {
+  return String(input);
+}
+
+String getHeaterCapacity(byte input) {
+  int encoded = (input >> 2) & 0b11;
+  return String(encoded == 0 ? -1 : encoded * 3);
+}
+
+String getIntMinus1Times30(byte input) {
+  return String(((int)input - 1) * 30);
+}
+
+String getZone2Active(byte input) {
+  return String((input >> 1) & 1);
+}
+
+String getZone1Active(byte input) {
+  return String(input & 1);
+}
+
 String getBit1(byte input) {
   return String(input  >> 7);
 }

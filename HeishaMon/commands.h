@@ -77,6 +77,11 @@ unsigned int set_dhw_sensor_selection(char *msg, unsigned char *cmd, char *log_m
 unsigned int set_dhw_heater_state(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_room_heater_state(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_heater_on_outdoor_temp(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_heat_to_cool_temp(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_cool_to_heat_temp(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_room_operation_max_time(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_dhw_heatup_max_time(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_quiet_mode_schedule(char *msg, unsigned char *cmd, char *log_msg);
 
 //optional pcb commands
 unsigned int set_heat_cool_mode(char *msg, char *log_msg);
@@ -178,6 +183,11 @@ const cmdStruct commands[] PROGMEM = {
   { "SetDHWHeaterState", set_dhw_heater_state },
   { "SetRoomHeaterState", set_room_heater_state },
   { "SetHeaterOnOutdoorTemp", set_heater_on_outdoor_temp },
+  { "SetHeatToCoolTemp", set_heat_to_cool_temp },
+  { "SetCoolToHeatTemp", set_cool_to_heat_temp },
+  { "SetRoomOperationMaxTime", set_room_operation_max_time },
+  { "SetDHWHeatupMaxTime", set_dhw_heatup_max_time },
+  { "SetQuietModeSchedule", set_quiet_mode_schedule },
 };
 
 struct optCmdStruct{

@@ -13,6 +13,8 @@ Only actual code in build action is relevant! The build installs the latest vers
 |dallastemperature by miles burton | MIT | https://github.com/milesburton/Arduino-Temperature-Control-Library |
 |onewire | MIT-style | https://www.pjrc.com/teensy/td_libs_OneWire.html |
 |Adafruit NeoPixel (large board only) | LGPL-3.0 | https://github.com/adafruit/Adafruit_NeoPixel |
+|Async TCP by ESP32Async (large board only) | LGPL-3.0 | https://github.com/ESP32Async/AsyncTCP |
+|eModbus (large board only, pinned to tag v1.7.5stable, installed from git because it is not in the Arduino registry) | MIT | https://github.com/eModbus/eModbus |
 
 Board cores: `esp8266:esp8266` (LGPL-2.1) and `esp32:esp32` (LGPL-2.1-or-later), see the build action for the exact versions.
 

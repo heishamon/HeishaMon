@@ -57,6 +57,7 @@ struct settingsStruct {
 #endif
 
   bool force_rules = false; //force rules on boot, even after a crash
+  bool rules_mqtt_events = false; //publish an event to <base>/rules/executed for every rule run
   bool listenonly = false; //listen only so heishamon can be installed parallel to cz-taw1, set commands will not work though
   bool optionalPCB = false; //do we emulate an optional PCB?
   bool use_1wire = false; //1wire enabled?
@@ -69,6 +70,8 @@ struct settingsStruct {
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
   bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)
+  bool modbus = false; //modbus tcp server enable flag
+  bool modbusWrites = false; //allow modbus clients to write commands and relays
 #endif
   s0SettingsStruct s0Settings[NUM_S0_COUNTERS];
   gpioSettingsStruct gpioSettings;
@@ -92,6 +95,7 @@ void log_message(char *string);
 int8_t webserver_cb(struct webserver_t *client, void *data);
 void getWifiScanResults(int numSsid);
 int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconnects, settingsStruct *heishamonSettings);
+int handleJsonArgs(struct webserver_t *client, struct arguments_t *args, settingsStruct *heishamonSettings);
 int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExtra, char* actOptData, settingsStruct *heishamonSettings, bool extraDataBlockAvailable);
 int handleFactoryReset(struct webserver_t *client);
 int handleReboot(struct webserver_t *client);
@@ -102,6 +106,9 @@ void loadSettings(settingsStruct *heishamonSettings);
 int getSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int getSettingsJson(struct webserver_t *client, settingsStruct *heishamonSettings);
 
+#ifdef ESP32
+int handleModbus(struct webserver_t *client);
+#endif
 int handleSettings(struct webserver_t *client);
 int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonSettings);

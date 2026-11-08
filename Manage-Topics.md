@@ -1,5 +1,7 @@
 # How to add MQTT Topics for HeishaMon
 
+The steps below apply to decoded heat pump protocol fields. Device-generated monitoring topics, such as [`rules/state` and `rules/executed`](MQTT-Topics.md#rules-engine-status), are published separately and do not have protocol byte mappings or `@` rules variables. The ESP32 relay outputs are also device-generated; see [relay control](README.md#large-board-relay-control) for MQTT commands, REST `/command` calls, and `/json` readback.
+
 1. Add a new topic line in file [MQTT-Topics.md](MQTT-Topics.md)  and define a new line on the table *Sensors Topics:*
 
 

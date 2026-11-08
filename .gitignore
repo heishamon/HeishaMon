@@ -1,12 +1,13 @@
 ﻿################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
-
+.idea
 .vs
 .pio
 pio
 .vscode
 .pioenvs
+tests/modbus/build
 .cache
 build_output
 firmware.map

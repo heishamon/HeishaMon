@@ -35,6 +35,18 @@ Firmwaren voi päivittää laitteen konfigurointisivun kautta kirjautumalla tunn
 
 JSON-muodossa lämpöpumpun tilan voi hakea osoitteesta http://heishamon.local/json (korvaa heishamon.local laitteesi IP-osoitteella, jos MDNS ei toimi verkossasi).
 
+Jos haluat vain yhden arvon, lisää yksi näistä parametreista (yksi per pyyntö):
+
+| Parametri | Arvo | Esimerkki | Palauttaa |
+|---|---|---|---|
+| `topic=` | lämpöpumpun topicin numero (`TOP1`, `XTOP3`, `OPT0`) tai nimi (`Main_Outlet_Temp`, kirjainkoolla ei väliä) | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `opentherm=` | OpenTherm-arvon nimi | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
+| `1wire=` | anturin osoite tai alias | `/json?1wire=28ff123456789abc` | anturin rivi `1wire`-listasta |
+| `s0=` | S0-portti, `1` tai `2` | `/json?s0=1` | portin rivi `s0`-listasta, ilman `Watthour`-arvoa |
+| `gpio=` | GPIO:n MQTT-nimi, kirjainkoolla ei väliä (`extra/1`, tai isolla piirilevyllä `relay/one`/`relay/two`) tai pelkkä extra-GPIO:n numero | `/json?gpio=1` | pinnin rivi `gpio`-listasta; releet ovat `gpio=relay/one` ja `gpio=relay/two` |
+
+Täyden tulosteen `Watthour` on energia edellisestä `/json`-pyynnöstä, joten yksittäiset S0-pyynnöt jättävät sen pois eivätkä nollaa sitä. Tuntematon arvo, tai osio joka ei ole käytössä, palauttaa HTTP 404. Useampi näistä parametreista samassa pyynnössä palauttaa HTTP 400. Lämpöpumpun topic, jota pyydetään ennen kuin lämpöpumpulta on saapunut dataa (käynnistyksen jälkeen, tai ilman kytkettyä lämpöpumppua), palauttaa HTTP 503.
+
 'integrations'-hakemistosta löydät esimerkkejä laitteen integroimisesta erilaisiin kotiautomaatiojärjestelmiin.
 
 # Säännöt-toiminnallisuus
@@ -383,7 +395,7 @@ panasonic_heat_pump/gpio/extra/N
 jossa `N` on ylimääräisen GPIO:n 1-perusteinen indeksi (esim. `extra/1` ensimmäiselle ylimääräiselle pinnille).
 
 **GPIO-tilojen lukeminen MQTT:n kautta:**
-Tulo- ja lähtötilat julkaistaan automaattisesti samoihin aiheisiin muutoksen yhteydessä ja ensimmäisellä MQTT-yhteydellä (retained).
+Tulo- ja lähtötilat julkaistaan (retained) aiheeseen `panasonic_heat_pump/gpio/extra/N/state` jokaisen muutoksen yhteydessä ja jokaisen MQTT-(uudelleen)yhdistämisen jälkeen. Tulot lähetetään lisäksi uudelleen asetetulla välillä (`updateAllTime`). Releet toimivat samoin (`gpio/relay/one/state`, `gpio/relay/two/state`). HeishaMon ei koskaan reagoi omiin `/state`-aiheisiinsa, paitsi kerran käynnistyksen jälkeen: silloin lähdöt palautetaan viimeisimpään tunnettuun (retained) tilaan, ellei komento tai sääntö ole jo kytkenyt niitä käynnistyksen jälkeen.
 
 **HTTP API:**
 Kaikki ylimääräiset GPIO-tilat voidaan lukea JSON-muodossa GET-pyynnöllä:
@@ -392,14 +404,15 @@ GET /gpio
 ```
 Esimerkkivastaus:
 ```json
-[{"pin":33,"mode":2,"state":1},{"pin":34,"mode":0,"state":0}, ...]
+[{"pin":33,"mode":2,"state":1,"name":"extra/1","topic":"panasonic_heat_pump/gpio/extra/1/state"}, ...]
 ```
-jossa `mode` on 0 = Tulo (pull-up), 1 = Tulo, 2 = Lähtö.
+jossa `pin` on fyysinen pinninumero, `mode` 0 = Tulo (pull-up), 1 = Tulo, 2 = Lähtö, `name` MQTT-nimi ja `topic` MQTT-tila-aihe. Isolla piirilevyllä listassa ovat myös releet (`relay/one`, `relay/two`).
 
-Lähtöpinnin asettaminen HTTP POST:lla:
+Lähtöpinnin asettaminen fyysisellä pinninumerolla:
 ```
-POST /gpio?pin=N&value=1
+GET /gpio?pin=33&value=1
 ```
+Parametrien järjestyksellä ei ole väliä. Jos jompikumpi puuttuu, tai pinni ei ole käytettävissä oleva lähtö, vastaus on HTTP 400 ja `error`-viesti.
 
 **Ylimääräisten GPIO:iden käyttö säännöissä:**
 `gpio()`-sääntöfunktio toimii ylimääräisten GPIO-pinnien kanssa niiden fyysisen pinnin numeron kautta, samoin kuin relepinnit.
