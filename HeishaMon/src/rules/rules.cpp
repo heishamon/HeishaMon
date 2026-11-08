@@ -4675,7 +4675,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     if(t == 1 || validate == 1) {
       pos += sizeof(struct vm_top_t);
     } else {
-      pos += (sizeof(struct vm_top_t)*(int8_t)getval(node->a));
+      pos += (sizeof(struct vm_top_t)*(uint8_t)getval(node->a));
     }
 
     t = 0;
