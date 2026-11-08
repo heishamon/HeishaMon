@@ -383,7 +383,7 @@ panasonic_heat_pump/gpio/extra/N
 waarbij `N` de 1-gebaseerde index van de extra GPIO is (bijv. `extra/1` voor de eerste extra pin).
 
 **GPIO-toestanden lezen via MQTT:**
-Ingangs- en uitgangstoestanden worden automatisch gepubliceerd naar dezelfde topics bij wijziging en bij de eerste MQTT-verbinding (retained).
+Ingangs- en uitgangstoestanden worden (retained) gepubliceerd naar `panasonic_heat_pump/gpio/extra/N/state` bij elke wijziging en na elke MQTT-(her)verbinding. Ingangen worden daarnaast herhaald op het ingestelde interval (`updateAllTime`). De relais werken hetzelfde (`gpio/relay/one/state`, `gpio/relay/two/state`). HeishaMon reageert nooit op zijn eigen `/state`-topics, behalve één keer na het opstarten: dan worden de uitgangen hersteld naar hun laatst bekende (retained) toestand, tenzij ze na het opstarten al geschakeld zijn door een commando of een rule.
 
 **HTTP API:**
 Je kunt alle extra GPIO-toestanden als JSON lezen via een GET-verzoek:

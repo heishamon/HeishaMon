@@ -383,7 +383,7 @@ panasonic_heat_pump/gpio/extra/N
 jossa `N` on ylimääräisen GPIO:n 1-perusteinen indeksi (esim. `extra/1` ensimmäiselle ylimääräiselle pinnille).
 
 **GPIO-tilojen lukeminen MQTT:n kautta:**
-Tulo- ja lähtötilat julkaistaan automaattisesti samoihin aiheisiin muutoksen yhteydessä ja ensimmäisellä MQTT-yhteydellä (retained).
+Tulo- ja lähtötilat julkaistaan (retained) aiheeseen `panasonic_heat_pump/gpio/extra/N/state` jokaisen muutoksen yhteydessä ja jokaisen MQTT-(uudelleen)yhdistämisen jälkeen. Tulot lähetetään lisäksi uudelleen asetetulla välillä (`updateAllTime`). Releet toimivat samoin (`gpio/relay/one/state`, `gpio/relay/two/state`). HeishaMon ei koskaan reagoi omiin `/state`-aiheisiinsa, paitsi kerran käynnistyksen jälkeen: silloin lähdöt palautetaan viimeisimpään tunnettuun (retained) tilaan, ellei komento tai sääntö ole jo kytkenyt niitä käynnistyksen jälkeen.
 
 **HTTP API:**
 Kaikki ylimääräiset GPIO-tilat voidaan lukea JSON-muodossa GET-pyynnöllä:

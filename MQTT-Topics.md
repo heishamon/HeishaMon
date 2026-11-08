@@ -220,6 +220,8 @@ TOP171 | gpio/relay/two/state | Onboard relay 2 GPIO output state (ESP32 only, 0
 
 TOP170 and TOP171 are displayed on the main web page as Relay 1 and Relay 2 with On/Off and their full configured MQTT topics. They are read directly from GPIO21 and GPIO47, independent of MQTT connectivity, and exposed in the `/json` response's `relays` array. The page refreshes these states every five seconds. These values report GPIO output levels, not mechanical contact feedback.
 
+The relay states are published on change and after each MQTT (re)connect. Commands go to `gpio/relay/one` and `gpio/relay/two` (without `/state`). The extra GPIOs use the same layout: commands to `gpio/extra/N`, states (retained) on `gpio/extra/N/state`. After a reboot the outputs are restored once from their retained `/state` topics; see the README section *GPIO states and restore at boot*.
+
 The topics above are relative to the configured MQTT base topic. New topics TOP144–TOP169 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
 
 

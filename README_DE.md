@@ -376,7 +376,7 @@ Die Firmware veröffentlicht die ausgelesenen Relais-Ausgangszustände als `0` (
 | 1 | `panasonic_heat_pump/gpio/relay/one/state` |
 | 2 | `panasonic_heat_pump/gpio/relay/two/state` |
 
-Die Meldung erfolgt direkt nach einem MQTT-Schaltbefehl, bei jeder MQTT-Verbindung und regelmäßig im konfigurierten Intervall für die vollständige Datenversendung (`updateAllTime`). Änderungen durch die Rules Engine werden am Ende des Hauptschleifendurchlaufs erkannt und veröffentlicht. Bei einem anderen MQTT-Basistopic wird dieses auch für die Status-Topics verwendet. Der Status bestätigt den GPIO-Ausgangszustand; eine mechanische Rückmeldung des Relaiskontakts gibt es nicht.
+Die Meldung erfolgt bei jeder Änderung des Ausgangs, egal wodurch (MQTT, REST, Modbus oder eine Rule), und erneut nach jeder MQTT-(Wieder-)Verbindung. Befehle gehen an die Topics ohne `/state`; HeishaMon reagiert nie auf seine eigenen `/state`-Topics, daher kann eine Statusmeldung nicht als Befehl zurückkommen. Nach einem Neustart werden die Ausgänge einmalig aus ihren retained `/state`-Topics wiederhergestellt, außer sie wurden seit dem Start bereits durch einen Befehl oder eine Rule geschaltet. Bei einem anderen MQTT-Basistopic wird dieses auch für die Status-Topics verwendet. Der Status bestätigt den GPIO-Ausgangszustand; eine mechanische Rückmeldung des Relaiskontakts gibt es nicht.
 
 Der neuere, große, Heishamon enthält zwei eingebaute Relais, die über MQTT-Befehle ein- und ausgeschaltet werden können. Die Relais können für jede Kontaktschaltung verwendet werden, auch 230V Netzspannung (max. 5A). Um das Relais zu steuern, sende einfach einen Wert von 1 oder 0 an das MQTT-Topic "panasonic_heat_pump/gpio/relay/one" für Relais eins oder "panasonic_heat_pump/gpio/relay/two" für Relais zwei.
 
@@ -397,7 +397,7 @@ panasonic_heat_pump/gpio/extra/N
 wobei `N` der 1-basierte Index des Extra-GPIO ist (z.B. `extra/1` für den ersten Extra-Pin).
 
 **GPIO-Zustände über MQTT lesen:**
-Eingangs- und Ausgangszustände werden automatisch bei Änderungen und beim ersten MQTT-Connect (retained) an dieselben Topics veröffentlicht.
+Eingangs- und Ausgangszustände werden (retained) an `panasonic_heat_pump/gpio/extra/N/state` bei jeder Änderung und nach jeder MQTT-(Wieder-)Verbindung veröffentlicht. Eingänge werden zusätzlich im konfigurierten Intervall (`updateAllTime`) erneut gesendet. Die Ausgänge werden nach einem Neustart wie die Relais aus ihren retained `/state`-Topics wiederhergestellt.
 
 **HTTP API:**
 Alle Extra-GPIO-Zustände können als JSON über eine GET-Anfrage gelesen werden:

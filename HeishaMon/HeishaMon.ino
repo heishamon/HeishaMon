@@ -529,7 +529,6 @@ void mqtt_reconnect()
     {
       mqttReconnects++;
       publishRulesState(true);
-      publishRelayStates(mqtt_client, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime, true);
       if (heishamonSettings.opentherm) {
         sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_opentherm_read);
         mqtt_client.subscribe(topic);
@@ -537,7 +536,8 @@ void mqtt_reconnect()
       sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_commands);
       mqtt_client.subscribe(topic);
       sprintf(topic, "%s/%s/#", heishamonSettings.mqtt_topic_base, mqtt_topic_gpio);
-      mqtt_client.subscribe(topic);      
+      mqtt_client.subscribe(topic);
+      gpioMqttConnected(mqttReconnects == 1); // publish all GPIO states, and on the first connect restore the outputs from their retained states first
       sprintf(topic, "%s/%s", heishamonSettings.mqtt_topic_base, mqtt_send_raw_value_topic);
       mqtt_client.subscribe(topic);
       sprintf(topic, "%s/%s", heishamonSettings.mqtt_topic_base, mqtt_willtopic);
@@ -578,7 +578,6 @@ void mqtt_reconnect()
       if (mqttReconnects == 1) { //only resend all data on first connect to mqtt so a data bomb like and bad mqtt server will not cause a reconnect bomb everytime
         if (heishamonSettings.use_1wire) resetlastalldatatime_dallas(); //resend all 1wire values to mqtt
         resetlastalldatatime(); //resend all heatpump values to mqtt
-        publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, true, heishamonSettings.opentherm, heishamonSettings.listenonly); //publish all GPIO states on first connect
       }
       //use this to receive valid heishamon raw data from other heishamon to debug this OT code
 //#define RAWDEBUG
@@ -1080,7 +1079,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       mqttOTCallback(topic_otcommand, msg);
     } else if (strncmp(topic_command, mqtt_topic_gpio, strlen(mqtt_topic_gpio)) == 0)  {
       char* topic_gpiocommand = topic_command + strlen(mqtt_topic_gpio) + 1; //strip the gpio subtopic from the topic
-      mqttGPIOCallback(topic_gpiocommand, msg, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly, mqtt_client, heishamonSettings.mqtt_topic_base);
+      mqttGPIOCallback(topic_gpiocommand, msg, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
     } else if (strncmp(topic_command, mqtt_topic_1wire, strlen(mqtt_topic_1wire)) == 0) { //this is a 1wire address topic, restore its retained value at boot
       char* topic_1wire_address = topic_command + strlen(mqtt_topic_1wire) + 1; //strip the "1wire/" from the topic to get the sensor address
       char* topic_1wire_sub = strchr(topic_1wire_address, '/');
@@ -1275,7 +1274,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
 #ifdef ESP32
               if (strcmp((char *)args->name, "SetRelayOne") == 0 || strcmp((char *)args->name, "SetRelayTwo") == 0) {
                 const bool firstRelay = strcmp((char *)args->name, "SetRelayOne") == 0;
-                mqttGPIOCallback((char *)(firstRelay ? "relay/one" : "relay/two"), cpy, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly, mqtt_client, heishamonSettings.mqtt_topic_base);
+                mqttGPIOCallback((char *)(firstRelay ? "relay/one" : "relay/two"), cpy, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
                 snprintf(log_msg, sizeof(log_msg), "%s: %d", (char *)args->name, digitalRead(firstRelay ? relayOnePin : relayTwoPin) ? 1 : 0);
                 if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
                   loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
@@ -1353,7 +1352,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                     } else {
                       snprintf_P(topic, sizeof(topic), PSTR("extra/%d"), i - NUMGPIO_RELAY + 1);
                     }
-                    mqttGPIOCallback(topic, val_str, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly, mqtt_client, heishamonSettings.mqtt_topic_base);
+                    mqttGPIOCallback(topic, val_str, heishamonSettings.gpioSettings, heishamonSettings.opentherm, heishamonSettings.listenonly);
                     break;
                   }
                 }
@@ -2210,8 +2209,6 @@ void loop() {
 
   if (heishamonSettings.use_s0) s0Loop(mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.s0Settings);
 
-  publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, false, heishamonSettings.opentherm, heishamonSettings.listenonly);
-
 #ifdef ESP8266
 //this only runs on ESP8266, the ESP32 does this in vTask
   if ((!sending) && (!heishamonSettings.listenonly) && (heishamonSettings.optionalPCB) && ((unsigned long)(millis() - lastOptionalPCBRunTime) > OPTIONALPCBQUERYTIME) ) {
@@ -2395,7 +2392,7 @@ void loop() {
 
   timerqueue_update();
   publishRulesState(false);
-  publishRelayStates(mqtt_client, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
+  publishGPIOStates(mqtt_client, heishamonSettings.gpioSettings, heishamonSettings.mqtt_topic_base, heishamonSettings.opentherm, heishamonSettings.listenonly, heishamonSettings.updateAllTime); // after the rules timers, so rule changes are published in the same loop
   #ifdef ESP32
   delay(1); // to keep watchdog happy
   #endif
