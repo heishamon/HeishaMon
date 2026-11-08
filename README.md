@@ -37,6 +37,18 @@ Updating the firmware is as easy as going to the firmware menu and, after authen
 
 A JSON output of heat pump data and enabled 1-wire/S0 sensors is available at http://heishamon.local/json (replace heishamon.local with the IP address of your HeishaMon device if mDNS is not working). On the ESP32 large board, it also includes the two relay output states in the `relays` array. See [relay control](#large-board-relay-control) for reading and switching those outputs.
 
+To get a single value, add one of these arguments (one per request):
+
+| Argument | Value | Example | Returns |
+|---|---|---|---|
+| `topic=` | a heat pump topic number (`TOP1`, `XTOP3`, `OPT0`) or name (`Main_Outlet_Temp`, case-insensitive); `TOP170`/`TOP171` are the relays on the large board | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `opentherm=` | an OpenTherm value name | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
+| `1wire=` | a sensor address or alias | `/json?1wire=28ff123456789abc` | the sensor's entry from the `1wire` list |
+| `s0=` | the S0 port, `1` or `2` | `/json?s0=1` | the port's entry from the `s0` list, without `Watthour` |
+| `gpio=` | the GPIO's MQTT name (`extra/1`, or `relay/one`/`relay/two` on the large board) or just the extra GPIO number | `/json?gpio=1` | the pin's entry from the `gpio` list |
+
+`Watthour` in the full output is the energy since the previous `/json` request, so single S0 requests leave it out and don't reset it. An unknown value, or a section that is not enabled, returns HTTP 404. More than one of these arguments in one request returns HTTP 400.
+
 Within the 'integrations' folder you can find examples how to connect your automation platform to the HeishaMon.
 
 # Rules functionality

@@ -30,6 +30,8 @@ void dallasLoop(PubSubClient &mqtt_client, void (*log_message)(char*), char* mqt
 void initDallasSensors(void (*log_message)(char*), unsigned int updataAllDallasTimeSettings, unsigned int dallasTimerWaitSettings, unsigned int dallasResolution);
 void rescanDallasSensors(void (*log_message)(char*), unsigned int dallasResolution);
 void dallasJsonOutput(struct webserver_t *client);
+void dallasJsonSensor(struct webserver_t *client, int i);
+int dallasJsonFind(const char *name);
 void changeDallasAlias(char* address, char* alias);
 bool changeDallasOffset(PubSubClient &mqtt_client, char* mqtt_topic_base, char* address, const char* value, void (*log_message)(char*));
 void removeDallasSensor(PubSubClient &mqtt_client, char* mqtt_topic_base, char* address, void (*log_message)(char*));

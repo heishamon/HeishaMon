@@ -35,6 +35,18 @@ Firmwaren voi päivittää laitteen konfigurointisivun kautta kirjautumalla tunn
 
 JSON-muodossa lämpöpumpun tilan voi hakea osoitteesta http://heishamon.local/json (korvaa heishamon.local laitteesi IP-osoitteella, jos MDNS ei toimi verkossasi).
 
+Jos haluat vain yhden arvon, lisää yksi näistä parametreista (yksi per pyyntö):
+
+| Parametri | Arvo | Esimerkki | Palauttaa |
+|---|---|---|---|
+| `topic=` | lämpöpumpun topicin numero (`TOP1`, `XTOP3`, `OPT0`) tai nimi (`Main_Outlet_Temp`, kirjainkoolla ei väliä); `TOP170`/`TOP171` ovat isolla piirilevyllä releet | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `opentherm=` | OpenTherm-arvon nimi | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
+| `1wire=` | anturin osoite tai alias | `/json?1wire=28ff123456789abc` | anturin rivi `1wire`-listasta |
+| `s0=` | S0-portti, `1` tai `2` | `/json?s0=1` | portin rivi `s0`-listasta, ilman `Watthour`-arvoa |
+| `gpio=` | GPIO:n MQTT-nimi (`extra/1`, tai isolla piirilevyllä `relay/one`/`relay/two`) tai pelkkä extra-GPIO:n numero | `/json?gpio=1` | pinnin rivi `gpio`-listasta |
+
+Täyden tulosteen `Watthour` on energia edellisestä `/json`-pyynnöstä, joten yksittäiset S0-pyynnöt jättävät sen pois eivätkä nollaa sitä. Tuntematon arvo, tai osio joka ei ole käytössä, palauttaa HTTP 404. Useampi näistä parametreista samassa pyynnössä palauttaa HTTP 400.
+
 'integrations'-hakemistosta löydät esimerkkejä laitteen integroimisesta erilaisiin kotiautomaatiojärjestelmiin.
 
 # Säännöt-toiminnallisuus

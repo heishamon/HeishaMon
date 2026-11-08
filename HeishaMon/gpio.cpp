@@ -203,20 +203,41 @@ void publishGPIOStates(PubSubClient &mqtt_client, gpioSettingsStruct &gpioSettin
   if (resendInputs && success) lastInputResend = millis();
 }
 
-void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
+// one pin object, used for the full list and for /json?gpio=<name>
+void gpioJsonPin(struct webserver_t *client, int i, gpioSettingsStruct &gpioSettings) {
   char buf[64];
+  int state = digitalRead(gpioSettings.gpioPin[i]);
+  int mode = (i < NUMGPIO_RELAY) ? GPIO_MODE_OUTPUT : gpioSettings.gpioUserMode[i - NUMGPIO_RELAY];
+  int len = snprintf_P(buf, sizeof(buf), PSTR("{\"pin\":%d,\"mode\":%d,\"state\":%d}"), gpioSettings.gpioPin[i], mode, state);
+  webserver_send_content(client, buf, len);
+}
+
+void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
   webserver_send_content_P(client, PSTR("["), 1);
   bool first = true;
   for (int i = 0; i < NUMGPIO; i++) {
     if (isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) continue;
-    int state = digitalRead(gpioSettings.gpioPin[i]);
-    int mode = (i < NUMGPIO_RELAY) ? GPIO_MODE_OUTPUT : gpioSettings.gpioUserMode[i - NUMGPIO_RELAY];
-    int len = snprintf_P(buf, sizeof(buf), PSTR("%s{\"pin\":%d,\"mode\":%d,\"state\":%d}"),
-                         first ? "" : ",", gpioSettings.gpioPin[i], mode, state);
-    webserver_send_content(client, buf, len);
+    if (!first) webserver_send_content_P(client, PSTR(","), 1);
     first = false;
+    gpioJsonPin(client, i, gpioSettings);
   }
   webserver_send_content_P(client, PSTR("]"), 1);
+}
+
+// find an available pin by its MQTT name ("extra/N", "relay/one", "relay/two") or by the
+// extra GPIO number alone ("N"), -1 if none
+int gpioJsonFind(const char *name, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly) {
+  int i = -1;
+  if (name[0] >= '1' && name[0] <= '9' && name[1] == '\0') {
+    i = NUMGPIO_RELAY + (name[0] - '1');
+    if (i >= NUMGPIO) i = -1;
+  } else {
+    bool isState = false;
+    i = gpioIndexFromTopic(name, isState);
+    if (isState) i = -1;
+  }
+  if (i < 0 || isGpioUnavailable(gpioSettings.gpioPin[i], i, openthermEnabled, listenOnly)) return -1;
+  return i;
 }
 
 #ifdef ESP32

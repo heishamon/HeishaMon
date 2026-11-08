@@ -555,123 +555,64 @@ void mqttOTCallback(char* topic, char* value) {
   }
 }
 
-void openthermJsonOutput(struct webserver_t *client) {
-  webserver_send_content_P(client, PSTR("{"), 1);
 
-  char str[64];
 
-  //chEnable
-  webserver_send_content_P(client, PSTR("\"chEnable\":{\"type\": \"W\",\"value\":"), 32);
-  getOTStructMember(_F("chEnable"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //dhwEnable
-  webserver_send_content_P(client, PSTR("\"dhwEnable\":{\"type\": \"W\",\"value\":"), 33);
-  getOTStructMember(_F("dhwEnable"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //coolingEnable
-  webserver_send_content_P(client, PSTR("\"coolingEnable\":{\"type\": \"W\",\"value\":"), 37);
-  getOTStructMember(_F("coolingEnable"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //roomtemp
-  webserver_send_content_P(client, PSTR("\"roomTemp\":{\"type\": \"W\",\"value\":"), 32);
-  dtostrf( getOTStructMember(_F("roomTemp"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //roomtempset
-  webserver_send_content_P(client, PSTR("\"roomTempSet\":{\"type\": \"W\",\"value\":"), 35);
-  dtostrf( getOTStructMember(_F("roomTempSet"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //chSetpoint
-  webserver_send_content_P(client, PSTR("\"chSetpoint\":{\"type\": \"W\",\"value\":"), 34);
-  dtostrf( getOTStructMember(_F("chSetpoint"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //maxRelativeModulation
-  webserver_send_content_P(client, PSTR("\"maxRelativeModulation\":{\"type\": \"W\",\"value\":"), 45);
-  dtostrf( getOTStructMember(_F("maxRelativeModulation"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //coolingControl
-  webserver_send_content_P(client, PSTR("\"coolingControl\":{\"type\": \"W\",\"value\":"), 38);
-  dtostrf( getOTStructMember(_F("coolingControl"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //dhwSetpoint
-  webserver_send_content_P(client, PSTR("\"dhwSetpoint\":{\"type\": \"RW\",\"value\":"), 36);
-  dtostrf( getOTStructMember(_F("dhwSetpoint"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //maxTSet
-  webserver_send_content_P(client, PSTR("\"maxTSet\":{\"type\": \"RW\",\"value\":"), 32);
-  dtostrf( getOTStructMember(_F("maxTSet"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //chPressure
-  webserver_send_content_P(client, PSTR("\"chPressure\":{\"type\": \"R\",\"value\":"), 34);
-  dtostrf( getOTStructMember(_F("chPressure"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //outsideTemp
-  webserver_send_content_P(client, PSTR("\"outsideTemp\":{\"type\": \"R\",\"value\":"), 35);
-  dtostrf( getOTStructMember(_F("outsideTemp"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //inletTemp
-  webserver_send_content_P(client, PSTR("\"inletTemp\":{\"type\": \"R\",\"value\":"), 33);
-  dtostrf( getOTStructMember(_F("inletTemp"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //outletTemp
-  webserver_send_content_P(client, PSTR("\"outletTemp\":{\"type\": \"R\",\"value\":"), 34);
-  dtostrf( getOTStructMember(_F("outletTemp"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //dhwTemp
-  webserver_send_content_P(client, PSTR("\"dhwTemp\":{\"type\": \"R\",\"value\":"), 31);
-  dtostrf( getOTStructMember(_F("dhwTemp"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //relativeModulation
-  webserver_send_content_P(client, PSTR("\"relativeModulation\":{\"type\": \"R\",\"value\":"), 42);
-  dtostrf( getOTStructMember(_F("relativeModulation"))->value.f, 0, 2, str);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //flameState
-  webserver_send_content_P(client, PSTR("\"flameState\":{\"type\": \"R\",\"value\":"), 34);
-  getOTStructMember(_F("flameState"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //chState
-  webserver_send_content_P(client, PSTR("\"chState\":{\"type\": \"R\",\"value\":"), 31);
-  getOTStructMember(_F("chState"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //dhwState
-  webserver_send_content_P(client, PSTR("\"dhwState\":{\"type\": \"R\",\"value\":"), 32);
-  getOTStructMember(_F("dhwState"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //coolingState
-  webserver_send_content_P(client, PSTR("\"coolingState\":{\"type\": \"R\",\"value\":"), 36);
-  getOTStructMember(_F("coolingState"))->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
-  webserver_send_content_P(client, PSTR("},"), 2);  
-  //dhwSetUppBound
-  webserver_send_content_P(client, PSTR("\"dhwSetUppBound\":{\"type\": \"R\",\"value\":"), 38);
-  itoa( getOTStructMember(_F("dhwSetUppBound"))->value.s8, str, 10);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //dhwSetLowBound
-  webserver_send_content_P(client, PSTR("\"dhwSetLowBound\":{\"type\": \"R\",\"value\":"), 38);
-  itoa( getOTStructMember(_F("dhwSetLowBound"))->value.s8, str, 10);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //chSetUppBound
-  webserver_send_content_P(client, PSTR("\"chSetUppBound\":{\"type\": \"R\",\"value\":"), 37);
-  itoa( getOTStructMember(_F("chSetUppBound"))->value.s8, str, 10);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("},"), 2);
-  //chSetLowBound
-  webserver_send_content_P(client, PSTR("\"chSetLowBound\":{\"type\": \"R\",\"value\":"), 37);
-  itoa( getOTStructMember(_F("chSetLowBound"))->value.s8, str, 10);
-  webserver_send_content(client, str, strlen(str));
-  webserver_send_content_P(client, PSTR("}}"), 2);       //this is the last line in JSON, keep this at the end 
+// find an OpenTherm value by name (case-insensitive), -1 if none
+int openthermJsonFind(const char *name) {
+  for (int i = 0; heishaOTDataStruct[i].name != NULL; i++) {
+    if (strcasecmp(heishaOTDataStruct[i].name, name) == 0) {
+      return i;
+    }
+  }
+  return -1;
 }
 
+// one "<name>":{"type": "W","value":...} pair; type is W (written by the thermostat),
+// RW (both) or R (provided to the thermostat)
+static void openthermJsonPair(struct webserver_t *client, int i) {
+  struct heishaOTDataStruct_t *member = &heishaOTDataStruct[i];
+  char str[64];
+
+  webserver_send_content_P(client, PSTR("\""), 1);
+  webserver_send_content(client, (char *)member->name, strlen(member->name));
+  webserver_send_content_P(client, PSTR("\":{\"type\": \""), 12);
+  switch (member->rw) {
+    case 3: webserver_send_content_P(client, PSTR("W"), 1); break;
+    case 2: webserver_send_content_P(client, PSTR("RW"), 2); break;
+    default: webserver_send_content_P(client, PSTR("R"), 1); break;
+  }
+  webserver_send_content_P(client, PSTR("\",\"value\":"), 10);
+  switch (member->type) {
+    case TBOOL:
+      member->value.b ? webserver_send_content_P(client, PSTR("true"), 4) : webserver_send_content_P(client, PSTR("false"), 5);
+      break;
+    case TFLOAT:
+      dtostrf(member->value.f, 0, 2, str);
+      webserver_send_content(client, str, strlen(str));
+      break;
+    case TINT8:
+      itoa(member->value.s8, str, 10);
+      webserver_send_content(client, str, strlen(str));
+      break;
+  }
+  webserver_send_content_P(client, PSTR("}"), 1);
+}
+
+// all values, in the order of heishaOTDataStruct[]
+void openthermJsonOutput(struct webserver_t *client) {
+  webserver_send_content_P(client, PSTR("{"), 1);
+  for (int i = 0; heishaOTDataStruct[i].name != NULL; i++) {
+    if (i > 0) {
+      webserver_send_content_P(client, PSTR(","), 1);
+    }
+    openthermJsonPair(client, i);
+  }
+  webserver_send_content_P(client, PSTR("}"), 1);
+}
+
+// one value for /json?opentherm=<name>: {"<name>":{"type": "W","value":...}}
+void openthermJsonMember(struct webserver_t *client, int i) {
+  webserver_send_content_P(client, PSTR("{"), 1);
+  openthermJsonPair(client, i);
+  webserver_send_content_P(client, PSTR("}"), 1);
+}

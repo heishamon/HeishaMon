@@ -42,6 +42,8 @@ void mqttGPIOCallback(char* topic, char* value, gpioSettingsStruct &gpioSettings
 void gpioMqttConnected(bool firstConnect); // call after each mqtt (re)connect, after subscribing to <base>/gpio/#
 void publishGPIOStates(PubSubClient &mqtt_client, gpioSettingsStruct &gpioSettings, char* mqtt_topic_base, bool openthermEnabled, bool listenOnly, unsigned int updateAllTime);
 void gpioJsonOutput(struct webserver_t *client, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly);
+void gpioJsonPin(struct webserver_t *client, int i, gpioSettingsStruct &gpioSettings);
+int gpioJsonFind(const char *name, gpioSettingsStruct &gpioSettings, bool openthermEnabled, bool listenOnly);
 bool extraGPIOBlockedByListenOnly(bool listenOnly); // true when the whole GPIO tab/panel should be hidden (ESP8266 in listen-only mode)
 void setRelay1(bool state);
 void setRelay2(bool state);

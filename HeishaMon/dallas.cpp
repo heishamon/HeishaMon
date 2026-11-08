@@ -206,6 +206,32 @@ void dallasLoop(PubSubClient &mqtt_client, void (*log_message)(char*), char* mqt
   }   
 }
 
+// one sensor object, used for the full list and for /json?1wire=<address or alias>
+void dallasJsonSensor(struct webserver_t *client, int i) {
+  char str[64];
+  webserver_send_content_P(client, PSTR("{\"Sensor\":\""), 11);
+  webserver_send_content(client, actDallasData[i].address, strlen(actDallasData[i].address));
+  webserver_send_content_P(client, PSTR("\",\"Temperature\":"), 16);
+  dtostrf(actDallasData[i].temperature, 0, 2, str);
+  webserver_send_content(client, str, strlen(str));
+  webserver_send_content_P(client, PSTR(",\"Alias\":\""), 10);
+  webserver_send_content(client, actDallasData[i].alias, strlen(actDallasData[i].alias));
+  webserver_send_content_P(client, PSTR("\",\"Offset\":"), 11);
+  dtostrf(actDallasData[i].offset, 0, 1, str);
+  webserver_send_content(client, str, strlen(str));
+  webserver_send_content_P(client, PSTR(",\"Present\":"), 11);
+  if (actDallasData[i].present) {
+    webserver_send_content_P(client, PSTR("true"), 4);
+  } else {
+    webserver_send_content_P(client, PSTR("false"), 5);
+  }
+  webserver_send_content_P(client, PSTR(",\"LastSeenSeconds\":"), 19);
+  long lastSeenSeconds = (actDallasData[i].lastgoodtime == 0) ? -1 : (long)((millis() - actDallasData[i].lastgoodtime) / 1000);
+  sprintf(str, "%ld", lastSeenSeconds);
+  webserver_send_content(client, str, strlen(str));
+  webserver_send_content_P(client, PSTR("}"), 1);
+}
+
 void dallasJsonOutput(struct webserver_t *client) {
   webserver_send_content_P(client, PSTR("["), 1);
 
@@ -214,30 +240,21 @@ void dallasJsonOutput(struct webserver_t *client) {
     if (!actDallasData[i].known) continue;
     if (!first) webserver_send_content_P(client, PSTR(","), 1);
     first = false;
-    webserver_send_content_P(client, PSTR("{\"Sensor\":\""), 11);
-    webserver_send_content(client, actDallasData[i].address, strlen(actDallasData[i].address));
-    webserver_send_content_P(client, PSTR("\",\"Temperature\":"), 16);
-    char str[64];
-    dtostrf(actDallasData[i].temperature, 0, 2, str);
-    webserver_send_content(client, str, strlen(str));
-    webserver_send_content_P(client, PSTR(",\"Alias\":\""), 10);
-    webserver_send_content(client, actDallasData[i].alias, strlen(actDallasData[i].alias));
-    webserver_send_content_P(client, PSTR("\",\"Offset\":"), 11);
-    dtostrf(actDallasData[i].offset, 0, 1, str);
-    webserver_send_content(client, str, strlen(str));
-    webserver_send_content_P(client, PSTR(",\"Present\":"), 11);
-    if (actDallasData[i].present) {
-      webserver_send_content_P(client, PSTR("true"), 4);
-    } else {
-      webserver_send_content_P(client, PSTR("false"), 5);
-    }
-    webserver_send_content_P(client, PSTR(",\"LastSeenSeconds\":"), 19);
-    long lastSeenSeconds = (actDallasData[i].lastgoodtime == 0) ? -1 : (long)((millis() - actDallasData[i].lastgoodtime) / 1000);
-    sprintf(str, "%ld", lastSeenSeconds);
-    webserver_send_content(client, str, strlen(str));
-    webserver_send_content_P(client, PSTR("}"), 1);
+    dallasJsonSensor(client, i);
   }
   webserver_send_content_P(client, PSTR("]"), 1);
+}
+
+// find a known sensor by address or alias (case-insensitive), -1 if none
+int dallasJsonFind(const char *name) {
+  if (name[0] == '\0') return -1;
+  for (int i = 0; i < dallasDevicecount; i++) {
+    if (actDallasData[i].known && strcasecmp(actDallasData[i].address, name) == 0) return i;
+  }
+  for (int i = 0; i < dallasDevicecount; i++) {
+    if (actDallasData[i].known && strcmp_P(actDallasData[i].alias, PSTR("NOT SET")) != 0 && strcasecmp(actDallasData[i].alias, name) == 0) return i;
+  }
+  return -1;
 }
 
 void saveDallasAliasFile() {

@@ -35,6 +35,18 @@ Das Firmware-Update ist so einfach wie das Aufrufen des Firmware-Menüs und nach
 
 Eine JSON-Ausgabe aller empfangenen Daten (Wärmepumpe und 1-Wire) ist unter der URL http://heishamon.local/json verfügbar (ersetze heishamon.local durch die IP-Adresse deines Heishamon-Geräts, wenn MDNS nicht funktioniert).
 
+Um einen einzelnen Wert abzufragen, füge eines dieser Argumente hinzu (eines pro Anfrage):
+
+| Argument | Wert | Beispiel | Liefert |
+|---|---|---|---|
+| `topic=` | eine Wärmepumpen-Topic-Nummer (`TOP1`, `XTOP3`, `OPT0`) oder einen Namen (`Main_Outlet_Temp`, Groß-/Kleinschreibung egal); `TOP170`/`TOP171` sind die Relais auf der großen Platine | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `opentherm=` | der Name eines OpenTherm-Werts | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
+| `1wire=` | Adresse oder Alias eines Sensors | `/json?1wire=28ff123456789abc` | der Eintrag des Sensors aus der `1wire`-Liste |
+| `s0=` | der S0-Port, `1` oder `2` | `/json?s0=1` | der Eintrag des Ports aus der `s0`-Liste, ohne `Watthour` |
+| `gpio=` | der MQTT-Name des GPIO (`extra/1`, oder `relay/one`/`relay/two` auf der großen Platine) oder nur die Nummer des Extra-GPIO | `/json?gpio=1` | der Eintrag des Pins aus der `gpio`-Liste |
+
+`Watthour` in der vollständigen Ausgabe ist die Energie seit der vorherigen `/json`-Anfrage, daher lassen einzelne S0-Anfragen ihn weg und setzen ihn nicht zurück. Ein unbekannter Wert, oder ein Abschnitt, der nicht aktiviert ist, liefert HTTP 404. Mehr als eines dieser Argumente in einer Anfrage liefert HTTP 400.
+
 Im Ordner 'integrations' findest du Beispiele, wie du deine Automatisierungsplattform mit dem HeishaMon verbinden kannst.
 
 # Regeln-Funktionalität

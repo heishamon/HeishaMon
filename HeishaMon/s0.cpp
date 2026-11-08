@@ -221,47 +221,53 @@ void s0Loop(PubSubClient &mqtt_client, void (*log_message)(char*), char* mqtt_to
 
 unsigned long jsonPulses[NUM_S0_COUNTERS];
 
+// one port object; Watthour is the energy since the previous full /json request, so only that
+// output includes it (and moves the counter on). Single-value requests leave it out.
+static void s0JsonPort(struct webserver_t *client, int i, bool includeWatthour) {
+  char str[12];
+
+  webserver_send_content_P(client, PSTR("{\"S0 port\":"), 11);
+  itoa(i + 1, str, 10);
+  webserver_send_content(client, str, strlen(str));
+
+  webserver_send_content_P(client, PSTR(",\"Watt\":"), 8);
+  itoa(actS0Data[i].watt, str, 10);
+  webserver_send_content(client, str, strlen(str));
+
+  if (includeWatthour) {
+    webserver_send_content_P(client, PSTR(",\"Watthour\":"), 12);
+    itoa(((actS0Data[i].pulsesTotal - jsonPulses[i]) * (1000.0 / actS0Settings[i].ppkwh)), str, 10);
+    webserver_send_content(client, str, strlen(str));
+    jsonPulses[i] = actS0Data[i].pulsesTotal;
+  }
+
+  webserver_send_content_P(client, PSTR(",\"WatthourTotal\":"), 17);
+  itoa((actS0Data[i].pulsesTotal * (1000.0 / actS0Settings[i].ppkwh)), str, 10);
+  webserver_send_content(client, str, strlen(str));
+
+  webserver_send_content_P(client, PSTR(",\"PulseQuality\":"), 16);
+  itoa((100 * (actS0Data[i].goodPulses + 1) / (actS0Data[i].goodPulses + actS0Data[i].badPulses + 1)), str, 10);
+  webserver_send_content(client, str, strlen(str));
+
+  webserver_send_content_P(client, PSTR(",\"AvgPulseWidth\":"), 17);
+  itoa(actS0Data[i].avgPulseWidth, str, 10);
+  webserver_send_content(client, str, strlen(str));
+
+  webserver_send_content_P(client, PSTR("}"), 1);
+}
+
 void s0JsonOutput(struct webserver_t *client) {
   webserver_send_content_P(client, PSTR("["), 1);
   for (int i = 0; i < NUM_S0_COUNTERS; i++) {
-    webserver_send_content_P(client, PSTR("{\"S0 port\":"), 11);
-
-    char str[12];
-    itoa(i + 1, str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    webserver_send_content_P(client, PSTR(",\"Watt\":"), 8);
-
-    itoa(actS0Data[i].watt, str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    webserver_send_content_P(client, PSTR(",\"Watthour\":"), 12);
-
-    itoa(((actS0Data[i].pulsesTotal - jsonPulses[i]) * (1000.0 / actS0Settings[i].ppkwh)), str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    jsonPulses[i] = actS0Data[i].pulsesTotal;
-
-    webserver_send_content_P(client, PSTR(",\"WatthourTotal\":"), 17);
-
-    itoa((actS0Data[i].pulsesTotal * (1000.0 / actS0Settings[i].ppkwh)), str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    webserver_send_content_P(client, PSTR(",\"PulseQuality\":"), 16);
-
-    itoa((100 * (actS0Data[i].goodPulses + 1) / (actS0Data[i].goodPulses + actS0Data[i].badPulses + 1)), str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    webserver_send_content_P(client, PSTR(",\"AvgPulseWidth\":"), 17);
-
-    itoa(actS0Data[i].avgPulseWidth, str, 10);
-    webserver_send_content(client, str, strlen(str));
-
-    if (i < NUM_S0_COUNTERS - 1) {
-      webserver_send_content_P(client, PSTR("},"), 2);
-    } else {
-      webserver_send_content_P(client, PSTR("}"), 1);
+    if (i > 0) {
+      webserver_send_content_P(client, PSTR(","), 1);
     }
+    s0JsonPort(client, i, true);
   }
   webserver_send_content_P(client, PSTR("]"), 1);
+}
+
+// single port for /json?s0=<port>; i is the 0-based port index
+void s0JsonSingle(struct webserver_t *client, int i) {
+  s0JsonPort(client, i, false);
 }

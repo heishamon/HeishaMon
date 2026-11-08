@@ -35,6 +35,18 @@ Firmware updaten is zo eenvoudig als naar het firmware-menu gaan en na authentic
 
 Een JSON-uitvoer van alle ontvangen gegevens (warmtepomp en 1-wire) is beschikbaar op de URL http://heishamon.local/json (vervang heishamon.local door het IP-adres van je heishamon-apparaat als MDNS niet werkt voor jou).
 
+Om één waarde op te vragen voeg je een van deze argumenten toe (één per verzoek):
+
+| Argument | Waarde | Voorbeeld | Geeft |
+|---|---|---|---|
+| `topic=` | een warmtepomp-topicnummer (`TOP1`, `XTOP3`, `OPT0`) of -naam (`Main_Outlet_Temp`, hoofdletterongevoelig); `TOP170`/`TOP171` zijn de relais op het grote board | `/json?topic=Main_Outlet_Temp` | `{"Topic":"TOP6","Name":"Main_Outlet_Temp","Value":35,"Description":"°C"}` |
+| `opentherm=` | de naam van een OpenTherm-waarde | `/json?opentherm=roomTemp` | `{"roomTemp":{"type": "W","value":21.50}}` |
+| `1wire=` | het adres of de alias van een sensor | `/json?1wire=28ff123456789abc` | de regel van die sensor uit de `1wire` lijst |
+| `s0=` | de S0-poort, `1` of `2` | `/json?s0=1` | de regel van die poort uit de `s0` lijst, zonder `Watthour` |
+| `gpio=` | de MQTT-naam van de GPIO (`extra/1`, of `relay/one`/`relay/two` op het grote board) of alleen het nummer van de extra GPIO | `/json?gpio=1` | de regel van die pin uit de `gpio` lijst |
+
+`Watthour` in de volledige uitvoer is de energie sinds het vorige `/json` verzoek, daarom laten losse S0-verzoeken die weg en zetten ze hem niet terug. Een onbekende waarde, of een onderdeel dat niet aan staat, geeft HTTP 404. Meer dan één van deze argumenten in één verzoek geeft HTTP 400.
+
 In de map 'integrations' vind je voorbeelden hoe je je automatiseringsplatform kunt koppelen aan de HeishaMon.
 
 # Regels-functionaliteit
