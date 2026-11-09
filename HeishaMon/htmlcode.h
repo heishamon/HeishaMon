@@ -140,6 +140,7 @@ body{
 .sidemenu-nav a:hover{background:var(--bg-elevated);color:var(--text-primary)}
 .sidemenu-nav a.danger{color:var(--red)}
 .sidemenu-nav a.danger:hover{background:var(--red-glow)}
+.sidemenu-nav a[aria-current="page"]{color:var(--accent);background:var(--accent-glow)}
 .sidemenu-nav .nav-icon{width:16px;text-align:center;opacity:.7}
 .sidemenu-footer{
   padding:16px 20px;
@@ -745,7 +746,18 @@ static const char webBodyStart[] FLASHPROG = R"====(
     </label>
   </div>
   
-  <nav class='sidemenu-nav' id='sideNav'></nav>
+  <nav class='sidemenu-nav' id='sideNav'>
+    <a href="/"><span class="nav-icon" aria-hidden="true">&#8962;</span> Home</a>
+    <a href="/firmware"><span class="nav-icon" aria-hidden="true">&#8679;</span> Firmware</a>
+    <a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon" aria-hidden="true">&#8635;</span> Reboot</a>
+    <a href="/rules"><span class="nav-icon" aria-hidden="true">&#8881;</span> Rules</a>
+    <a href="/settings"><span class="nav-icon" aria-hidden="true">&#9881;</span> Settings</a>
+)===="
+#ifdef ESP32
+R"====(    <a href="/modbus"><span class="nav-icon" aria-hidden="true">&#9432;</span> Modbus registers</a>
+)===="
+#endif
+R"====(  </nav>
   <div class='sidemenu-footer'>
     <a href='https://github.com/heishamon/HeishaMon' target='_blank'>GitHub</a>
   </div>
@@ -766,6 +778,13 @@ static const char webFooter[] FLASHPROG = "</body></html>";
 // ─────────────────────────────────────────────────────────────────────────────
 static const char menuJS[] FLASHPROG = R"====(
 <script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('#sideNav a').forEach(function(link){
+    if (link.getAttribute('href') === window.location.pathname) {
+      link.setAttribute('aria-current', 'page');
+    }
+  });
+});
 function toggleMenu(){
   var m=document.getElementById('sideMenu');
   var o=document.getElementById('menuOverlay');
@@ -1322,24 +1341,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Side nav links for root page (injected via JS on load below)
 // We build the nav + status bar in one block, then the tab panes.
 
-// Side nav links and status bar for root page
+// Status bar for root page
 static const char webBodyRoot1[] FLASHPROG = R"====(
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.getElementById('sideNav');
-  nav.innerHTML=`
-<a href="/firmware"><span class="nav-icon">&#8679;</span> Firmware</a>
-<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
-<a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
-<a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
-)===="
-#ifdef ESP32
-R"====(<a href="/modbus"><span class="nav-icon">&#9432;</span> Modbus</a>
-)===="
-#endif
-R"====(`;
-});
-</script>
 <div class='main-content'>
 <div class='statusbar' id='statusBar'>
   <div class='status-chip'><span class='status-dot'></span><span class='chip-label'>WiFi</span><span class='chip-value' id='wifi'>—</span><span style='color:var(--text-muted);font-size:11px'>%</span></div>
@@ -1563,19 +1566,7 @@ static const char caUploadJS[] PROGMEM = R"====(
 )====";
 #endif
 
-static const char webBodySettings1[] FLASHPROG = R"====(
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.getElementById('sideNav');
-  nav.innerHTML=`
-<a href="/"><span class="nav-icon">&#8634;</span> Home</a>
-<a href="/firmware"><span class="nav-icon">&#8679;</span> Firmware</a>
-<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
-<a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
-`;
-});
-</script>
-)====";
+static const char webBodySettings1[] FLASHPROG = "";
 
 static const char settingsForm1[] FLASHPROG = R"====(
 <div class='main-content' style='max-width:780px;margin:0 auto'>
@@ -2019,17 +2010,6 @@ setTimeout(refreshWifiScan,500);
 // RULES PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 static const char showRulesPage1[] FLASHPROG = R"====(
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.getElementById('sideNav');
-  nav.innerHTML=`
-<a href="/"><span class="nav-icon">&#8634;</span> Home</a>
-<a href="/firmware"><span class="nav-icon">&#8679;</span> Firmware</a>
-<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
-<a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
-`;
-});
-</script>
   <div style='display:flex;'>
     <div id='line-numbers' class='line-numbers'></div>
     <div id='rules' contenteditable='true' spellcheck='false' class='rules-editor'>)====";
@@ -2478,17 +2458,6 @@ function getCursorPosition() {
 // FIRMWARE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 static const char showFirmwarePage[] FLASHPROG = R"====(
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.getElementById('sideNav');
-  nav.innerHTML=`
-<a href="/"><span class="nav-icon">&#8634;</span> Home</a>
-<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
-<a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
-<a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
-`;
-});
-</script>
 <script>
 function getMD5(){
   var fn=document.getElementById('firmware').value;
@@ -3544,18 +3513,6 @@ static const char tzDataOptions[] FLASHPROG = R"====(
 
 #ifdef ESP32
 static const char webModbusStart[] FLASHPROG = R"====(
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.getElementById('sideNav');
-  nav.innerHTML=`
-<a href="/"><span class="nav-icon">&#8634;</span> Home</a>
-<a href="/firmware"><span class="nav-icon">&#8679;</span> Firmware</a>
-<a href="/reboot" onclick="return confirm('Reboot the device?')"><span class="nav-icon">&#8635;</span> Reboot</a>
-<a href="/rules"><span class="nav-icon">&#8881;</span> Rules</a>
-<a href="/settings"><span class="nav-icon">&#9881;</span> Settings</a>
-`;
-});
-</script>
 <style>
 /* Modbus tables scroll inside their own containers, below the page header. */
 .modbus-page thead th{top:0}
