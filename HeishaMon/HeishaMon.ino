@@ -1155,6 +1155,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
         } else if (strcmp_P((char *)dat, PSTR("/modbus")) == 0) {
           client->route = 200;
 #endif
+        } else if (strcmp_P((char *)dat, PSTR("/commands")) == 0) {
+          client->route = 210;
         } else if (strcmp_P((char *)dat, PSTR("/json")) == 0) {
           client->route = 20;
         } else if (strcmp_P((char *)dat, PSTR("/reboot")) == 0) {
@@ -1444,6 +1446,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return handleModbus(client);
             } break;
 #endif
+          case 210: {
+              return handleCommands(client, &heishamonSettings);
+            } break;
           case 20: {
               return handleJsonOutput(client, actData, actDataExtra, actOptData, &heishamonSettings, extraDataBlockAvailable);
             } break;
