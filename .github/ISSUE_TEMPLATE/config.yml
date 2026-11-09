@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Add or update a heat pump model
+    url: https://github.com/heishamon/HeishaMon/issues/830
+    about: Unknown model or new model bytes? Add it yourself by editing HeatPumpType.md on the Github website and send it as a PR, no issue needed.
