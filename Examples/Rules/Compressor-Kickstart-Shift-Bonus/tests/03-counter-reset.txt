@@ -1,0 +1,27 @@
+# One tick without overshoot sets the counter back to 0: 10 + 10 ticks give no bonus.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+set Main_Outlet_Temp 35
+adv 175
+note tick 11 without overshoot
+set Main_Outlet_Temp 34
+adv 15
+set Main_Outlet_Temp 35
+adv 150
+expectnone
+note 11th overshoot tick in a row after the reset
+adv 15
+expectcmd SetZ1HeatRequestTemperature 1

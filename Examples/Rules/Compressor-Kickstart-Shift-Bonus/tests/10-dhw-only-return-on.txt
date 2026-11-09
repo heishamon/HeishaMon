@@ -1,0 +1,31 @@
+# Heat pump on before the DHW-only run: only the mode goes back to heat-only.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+set Heat_Power_Consumption 0
+set Compressor_Freq 0
+adv 40
+set Operating_Mode_State 3
+set DHW_Temp 40
+set DHW_Power_Consumption 1500
+adv 30
+expectnone
+set DHW_Temp 45
+set DHW_Power_Consumption 0
+adv 15
+expectcmd SetOperationMode 0
+set Operating_Mode_State 0
+adv 60
+expectnone
