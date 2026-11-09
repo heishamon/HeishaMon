@@ -95,6 +95,11 @@ body{
   text-decoration:none;
 }
 .topbar-logo span{color:var(--text-secondary);font-weight:400}
+.topbar-desc{
+  color:var(--text-secondary);font-size:14px;
+  padding-left:16px;border-left:1px solid var(--border);
+  max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .hamburger{
   background:none;border:none;
   color:var(--text-secondary);
@@ -766,6 +771,10 @@ R"====(  </nav>
   <div class='topbar-left'>
     <button class='hamburger' onclick='toggleMenu()'>&#9776;</button>
     <a class='topbar-logo' href='/'>Heisha<span>Mon</span></a>
+)====";
+
+// second half, the optional description is injected between the two parts
+static const char webBodyStart2[] FLASHPROG = R"====(
   </div>
   <div class='topbar-right'></div>
 </header>
@@ -1579,6 +1588,10 @@ static const char settingsForm1[] FLASHPROG = R"====(
     <div class='setting-row'>
       <label class='setting-label'>Hostname</label>
       <input type='text' name='wifi_hostname' maxlength='39' class='setting-input' value=''>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>Description</label>
+      <input type='text' name='description' maxlength='63' class='setting-input' value=''>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>WiFi SSID</label>

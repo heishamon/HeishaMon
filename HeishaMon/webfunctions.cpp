@@ -23,6 +23,29 @@ static uint8_t ntpservers = 0;
 void log_message(char* string);
 void log_message(const __FlashStringHelper *msg);
 extern bool doInitialWifiScan;
+extern settingsStruct heishamonSettings;
+
+// Top bar of every page; the description from the settings (if set) is shown next to the logo, HTML escaped.
+static void sendBodyStart(struct webserver_t *client) {
+  webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+  if (heishamonSettings.description[0] != '\0') {
+    char html[sizeof(heishamonSettings.description) * 6 + 32];
+    char *p = html + sprintf(html, "<span class='topbar-desc'>");
+    for (const char *c = heishamonSettings.description; *c != '\0'; c++) {
+      switch (*c) {
+        case '&': p += sprintf(p, "&amp;"); break;
+        case '<': p += sprintf(p, "&lt;"); break;
+        case '>': p += sprintf(p, "&gt;"); break;
+        case '"': p += sprintf(p, "&quot;"); break;
+        case '\'': p += sprintf(p, "&#39;"); break;
+        default: *p++ = *c;
+      }
+    }
+    p += sprintf(p, "</span>");
+    webserver_send_content(client, html, p - html);
+  }
+  webserver_send_content_P(client, webBodyStart2, strlen_P(webBodyStart2));
+}
 
 int dBmToQuality(int dBm) {
   if (dBm == 31)
@@ -244,6 +267,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           if ( jsonDoc[F("wifi_ssid")] ) strlcpy(heishamonSettings->wifi_ssid, jsonDoc[F("wifi_ssid")], sizeof(heishamonSettings->wifi_ssid));
           if ( jsonDoc[F("wifi_password")] ) strlcpy(heishamonSettings->wifi_password, jsonDoc[F("wifi_password")], sizeof(heishamonSettings->wifi_password));
           if ( jsonDoc[F("wifi_hostname")] ) strlcpy(heishamonSettings->wifi_hostname, jsonDoc[F("wifi_hostname")], sizeof(heishamonSettings->wifi_hostname));
+          if ( jsonDoc[F("description")] ) strlcpy(heishamonSettings->description, jsonDoc[F("description")], sizeof(heishamonSettings->description));
           if ( jsonDoc[F("ota_password")] ) strlcpy(heishamonSettings->ota_password, jsonDoc[F("ota_password")], sizeof(heishamonSettings->ota_password));
           if ( jsonDoc[F("mqtt_topic_base")] ) strlcpy(heishamonSettings->mqtt_topic_base, jsonDoc[F("mqtt_topic_base")], sizeof(heishamonSettings->mqtt_topic_base));
           if ( jsonDoc[F("mqtt_server")] ) strlcpy(heishamonSettings->mqtt_server, jsonDoc[F("mqtt_server")], sizeof(heishamonSettings->mqtt_server));
@@ -451,7 +475,7 @@ int handleFactoryReset(struct webserver_t *client) {
         webserver_send_content_P(client, refreshMeta, strlen_P(refreshMeta));
       } break;
     case 1: {
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRebootWarning, strlen_P(webBodyRebootWarning));
         webserver_send_content_P(client, menuJS, strlen_P(menuJS));
         webserver_send_content_P(client, webFooter, strlen_P(webFooter));
@@ -473,7 +497,7 @@ int handleReboot(struct webserver_t *client) {
         webserver_send_content_P(client, refreshMeta, strlen_P(refreshMeta));
       } break;
     case 1: {
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRebootWarning, strlen_P(webBodyRebootWarning));
         webserver_send_content_P(client, menuJS, strlen_P(menuJS));
         webserver_send_content_P(client, webFooter, strlen_P(webFooter));
@@ -489,6 +513,7 @@ int handleReboot(struct webserver_t *client) {
 void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   //set jsonDoc with current settings
   jsonDoc[F("wifi_hostname")] = heishamonSettings->wifi_hostname;
+  jsonDoc[F("description")] = heishamonSettings->description;
   jsonDoc[F("wifi_password")] = heishamonSettings->wifi_password;
   jsonDoc[F("wifi_ssid")] = heishamonSettings->wifi_ssid;
   jsonDoc[F("ota_password")] = heishamonSettings->ota_password;
@@ -754,6 +779,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   while (tmp) {
     if (strcmp(tmp->name.c_str(), "wifi_hostname") == 0) {
       jsonDoc[F("wifi_hostname")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "description") == 0) {
+      jsonDoc[F("description")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_topic_base") == 0) {
       jsonDoc[F("mqtt_topic_base")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_server") == 0) {
@@ -961,7 +988,7 @@ int settingsNewPassword(struct webserver_t *client, settingsStruct *heishamonSet
         webserver_send(client, 200, (char *)"text/html", 0);
         webserver_send_content_P(client, webHeader, strlen_P(webHeader));
         webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
       } break;
     case 1: {
         webserver_send_content_P(client, webBodySettingsResetPasswordWarning, strlen_P(webBodySettingsResetPasswordWarning));
@@ -983,7 +1010,7 @@ int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonS
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else if (client->content == 2) {
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));
     webserver_send_content_P(client, webBodySettingsNewWifiWarning, strlen_P(webBodySettingsNewWifiWarning));
@@ -1042,7 +1069,7 @@ int handleSettings(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else if (client->content == 1) {
     webserver_send_content_P(client, settingsForm1, strlen_P(settingsForm1));
     webserver_send_content_P(client, tzDataOptions, strlen_P(tzDataOptions));
@@ -1142,7 +1169,7 @@ int handleModbus(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
     webserver_send_content_P(client, webModbusStart, strlen_P(webModbusStart));
   } else {
     String row;
@@ -1168,7 +1195,7 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
         webserver_send(client, 200, (char *)"text/html", 0);
         webserver_send_content_P(client, webHeader, strlen_P(webHeader));
         webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRoot1, strlen_P(webBodyRoot1));
       } break;
     case 1: {
@@ -1520,7 +1547,7 @@ int showRules(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
     webserver_send_content_P(client, showRulesPage1, strlen_P(showRulesPage1));
     if (LittleFS.begin()) {
       client->userdata = new fs::File(LittleFS.open("/rules.txt", "r"));
@@ -1602,7 +1629,7 @@ int showFirmware(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else  if (client->content == 1) {
     webserver_send_content_P(client, showFirmwarePage, strlen_P(showFirmwarePage));
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));
