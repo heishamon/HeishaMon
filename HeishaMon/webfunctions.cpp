@@ -22,6 +22,7 @@ static uint8_t ntpservers = 0;
 
 void log_message(char* string);
 void log_message(const __FlashStringHelper *msg);
+extern bool doInitialWifiScan;
 
 int dBmToQuality(int dBm) {
   if (dBm == 31)
@@ -322,7 +323,8 @@ void loadSettings(settingsStruct *heishamonSettings) {
 // The ESP8266 does not choose the strongest access point when several have the same SSID.
 // With a mesh that can be a far away node with a bad signal, and it stays there. So scan first
 // and connect to the strongest access point (BSSID) with our SSID, like the ESP32 does with
-// WIFI_ALL_CHANNEL_SCAN. The scan blocks for about 2 seconds.
+// WIFI_ALL_CHANNEL_SCAN. The scan blocks for about 2 seconds. The same scan also fills the
+// network list of the settings page, so the initial scan at 15 seconds after boot is skipped.
 static void wifiBeginStrongest(const char *ssid, const char *password) {
   const char *pass = (password[0] == '\0') ? NULL : password;
   int best = -1;
@@ -336,19 +338,25 @@ static void wifiBeginStrongest(const char *ssid, const char *password) {
       }
     }
   }
+  uint8_t bssid[6];
+  int32_t channel = 0;
   if (best >= 0) {
-    uint8_t bssid[6];
     memcpy(bssid, WiFi.BSSID(best), sizeof(bssid));
-    int32_t channel = WiFi.channel(best);
+    channel = WiFi.channel(best);
     char log_msg[128];
     snprintf_P(log_msg, sizeof(log_msg), PSTR("Wifi connecting to strongest access point %02X:%02X:%02X:%02X:%02X:%02X (channel %d, %d dBm, %d found)"),
                bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], (int)channel, (int)WiFi.RSSI(best), found);
     log_message(log_msg);
-    WiFi.scanDelete();
+  }
+  if (numSsid > 0) {
+    getWifiScanResults(numSsid); // save the list for the settings page
+    doInitialWifiScan = false;
+  }
+  WiFi.scanDelete();
+  if (best >= 0) {
     WiFi.begin(ssid, pass, channel, bssid);
   } else {
     // not found in the scan (hidden SSID or out of range), let the SDK search for it
-    WiFi.scanDelete();
     WiFi.begin(ssid, pass);
   }
 }
