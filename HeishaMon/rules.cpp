@@ -32,7 +32,7 @@
 #define OPTDATASIZE 20
 
 bool send_command(byte* command, int length);
-void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested);
+void publishRuleExecution(const char *name, uint32_t id, int result, uint32_t duration, bool nested);
 #ifdef ESP32
 extern QueueHandle_t pcbQueue;
 #endif

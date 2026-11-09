@@ -457,17 +457,24 @@ bool loadTlsCaFromFS(WiFiClientSecure *client) {
 
 // Opt-in (setting "Publish rule executions to MQTT"): one event per rule run adds a publish for
 // every changed topic that triggers a rule, which is a lot of traffic for a debugging aid.
-void publishRuleExecution(const char *name, uint8_t id, int result, uint32_t duration, bool nested) {
+// id is 32 bit on purpose: on the ESP8266 the rules live in the IRAM mempool, which only allows
+// 32-bit reads. A uint8_t parameter makes the compiler read only the low byte of the rule number,
+// which is a LoadStoreError (exception 3) at every rule run (#1051).
+void publishRuleExecution(const char *name, uint32_t id, int result, uint32_t duration, bool nested) {
   if (!heishamonSettings.rules_mqtt_events || !mqtt_client.connected()) return;
   // rule names are plain identifiers (no characters that need JSON escaping)
+  // copy the name with the flash/IRAM safe strncpy_P, it can live in the IRAM mempool
+  char rulename[64];
+  strncpy_P(rulename, name ? name : "", sizeof(rulename) - 1);
+  rulename[sizeof(rulename) - 1] = '\0';
   char payload[160];
   int len;
   if (nested) {
-    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":true}"),
-                     name, id, result, (unsigned long)millis());
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%lu,\"result\":%d,\"uptime_ms\":%lu,\"nested\":true}"),
+                     rulename, (unsigned long)id, result, (unsigned long)millis());
   } else {
-    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%u,\"result\":%d,\"uptime_ms\":%lu,\"nested\":false,\"duration_us\":%lu}"),
-                     name, id, result, (unsigned long)millis(), (unsigned long)duration);
+    len = snprintf_P(payload, sizeof(payload), PSTR("{\"rule\":\"%s\",\"rule_id\":%lu,\"result\":%d,\"uptime_ms\":%lu,\"nested\":false,\"duration_us\":%lu}"),
+                     rulename, (unsigned long)id, result, (unsigned long)millis(), (unsigned long)duration);
   }
   if (len <= 0 || len >= (int)sizeof(payload)) return;
   char topic[256];
