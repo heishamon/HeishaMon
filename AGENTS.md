@@ -4,7 +4,7 @@ This file provides guidance when working with code in this repository. Before wr
 
 ## What this is
 
-HeishaMon is Arduino/C++ firmware for ESP8266 (small PCB) and ESP32-S3 (large PCB) boards that speaks the Panasonic Aquarea (H/J/K/L series) heat pump's proprietary serial (CN-CNT) protocol, decodes it, and republishes it as MQTT topics and a JSON HTTP endpoint. It also lets you *send* commands back to the heat pump, run a small onboard rules engine to automate the heat pump without relying on external automation software, and (ESP32 only) proxy/pass-through the original Panasonic CZ-TAW1 controller.
+HeishaMon is Arduino/C++ firmware for ESP8266 (small PCB) and ESP32-S3 (large PCB) boards that speaks the Panasonic Aquarea (H/J/K/L/M series) heat pump's proprietary serial (CN-CNT) protocol, decodes it, and republishes it as MQTT topics and a JSON HTTP endpoint. It also lets you *send* commands back to the heat pump, run a small onboard rules engine to automate the heat pump without relying on external automation software, and (ESP32 only) proxy/pass-through the original Panasonic CZ-TAW1 controller.
 
 The whole firmware lives in one Arduino sketch directory: `HeishaMon/`. There is no separate backend/frontend split — the web UI is served from PROGMEM HTML strings embedded in the firmware itself.
 
