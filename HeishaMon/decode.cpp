@@ -310,6 +310,17 @@ String getSecondByte(byte input) {
 
 
 // Decode ////////////////////////////////////////////////////////////////////////////
+// Description of a mode value: desc[0] is the number of modes, desc[1..n] their names.
+// A value out of range (for example both bits set on a 2-bit field) gives "unknown"
+// instead of reading past the end of the description array.
+static const char *modeDescription(const char **desc, int value) {
+  int maxvalue = atoi(desc[0]);
+  if ((value < 0) || (value >= maxvalue)) {
+    return "unknown";
+  }
+  return desc[value + 1];
+}
+
 void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, void (*log_message)(char*), char* mqtt_topic_base, unsigned int updateAllTime) {
   bool updateTime = false;
   bool updateTopic[NUMBER_OF_TOPICS] = { false };
@@ -343,12 +354,12 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
       String dataValue = getDataValue(actData, Topic_Number);
       if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so get description index 1
         if ((Topic_Number != 44) && (Topic_Number != 92)) {
-          sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),topicDescription[Topic_Number][1]);
+          snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),topicDescription[Topic_Number][1]);
         } else {
-          sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": \"%s\", \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),topicDescription[Topic_Number][1]);
+          snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": \"%s\", \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),topicDescription[Topic_Number][1]);
         }
       } else {
-        sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),topicDescription[Topic_Number][dataValue.toInt() + 1]);
+        snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),modeDescription(topicDescription[Topic_Number], dataValue.toInt()));
       }
       websocket_write_all(log_msg, strlen(log_msg));          
       rules_event_cb(_F("@"), topics[Topic_Number]);
@@ -388,9 +399,9 @@ void decode_heatpump_data_extra(char* data, char* actDataExtra, PubSubClient &mq
       int maxvalue = atoi(xtopicDescription[Topic_Number][0]);
       String dataValue = getDataValueExtra(actDataExtra, Topic_Number);
       if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so get description index 1
-        sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"XTOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),xtopicDescription[Topic_Number][1]);
+        snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"XTOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),xtopicDescription[Topic_Number][1]);
       } else {
-        sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"XTOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),xtopicDescription[Topic_Number][dataValue.toInt() + 1]);
+        snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"XTOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),modeDescription(xtopicDescription[Topic_Number], dataValue.toInt()));
       }
       websocket_write_all(log_msg, strlen(log_msg));         
       rules_event_cb(_F("@"), xtopics[Topic_Number]);
@@ -437,9 +448,9 @@ void decode_optional_heatpump_data(char* data, char* actOptData, PubSubClient & 
       int maxvalue = atoi(opttopicDescription[Topic_Number][0]);
       String dataValue = getOptDataValue(actOptData, Topic_Number);
       if (maxvalue == 0) { //this takes the special case where the description is a real value description instead of a mode, so get description index 1
-        sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"OPT%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),opttopicDescription[Topic_Number][1]);
+        snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"OPT%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),opttopicDescription[Topic_Number][1]);
       } else {
-        sprintf_P(log_msg, PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"OPT%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),opttopicDescription[Topic_Number][dataValue.toInt() + 1]);
+        snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"OPT%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),modeDescription(opttopicDescription[Topic_Number], dataValue.toInt()));
       }      
       websocket_write_all(log_msg, strlen(log_msg));
       rules_event_cb(_F("@"), optTopics[Topic_Number]);
