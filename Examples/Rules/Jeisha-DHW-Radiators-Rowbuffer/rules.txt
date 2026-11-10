@@ -90,7 +90,7 @@ on dhw_start then
    #smartPauseLock = 1;
    setTimer(25, 0);
    @SetHeatpump = 1;
-   if @Outside_Temp < 5 then
+   if @Eva_Outlet_Temp <= 0 then
       @SetForceDefrost = 1;
       setTimer(20, 540);
    else
