@@ -20,7 +20,7 @@ This file documents the research behind the additional topics (TOP170 to TOP196)
 
 ### 3.1 Command frame
 
-- A data byte of 0x00 means "no change". The same holds for a zero bit pair inside a shared byte (shown for bytes 24, 26, 27, 31) and for a zero nibble (shown for bytes 35, 36, 37).
+- A data byte of 0x00 means "no change". The same holds for a zero bit pair inside a shared byte (shown for bytes 20, 24, 25, 26, 27, 28, 30, 31) and for a zero nibble (shown for bytes 22, 33, 35, 36, 37). For bytes 20, 22, 25, 28, 30 and 33 this was checked with raw writes that set one field to its current value and all other fields of the byte to 0, together with a change of byte 60 that showed the frame was taken over: the other fields stayed unchanged in every case (heat pump off).
 - A command with a wrong length is ignored without an error.
 - A write is visible in the data block 0.4 to 5 s after the log line `Command datagram sent bytes: 111`.
 - Values outside the step size of the menu are shown for one read cycle and then reverted by the heat pump. Seen with +1 minute on bytes 67, 69, 98 and 101 (menu steps of 5 minutes) and +1 on byte 100. Valid steps are kept.
