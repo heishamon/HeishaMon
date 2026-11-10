@@ -2,7 +2,7 @@
 [![Build binary](https://github.com/the78mole/HeishaMon/actions/workflows/main.yml/badge.svg)](https://github.com/the78mole/HeishaMon/actions/workflows/main.yml)
 
 
-# Panasonic Aquarea H-, J-, K- ja L-sarjan vesi-ilmalämpöpumpun protokollaa lukeva IoT-laite
+# Panasonic Aquarea H-, J-, K-, L- ja M-sarjan vesi-ilmalämpöpumpun protokollaa lukeva IoT-laite
 
 Tämä projekti mahdollistaa Panasonic Aquarea vesi-ilmalämpöpumppujen toimittamien tietojen raportoimisen MQTT-palvelimelle tai JSON-muodossa HTTP:n kautta.
 
@@ -17,7 +17,7 @@ Viimeisin julkaistu versio on saatavilla [täältä](https://github.com/Egyras/H
 
 
 # Käyttö
-Nykyinen Arduino-softa pystyy kommunikoimaan Panasonicin Aquarea H, J, K ja L-sarjan vesi-ilmalämpöpumppujen kanssa. [Käyttäjien vahvistamia lämpöpumppumalleja löytyy täältä](HeatPumpType.md) \
+Nykyinen Arduino-softa pystyy kommunikoimaan Panasonicin Aquarea H-, J-, K-, L- ja M-sarjan vesi-ilmalämpöpumppujen kanssa. [Käyttäjien vahvistamia lämpöpumppumalleja löytyy täältä](HeatPumpType.md) \
 Jos haluat kääntää softan itse, niin lataa kaikki tarvittavat kirjastot ja muista myös filesystem-tuki ESP8266:lle Arduino IDE:ssä.
 
 Kun ensimmäisen kerran kytket virrat laitteeseen, kytkeydy HeishaMonin tarjoamaan avoimeen WiFi-hotspotiin, jota käytetään ensimmäisen käynnistyksen yhteydessä asetusten tekemiseen. Asetussivu löytyy osoitteesta http://192.168.4.1 ja sieltä voit määrittää WiFi-verkon ja MQTT-palvelimen asetukset. \

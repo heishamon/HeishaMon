@@ -2,7 +2,7 @@
 [![Build binary](https://github.com/the78mole/HeishaMon/actions/workflows/main.yml/badge.svg)](https://github.com/the78mole/HeishaMon/actions/workflows/main.yml)
 
 
-# Panasonic H, J, K & L Series Aquarea lucht-water warmtepomp protocol
+# Panasonic H, J, K, L & M Series Aquarea lucht-water warmtepomp protocol
 
 Dit project maakt het mogelijk om informatie van de Panasonic Aquarea warmtepomp uit te lezen en de gegevens te rapporteren aan een MQTT-server of als JSON-formaat via HTTP.
 
@@ -17,7 +17,7 @@ De laatste release is beschikbaar [hier](https://github.com/Egyras/HeishaMon/rel
 
 
 # Gebruik van de software
-HeishaMon kan communiceren met de Panasonic Aquarea H, J, K en L-serie. [Door gebruikers bevestigde typen warmtepompen vind je hier](HeatPumpType.md) \
+HeishaMon kan communiceren met de Panasonic Aquarea H-, J-, K-, L- en M-serie. [Door gebruikers bevestigde typen warmtepompen vind je hier](HeatPumpType.md) \
 Als je dit image zelf wilt compileren, zorg er dan voor dat je de genoemde bibliotheken gebruikt en ondersteuning voor een bestandssysteem op de ESP8266, selecteer daarvoor de juiste flash-optie in de Arduino IDE.
 
 Bij het opstarten zonder geconfigureerd wifi wordt een open-wifi-hotspot zichtbaar waarmee je je wifi-netwerk en je MQTT-server kunt configureren. De configuratiepagina is beschikbaar op http://192.168.4.1 . \
