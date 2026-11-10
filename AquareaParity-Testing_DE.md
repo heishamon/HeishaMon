@@ -52,7 +52,7 @@ Diese Anleitung richtet sich an HeishaMon-Besitzer, die mithelfen wollen herausz
 
 **Weboberfläche.** Die neuen Topics erscheinen in der Tabelle „Heatpump Values“ und in `/json`.
 
-**Unverändert.** Alle bisherigen Topics behalten Nummer und Namen; bisherige Befehle senden dieselben Bytes wie vorher. Befehle auf Bytes, die mehrere Einstellungen enthalten, senden jetzt das ganze Byte, zusammengesetzt aus den zuletzt gelesenen Werten, damit zwei Befehle nacheinander sich nicht gegenseitig rückgängig machen.
+**Unverändert.** Alle bisherigen Topics behalten Nummer und Namen; bisherige Befehle senden dieselben Bytes wie vorher. Neue Befehle auf Bytes mit mehreren Einstellungen senden nur ihr eigenes Feld, wie die bisherigen.
 
 ## Was man braucht
 

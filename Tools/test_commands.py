@@ -94,81 +94,81 @@ RMW_SETTERS = {
         [],
         ["69", "91", "0", "-1", "127", "-127", "128", "-128", "255"],
     ),
-    # byte 20 bits 3-2 (b01 off, b10 on); the other bits stay as read
+    # byte 20 bits 3-2 (b01 off, b10 on); only this pair is sent, the rest of the byte is 0 (no change)
     "SetAntiFreezeMode": (
         20,
         [
-            ({20: 0x6A}, "0", 0x66),
-            ({20: 0x66}, "1", 0x6A),
-            ({20: 0xEA}, "0", 0xE6),
-            ({20: 0x2A}, "1", 0x2A),
+            ({20: 0x6A}, "0", 0x04),
+            ({20: 0x66}, "1", 0x08),
+            ({20: 0xEA}, "0", 0x04),
+            ({20: 0x2A}, "1", 0x08),
         ],
         [],
         ["2", "-1"],
     ),
-    # byte 27 bits 1-0 (b01 disabled, b10 enabled); SG ready bits 3-2, bivalent bits 7-4 stay as read
+    # byte 27 bits 1-0 (b01 disabled, b10 enabled); only this pair is sent
     "SetDemandControlEnable": (
         27,
         [
-            ({27: 0x55}, "1", 0x56),
-            ({27: 0x56}, "0", 0x55),
-            ({27: 0x5D}, "1", 0x5E),
-            ({27: 0x95}, "1", 0x96),
-            ({27: 0xAA}, "0", 0xA9),
+            ({27: 0x55}, "1", 0x02),
+            ({27: 0x56}, "0", 0x01),
+            ({27: 0x5D}, "1", 0x02),
+            ({27: 0x95}, "1", 0x02),
+            ({27: 0xAA}, "0", 0x01),
         ],
         [],
         ["2", "-1"],
     ),
-    # byte 30 bits 1-0 (b01 no, b10 yes); the other bits stay as read
+    # byte 30 bits 1-0 (b01 no, b10 yes); only this pair is sent
     "SetDHWDefrost": (
         30,
         [
-            ({30: 0x5A}, "0", 0x59),
-            ({30: 0x59}, "1", 0x5A),
-            ({30: 0x5E}, "0", 0x5D),
-            ({30: 0x1A}, "0", 0x19),
+            ({30: 0x5A}, "0", 0x01),
+            ({30: 0x59}, "1", 0x02),
+            ({30: 0x5E}, "0", 0x01),
+            ({30: 0x1A}, "0", 0x01),
         ],
         [],
         ["2", "-1"],
     ),
-    # byte 31 bits 5-4 (b01 no, b10 yes); bits 7-6 are sent as 0 (cloud frame 0x2A for read 0x6A), low nibble as read
+    # byte 31 bits 5-4 (b01 no, b10 yes); only this pair is sent
     "SetStaticPressure": (
         31,
         [
-            ({31: 0x5A}, "1", 0x2A),
-            ({31: 0x6A}, "0", 0x1A),
-            ({31: 0x6A}, "1", 0x2A),
-            ({31: 0x5B}, "1", 0x2B),
-            ({31: 0x57}, "0", 0x17),
-            ({31: 0xDA}, "1", 0x2A),
-            ({31: 0x55}, "0", 0x15),
+            ({31: 0x5A}, "1", 0x20),
+            ({31: 0x6A}, "0", 0x10),
+            ({31: 0x6A}, "1", 0x20),
+            ({31: 0x5B}, "1", 0x20),
+            ({31: 0x57}, "0", 0x10),
+            ({31: 0xDA}, "1", 0x20),
+            ({31: 0x55}, "0", 0x10),
         ],
         [],
         ["2", "-1"],
     ),
-    # byte 33 low nibble, minutes / 5 + 1; the high nibble (stage 2) comes from the data block and must be 1..15
+    # byte 33 low nibble, minutes / 5 + 1; the high nibble (stage 2) is sent as 0 (no change)
     "SetEfficiencyStage1Time": (
         33,
         [
-            ({}, "25", 0x76),
-            ({}, "20", 0x75),
-            ({}, "0", 0x71),
-            ({}, "60", 0x7D),
-            ({33: 0x85}, "25", 0x86),
+            ({}, "25", 0x06),
+            ({}, "20", 0x05),
+            ({}, "0", 0x01),
+            ({}, "60", 0x0D),
+            ({33: 0x85}, "25", 0x06),
         ],
-        [({33: 0x05}, "25"), ({33: 0x0F}, "20")],
+        [],
         ["-5", "3", "65", "70", "75"],
     ),
     "SetEfficiencyStage2Time": (
         33,
         [
-            ({}, "35", 0x85),
-            ({}, "30", 0x75),
-            ({}, "0", 0x15),
-            ({}, "60", 0xD5),
-            ({33: 0x76}, "35", 0x86),
+            ({}, "35", 0x80),
+            ({}, "30", 0x70),
+            ({}, "0", 0x10),
+            ({}, "60", 0xD0),
+            ({33: 0x76}, "35", 0x80),
         ],
-        [({33: 0x70}, "35"), ({33: 0x70}, "0")],
+        [],
         ["-5", "3", "65", "70", "75"],
     ),
     # byte 34 low nibble, 0..30 min; the high nibble (anti-stick bits) is sent as 0 like the cloud frame
@@ -186,36 +186,36 @@ RMW_SETTERS = {
         [],
         ["-5", "3", "35"],
     ),
-    # byte 35 nibbles, K / 0.5 + 8; the other nibble comes from the data block and must be 2..14
+    # byte 35 nibbles, K / 0.5 + 8; the other nibble is sent as 0 (no change)
     "SetSensorOffsetRemoteTh1": (
         35,
         [
-            ({}, "1", 0xA6),
-            ({}, "0.5", 0x96),
-            ({}, "0", 0x86),
-            ({}, "-3", 0x26),
-            ({}, "3.0", 0xE6),
-            ({}, "-0.5", 0x76),
-            ({35: 0x8E}, "1", 0xAE),
-            ({35: 0x82}, "-3", 0x22),
+            ({}, "1", 0xA0),
+            ({}, "0.5", 0x90),
+            ({}, "0", 0x80),
+            ({}, "-3", 0x20),
+            ({}, "3.0", 0xE0),
+            ({}, "-0.5", 0x70),
+            ({35: 0x8E}, "1", 0xA0),
+            ({35: 0x82}, "-3", 0x20),
         ],
-        [({35: 0x80}, "1"), ({35: 0x81}, "1"), ({35: 0x8F}, "1")],
+        [],
         ["-3.5", "3.5", "4", "-4", "0.25", "1.", ".5", "1.55", "10"],
         {"skip": {"1.0"}},
     ),
     "SetSensorOffsetOutdoor": (
         35,
         [
-            ({}, "-1", 0x86),
-            ({}, "2", 0x8C),
-            ({}, "0", 0x88),
-            ({}, "-3", 0x82),
-            ({}, "3", 0x8E),
-            ({}, "0.5", 0x89),
-            ({35: 0xE6}, "-1.5", 0xE5),
-            ({35: 0x26}, "3", 0x2E),
+            ({}, "-1", 0x06),
+            ({}, "2", 0x0C),
+            ({}, "0", 0x08),
+            ({}, "-3", 0x02),
+            ({}, "3", 0x0E),
+            ({}, "0.5", 0x09),
+            ({35: 0xE6}, "-1.5", 0x05),
+            ({35: 0x26}, "3", 0x0E),
         ],
-        [({35: 0x06}, "1"), ({35: 0x16}, "1"), ({35: 0xF6}, "1")],
+        [],
         ["-3.5", "3.5", "4", "-4", "0.25", "1.", ".5", "1.55", "10"],
         {"skip": {"1.0"}},
     ),
@@ -223,9 +223,9 @@ RMW_SETTERS = {
     "SetBivalentAPHeat": (
         26,
         [
-            ({26: 0x5E}, "1", 0x6E),
-            ({26: 0x6E}, "0", 0x5E),
-            ({26: 0xDE}, "1", 0xEE),
+            ({26: 0x5E}, "1", 0x20),
+            ({26: 0x6E}, "0", 0x10),
+            ({26: 0xDE}, "1", 0x20),
         ],
         [
             ({26: 0x5A}, "1"),
@@ -236,28 +236,28 @@ RMW_SETTERS = {
         ],
         ["2", "-1"],
     ),
-    # byte 27 bits 5-4 (b01 auto, b10 SG ready, b11 intelligent); bits 1-0, 3-2 and 7-6 stay as read; 1 and 2 need bivalent = yes,
+    # byte 27 bits 5-4 (b01 auto, b10 SG ready, b11 intelligent); only this pair is sent; 1 and 2 need bivalent = yes,
     # 1 (SG ready) also SG ready (bits 3-2) off; 0 (auto) is always possible once byte 27 was read
     "SetBivalentOperatingMode": (
         27,
         [
-            ({26: 0x5E, 27: 0x55}, "1", 0x65),
-            ({26: 0x5E, 27: 0x55}, "2", 0x75),
-            ({26: 0x5E, 27: 0x75}, "0", 0x55),
-            ({26: 0x5E, 27: 0x95}, "1", 0xA5),
-            ({26: 0x5E, 27: 0x59}, "0", 0x59),
-            ({26: 0x5E, 27: 0x51}, "1", 0x61),  # SG ready not set (b00) is no conflict
-            ({26: 0x5E, 27: 0x76}, "0", 0x56),
-            ({26: 0x56, 27: 0x55}, "1", 0x65),
+            ({26: 0x5E, 27: 0x55}, "1", 0x20),
+            ({26: 0x5E, 27: 0x55}, "2", 0x30),
+            ({26: 0x5E, 27: 0x75}, "0", 0x10),
+            ({26: 0x5E, 27: 0x95}, "1", 0x20),
+            ({26: 0x5E, 27: 0x59}, "0", 0x10),
+            ({26: 0x5E, 27: 0x51}, "1", 0x20),  # SG ready not set (b00) is no conflict
+            ({26: 0x5E, 27: 0x76}, "0", 0x10),
+            ({26: 0x56, 27: 0x55}, "1", 0x20),
             # only the bivalent operating mode "SG ready" (b10) conflicts with SG ready; "intelligent" does not
-            ({26: 0x5E, 27: 0x59}, "2", 0x79),
-            ({26: 0x5E, 27: 0x5D}, "2", 0x7D),
+            ({26: 0x5E, 27: 0x59}, "2", 0x30),
+            ({26: 0x5E, 27: 0x5D}, "2", 0x30),
             # "auto" is the way out and works with bivalent control off too (hidden SG ready / intelligent pattern)
-            ({26: 0x5D, 27: 0x65}, "0", 0x55),
-            ({26: 0x5D, 27: 0x75}, "0", 0x55),
-            ({26: 0x5D, 27: 0x69}, "0", 0x59),
-            ({26: 0x5C, 27: 0x65}, "0", 0x55),
-            ({26: 0x00, 27: 0x65}, "0", 0x55),
+            ({26: 0x5D, 27: 0x65}, "0", 0x10),
+            ({26: 0x5D, 27: 0x75}, "0", 0x10),
+            ({26: 0x5D, 27: 0x69}, "0", 0x10),
+            ({26: 0x5C, 27: 0x65}, "0", 0x10),
+            ({26: 0x00, 27: 0x65}, "0", 0x10),
         ],
         [
             ({26: 0x5D, 27: 0x55}, "1"), ({26: 0x5C, 27: 0x55}, "1"), ({26: 0x5F, 27: 0x55}, "1"),
@@ -272,10 +272,10 @@ RMW_SETTERS = {
     "SetBivalentExternalPump": (
         27,
         [
-            ({26: 0x56, 27: 0x55}, "1", 0x95),
-            ({26: 0x56, 27: 0x95}, "0", 0x55),
-            ({26: 0x56, 27: 0x5D}, "1", 0x9D),
-            ({26: 0x56, 27: 0x65}, "1", 0xA5),
+            ({26: 0x56, 27: 0x55}, "1", 0x80),
+            ({26: 0x56, 27: 0x95}, "0", 0x40),
+            ({26: 0x56, 27: 0x5D}, "1", 0x80),
+            ({26: 0x56, 27: 0x65}, "1", 0x80),
         ],
         [
             ({26: 0x5E, 27: 0x55}, "1"),
@@ -314,30 +314,30 @@ RMW_SETTERS = {
         {"gate": 26},
     ),
     # byte 31 low nibble: 0 -> 5 (not used), 1 -> A (heating), 2 -> B (DHW efficiency) or 7 if already DHW comfort;
-    # bits 5-4 stay as read, bits 7-6 are sent as 0 (cloud frames 0x1A/0x1B/0x17/0x15 for reads 0x5A/0x5B/0x57/0x55);
+    # 0 and 1 send use and mode (0x5, 0xA), 2 sends only the use pair (0x3) and keeps the mode; bits 7-4 are 0;
     # payload 2 (DHW) needs a connected tank (byte 24 bits 1-0 = b10); all payloads need one of the four observed
     # low nibbles 5, A, B, 7
     "SetExtraPump": (
         31,
         [
-            ({24: 0x56, 31: 0x5A}, "2", 0x1B),
-            ({24: 0x56, 31: 0x5B}, "0", 0x15),
-            ({24: 0x56, 31: 0x57}, "0", 0x15),
-            ({24: 0x56, 31: 0x55}, "1", 0x1A),
-            ({24: 0x56, 31: 0x5B}, "1", 0x1A),
-            ({24: 0x56, 31: 0x55}, "2", 0x1B),
-            ({24: 0x56, 31: 0x57}, "2", 0x17),
-            ({24: 0x56, 31: 0x5B}, "2", 0x1B),
-            ({24: 0x96, 31: 0x6A}, "0", 0x25),
-            ({24: 0x56, 31: 0x6B}, "1", 0x2A),
-            ({24: 0x56, 31: 0xDA}, "2", 0x1B),
-            ({24: 0x56, 31: 0x1A}, "0", 0x15),
+            ({24: 0x56, 31: 0x5A}, "2", 0x03),
+            ({24: 0x56, 31: 0x5B}, "0", 0x05),
+            ({24: 0x56, 31: 0x57}, "0", 0x05),
+            ({24: 0x56, 31: 0x55}, "1", 0x0A),
+            ({24: 0x56, 31: 0x5B}, "1", 0x0A),
+            ({24: 0x56, 31: 0x55}, "2", 0x03),
+            ({24: 0x56, 31: 0x57}, "2", 0x03),
+            ({24: 0x56, 31: 0x5B}, "2", 0x03),
+            ({24: 0x96, 31: 0x6A}, "0", 0x05),
+            ({24: 0x56, 31: 0x6B}, "1", 0x0A),
+            ({24: 0x56, 31: 0xDA}, "2", 0x03),
+            ({24: 0x56, 31: 0x1A}, "0", 0x05),
             # "not used" and "heating" do not need a tank (the cloud saved them with tank connection = No)
-            ({24: 0x55, 31: 0x5A}, "0", 0x15),
-            ({24: 0x55, 31: 0x5A}, "1", 0x1A),
-            ({24: 0x57, 31: 0x5A}, "1", 0x1A),
-            ({24: 0x55, 31: 0x55}, "1", 0x1A),
-            ({24: 0x00, 31: 0x5B}, "0", 0x15),
+            ({24: 0x55, 31: 0x5A}, "0", 0x05),
+            ({24: 0x55, 31: 0x5A}, "1", 0x0A),
+            ({24: 0x57, 31: 0x5A}, "1", 0x0A),
+            ({24: 0x55, 31: 0x55}, "1", 0x0A),
+            ({24: 0x00, 31: 0x5B}, "0", 0x05),
         ],
         [
             # DHW use needs a connected tank
@@ -359,11 +359,11 @@ RMW_SETTERS = {
     "SetExtraPumpMode": (
         31,
         [
-            ({24: 0x56, 31: 0x5B}, "0", 0x17),
-            ({24: 0x56, 31: 0x57}, "1", 0x1B),
-            ({24: 0x56, 31: 0x5B}, "1", 0x1B),
-            ({24: 0x56, 31: 0x6B}, "0", 0x27),
-            ({24: 0x56, 31: 0xDB}, "0", 0x17),
+            ({24: 0x56, 31: 0x5B}, "0", 0x04),
+            ({24: 0x56, 31: 0x57}, "1", 0x08),
+            ({24: 0x56, 31: 0x5B}, "1", 0x08),
+            ({24: 0x56, 31: 0x6B}, "0", 0x04),
+            ({24: 0x56, 31: 0xDB}, "0", 0x04),
         ],
         [
             ({24: 0x56, 31: 0x5A}, "0"),
@@ -374,31 +374,31 @@ RMW_SETTERS = {
         ],
         ["2", "-1"],
     ),
-    # byte 25 bits 3-2 (b01 3 kW, b10 6 kW, b11 9 kW from the upstream decode table); bits 1-0 (tank heater type) and 7-4 stay as read
+    # byte 25 bits 3-2 (b01 3 kW, b10 6 kW, b11 9 kW from the upstream decode table); only this pair is sent
     "SetInternalHeaterCapacity": (
         25,
         [
-            ({25: 0x25}, "6", 0x29),
-            ({25: 0x29}, "3", 0x25),
-            ({25: 0x26}, "6", 0x2A),
-            ({25: 0x5E}, "3", 0x56),
-            ({25: 0x25}, "9", 0x2D),
-            ({25: 0x2D}, "3", 0x25),
-            ({25: 0x29}, "9", 0x2D),
-            ({25: 0x5E}, "9", 0x5E),
-            ({25: 0xAA}, "9", 0xAE),
+            ({25: 0x25}, "6", 0x08),
+            ({25: 0x29}, "3", 0x04),
+            ({25: 0x26}, "6", 0x08),
+            ({25: 0x5E}, "3", 0x04),
+            ({25: 0x25}, "9", 0x0C),
+            ({25: 0x2D}, "3", 0x04),
+            ({25: 0x29}, "9", 0x0C),
+            ({25: 0x5E}, "9", 0x0C),
+            ({25: 0xAA}, "9", 0x0C),
         ],
         [],
         ["0", "4", "5", "7", "8", "10", "12", "15", "-3", "-9"],
     ),
-    # byte 21 zone configuration code: only 0x15 (one zone, Z1 room) <-> 0x19 (one zone, Z1 pool), nothing else is touched
+    # byte 21 bits 3-2 (b01 room, b10 pool), only while the byte reads one of the one-zone codes 0x15 / 0x19
     "SetZoneType": (
         21,
         [
-            ({21: 0x15}, "1", 0x19),
-            ({21: 0x19}, "0", 0x15),
-            ({21: 0x15}, "0", 0x15),
-            ({21: 0x19}, "1", 0x19),
+            ({21: 0x15}, "1", 0x08),
+            ({21: 0x19}, "0", 0x04),
+            ({21: 0x15}, "0", 0x04),
+            ({21: 0x19}, "1", 0x08),
         ],
         [
             ({21: 0x16}, "0"), ({21: 0x16}, "1"),  # two zones, Z2 room
@@ -408,19 +408,19 @@ RMW_SETTERS = {
         ],
         ["2", "-1", "15", "25", "21"],
     ),
-    # byte 28 bits 1-0 (heating) / 3-2 (cooling): b01 compensation curve, b10 direct; bits 7-4 and the other pair stay as read,
+    # byte 28 bits 1-0 (heating) / 3-2 (cooling): b01 compensation curve, b10 direct; only this pair is sent,
     # in particular bits 7-6 (defrost signal, only SetDefrostSignal changes them); the pair must read b01 or b10
     "SetHeatingWaterMode": (
         28,
         [
-            ({28: 0x95}, "1", 0x96),
-            ({28: 0x96}, "0", 0x95),
-            ({28: 0x95}, "0", 0x95),
-            ({28: 0x99}, "1", 0x9A),
-            ({28: 0x55}, "1", 0x56),
-            ({28: 0xD5}, "1", 0xD6),
-            ({28: 0x15}, "1", 0x16),
-            ({28: 0x35}, "0", 0x35),
+            ({28: 0x95}, "1", 0x02),
+            ({28: 0x96}, "0", 0x01),
+            ({28: 0x95}, "0", 0x01),
+            ({28: 0x99}, "1", 0x02),
+            ({28: 0x55}, "1", 0x02),
+            ({28: 0xD5}, "1", 0x02),
+            ({28: 0x15}, "1", 0x02),
+            ({28: 0x35}, "0", 0x01),
         ],
         [({28: 0x94}, "1"), ({28: 0x97}, "0"), ({28: 0x90}, "1"), ({28: 0xFF}, "0")],
         ["2", "-1"],
@@ -428,27 +428,27 @@ RMW_SETTERS = {
     "SetCoolingWaterMode": (
         28,
         [
-            ({28: 0x95}, "1", 0x99),
-            ({28: 0x99}, "0", 0x95),
-            ({28: 0x95}, "0", 0x95),
-            ({28: 0x96}, "1", 0x9A),
-            ({28: 0x55}, "1", 0x59),
-            ({28: 0xD6}, "1", 0xDA),
-            ({28: 0x25}, "1", 0x29),
+            ({28: 0x95}, "1", 0x08),
+            ({28: 0x99}, "0", 0x04),
+            ({28: 0x95}, "0", 0x04),
+            ({28: 0x96}, "1", 0x08),
+            ({28: 0x55}, "1", 0x08),
+            ({28: 0xD6}, "1", 0x08),
+            ({28: 0x25}, "1", 0x08),
         ],
         [({28: 0x91}, "1"), ({28: 0x9D}, "0"), ({28: 0x93}, "1"), ({28: 0xFF}, "0")],
         ["2", "-1"],
     ),
-    # byte 20 bits 7-6: b01 water, b10 glycol (inferred); bits 5-0 stay as read
+    # byte 20 bits 7-6: b01 water, b10 glycol (inferred); only this pair is sent
     "SetLiquidType": (
         20,
         [
-            ({20: 0x6A}, "1", 0xAA),
-            ({20: 0xAA}, "0", 0x6A),
-            ({20: 0x6A}, "0", 0x6A),
-            ({20: 0x7B}, "1", 0xBB),
-            ({20: 0xEA}, "1", 0xAA),
-            ({20: 0xEA}, "0", 0x6A),
+            ({20: 0x6A}, "1", 0x80),
+            ({20: 0xAA}, "0", 0x40),
+            ({20: 0x6A}, "0", 0x40),
+            ({20: 0x7B}, "1", 0x80),
+            ({20: 0xEA}, "1", 0x80),
+            ({20: 0xEA}, "0", 0x40),
         ],
         [],
         ["2", "-1"],
@@ -457,12 +457,12 @@ RMW_SETTERS = {
     "SetDHWHeaterType": (
         25,
         [
-            ({24: 0x56, 25: 0x25}, "1", 0x26),
-            ({24: 0x56, 25: 0x26}, "0", 0x25),
-            ({24: 0x96, 25: 0x29}, "1", 0x2A),
-            ({24: 0x56, 25: 0x5E}, "0", 0x5D),
-            ({24: 0x56, 25: 0x5D}, "1", 0x5E),
-            ({24: 0x76, 25: 0x2D}, "1", 0x2E),
+            ({24: 0x56, 25: 0x25}, "1", 0x02),
+            ({24: 0x56, 25: 0x26}, "0", 0x01),
+            ({24: 0x96, 25: 0x29}, "1", 0x02),
+            ({24: 0x56, 25: 0x5E}, "0", 0x01),
+            ({24: 0x56, 25: 0x5D}, "1", 0x02),
+            ({24: 0x76, 25: 0x2D}, "1", 0x02),
         ],
         [
             ({24: 0x55, 25: 0x25}, "1"), ({24: 0x55, 25: 0x26}, "0"),  # the pump discards the value without a tank
@@ -471,19 +471,19 @@ RMW_SETTERS = {
         ["2", "-1"],
         {"gate": 25},
     ),
-    # byte 24 bits 1-0 (b01 no tank, b10 tank); bits 7-2 stay as read (capacity, solar, buffer); "no" is refused while the extra pump is on DHW
+    # byte 24 bits 1-0 (b01 no tank, b10 tank); only this pair is sent; "no" is refused while the extra pump is on DHW
     "SetDHWInstalled": (
         24,
         [
-            ({24: 0x55}, "1", 0x56),
-            ({24: 0x56}, "0", 0x55),
-            ({24: 0x96}, "0", 0x95),
-            ({24: 0x95}, "1", 0x96),
-            ({24: 0x75}, "1", 0x76),
-            ({24: 0x56, 31: 0x55}, "0", 0x55),
-            ({24: 0x56, 31: 0x5A}, "0", 0x55),
-            ({24: 0x56, 31: 0x5B}, "1", 0x56),
-            ({24: 0x56, 31: 0x57}, "1", 0x56),
+            ({24: 0x55}, "1", 0x02),
+            ({24: 0x56}, "0", 0x01),
+            ({24: 0x96}, "0", 0x01),
+            ({24: 0x95}, "1", 0x02),
+            ({24: 0x75}, "1", 0x02),
+            ({24: 0x56, 31: 0x55}, "0", 0x01),
+            ({24: 0x56, 31: 0x5A}, "0", 0x01),
+            ({24: 0x56, 31: 0x5B}, "1", 0x02),
+            ({24: 0x56, 31: 0x57}, "1", 0x02),
         ],
         [
             ({24: 0x56, 31: 0x5B}, "0"), ({24: 0x56, 31: 0x57}, "0"),  # extra pump on DHW needs the tank
@@ -491,135 +491,135 @@ RMW_SETTERS = {
         ],
         ["2", "-1"],
     ),
-    # byte 24 bits 5-4 (b01 disabled, b10 buffer, b11 DHW); bits 7-6 and 3-0 stay as read
+    # byte 24 bits 5-4 (b01 disabled, b10 buffer, b11 DHW); only this pair is sent
     "SetSolarMode": (
         24,
         [
-            ({24: 0x55}, "2", 0x75),
-            ({24: 0x55}, "1", 0x65),
-            ({24: 0x75}, "0", 0x55),
-            ({24: 0x65}, "0", 0x55),
-            ({24: 0x96}, "2", 0xB6),
-            ({24: 0x56}, "1", 0x66),
+            ({24: 0x55}, "2", 0x30),
+            ({24: 0x55}, "1", 0x20),
+            ({24: 0x75}, "0", 0x10),
+            ({24: 0x65}, "0", 0x10),
+            ({24: 0x96}, "2", 0x30),
+            ({24: 0x56}, "1", 0x20),
         ],
         [],
         ["3", "-1"],
     ),
-    # byte 27 bits 3-2 (b01 off, b10 capacity, b11 power consumption); bits 7-4 and 1-0 stay as read; switching it on is refused
+    # byte 27 bits 3-2 (b01 off, b10 capacity, b11 power consumption); only this pair is sent; switching it on is refused
     # only while bivalent control is on (byte 26 bits 1-0 = b10) and the bivalent operating mode (bits 5-4) is SG ready (b10)
     "SetSGReadyMode": (
         27,
         [
-            ({27: 0x55}, "1", 0x59),
-            ({27: 0x55}, "2", 0x5D),
-            ({27: 0x5D}, "0", 0x55),
-            ({27: 0x59}, "2", 0x5D),
-            ({27: 0x59}, "0", 0x55),
-            ({27: 0x96}, "1", 0x9A),
-            ({27: 0x56}, "2", 0x5E),
-            ({27: 0x69}, "0", 0x65),  # switching off is always possible
-            ({27: 0x45}, "1", 0x49),  # bivalent operating mode not set (b00) is no conflict
-            ({27: 0x55}, "0", 0x55),
+            ({27: 0x55}, "1", 0x08),
+            ({27: 0x55}, "2", 0x0C),
+            ({27: 0x5D}, "0", 0x04),
+            ({27: 0x59}, "2", 0x0C),
+            ({27: 0x59}, "0", 0x04),
+            ({27: 0x96}, "1", 0x08),
+            ({27: 0x56}, "2", 0x0C),
+            ({27: 0x69}, "0", 0x04),  # switching off is always possible
+            ({27: 0x45}, "1", 0x08),  # bivalent operating mode not set (b00) is no conflict
+            ({27: 0x55}, "0", 0x04),
             # the conflict exists only with bivalent control = yes (byte 26 bits 1-0 = b10) and bivalent operating mode SG ready (b10)
-            ({26: 0x5D, 27: 0x65}, "1", 0x69),  # bivalent control off, hidden b10
-            ({26: 0x5D, 27: 0x65}, "2", 0x6D),
-            ({26: 0x5C, 27: 0xA5}, "1", 0xA9),
-            ({26: 0x5F, 27: 0x65}, "1", 0x69),
-            ({26: 0x5E, 27: 0x75}, "1", 0x79),  # bivalent "intelligent" is no conflict
-            ({26: 0x5E, 27: 0x75}, "2", 0x7D),
-            ({26: 0x5D, 27: 0x75}, "2", 0x7D),
-            ({26: 0x5E, 27: 0x69}, "0", 0x65),  # off is possible in every state
-            ({26: 0x5E, 27: 0x6D}, "0", 0x65),
-            ({26: 0x5E, 27: 0x65}, "0", 0x65),
+            ({26: 0x5D, 27: 0x65}, "1", 0x08),  # bivalent control off, hidden b10
+            ({26: 0x5D, 27: 0x65}, "2", 0x0C),
+            ({26: 0x5C, 27: 0xA5}, "1", 0x08),
+            ({26: 0x5F, 27: 0x65}, "1", 0x08),
+            ({26: 0x5E, 27: 0x75}, "1", 0x08),  # bivalent "intelligent" is no conflict
+            ({26: 0x5E, 27: 0x75}, "2", 0x0C),
+            ({26: 0x5D, 27: 0x75}, "2", 0x0C),
+            ({26: 0x5E, 27: 0x69}, "0", 0x04),  # off is possible in every state
+            ({26: 0x5E, 27: 0x6D}, "0", 0x04),
+            ({26: 0x5E, 27: 0x65}, "0", 0x04),
         ],
         [({26: 0x5E, 27: 0x65}, "1"), ({26: 0x5E, 27: 0x65}, "2"), ({26: 0x5E, 27: 0xA5}, "1"), ({26: 0x56, 27: 0x65}, "1")],
         ["3", "-1"],
     ),
-    # byte 36 nibbles (like byte 35): high nibble = offset of the return sensor, K / 0.5 + 8; the other nibble must be 2..14
+    # byte 36 nibbles (like byte 35): high nibble = offset of the return sensor, K / 0.5 + 8; the other nibble is sent as 0
     "SetSensorOffsetReturn": (
         36,
         [
-            ({}, "1", 0xA8),
-            ({}, "0.5", 0x98),
-            ({}, "0", 0x88),
-            ({}, "-3", 0x28),
-            ({}, "3.0", 0xE8),
-            ({}, "-0.5", 0x78),
-            ({}, "-2", 0x48),
-            ({36: 0x8E}, "1", 0xAE),
-            ({36: 0x82}, "-3", 0x22),
+            ({}, "1", 0xA0),
+            ({}, "0.5", 0x90),
+            ({}, "0", 0x80),
+            ({}, "-3", 0x20),
+            ({}, "3.0", 0xE0),
+            ({}, "-0.5", 0x70),
+            ({}, "-2", 0x40),
+            ({36: 0x8E}, "1", 0xA0),
+            ({36: 0x82}, "-3", 0x20),
         ],
-        [({36: 0x80}, "1"), ({36: 0x81}, "1"), ({36: 0x8F}, "1")],
+        [],
         ["-3.5", "3.5", "4", "-4", "0.25", "1.", ".5", "1.55", "10"],
         {"skip": {"1.0"}},
     ),
     # byte 36 low nibble = offset of the DHW tank sensor, byte 37 low nibble = offset of the flow sensor (same encoding);
-    # the other nibble must be 2..14 and is sent as read
+    # the other nibble is sent as 0 (no change)
     "SetSensorOffsetDhwTank": (
         36,
         [
-            ({}, "1", 0x8A),
-            ({}, "0.5", 0x89),
-            ({}, "0", 0x88),
-            ({}, "-3", 0x82),
-            ({}, "3.0", 0x8E),
-            ({}, "-0.5", 0x87),
-            ({}, "-2", 0x84),
-            ({36: 0xE8}, "1", 0xEA),
-            ({36: 0x28}, "-3", 0x22),
+            ({}, "1", 0x0A),
+            ({}, "0.5", 0x09),
+            ({}, "0", 0x08),
+            ({}, "-3", 0x02),
+            ({}, "3.0", 0x0E),
+            ({}, "-0.5", 0x07),
+            ({}, "-2", 0x04),
+            ({36: 0xE8}, "1", 0x0A),
+            ({36: 0x28}, "-3", 0x02),
         ],
-        [({36: 0x08}, "1"), ({36: 0x18}, "1"), ({36: 0xF8}, "1")],
+        [],
         ["-3.5", "3.5", "4", "-4", "0.25", "1.", ".5", "1.55", "10"],
         {"skip": {"1.0"}},
     ),
     "SetSensorOffsetFlow": (
         37,
         [
-            ({}, "1", 0x8A),
-            ({}, "0.5", 0x89),
-            ({}, "0", 0x88),
-            ({}, "-3", 0x82),
-            ({}, "3.0", 0x8E),
-            ({}, "-0.5", 0x87),
-            ({}, "-2", 0x84),
-            ({37: 0xE8}, "1", 0xEA),
-            ({37: 0x28}, "-3", 0x22),
+            ({}, "1", 0x0A),
+            ({}, "0.5", 0x09),
+            ({}, "0", 0x08),
+            ({}, "-3", 0x02),
+            ({}, "3.0", 0x0E),
+            ({}, "-0.5", 0x07),
+            ({}, "-2", 0x04),
+            ({37: 0xE8}, "1", 0x0A),
+            ({37: 0x28}, "-3", 0x02),
         ],
-        [({37: 0x08}, "1"), ({37: 0x18}, "1"), ({37: 0xF8}, "1")],
+        [],
         ["-3.5", "3.5", "4", "-4", "0.25", "1.", ".5", "1.55", "10"],
         {"skip": {"1.0"}},
     ),
-    # byte 22 low nibble = zone 1 sensor type, payload 0..3 -> nibble 1..4; the zone 2 nibble must be 1..4
+    # byte 22 low nibble = zone 1 sensor type, payload 0..3 -> nibble 1..4; the zone 2 nibble is sent as 0
     "SetZ1SensorSettings": (
         22,
         [
-            ({22: 0x11}, "2", 0x13),
-            ({22: 0x13}, "0", 0x11),
-            ({22: 0x11}, "1", 0x12),
-            ({22: 0x11}, "3", 0x14),
-            ({22: 0x21}, "2", 0x23),
-            ({22: 0x41}, "0", 0x41),
+            ({22: 0x11}, "2", 0x03),
+            ({22: 0x13}, "0", 0x01),
+            ({22: 0x11}, "1", 0x02),
+            ({22: 0x11}, "3", 0x04),
+            ({22: 0x21}, "2", 0x03),
+            ({22: 0x41}, "0", 0x01),
         ],
-        [({22: 0x01}, "1"), ({22: 0x0F}, "1"), ({22: 0x51}, "1"), ({22: 0xF1}, "1")],
+        [],
         ["4", "-1"],
     ),
-    # byte 28 bits 7-6 = defrost signal (b01 no, b10 yes); bits 5-0 (water temperature modes and the unassigned bits 5-4) stay as read.
+    # byte 28 bits 7-6 = defrost signal (b01 no, b10 yes); only this pair is sent.
     # No check against bivalent control: the heat pump resolves that conflict itself
     "SetDefrostSignal": (
         28,
         [
-            ({28: 0x95}, "0", 0x55),
-            ({28: 0x95}, "1", 0x95),
-            ({28: 0x55}, "1", 0x95),
-            ({28: 0x55}, "0", 0x55),
-            ({28: 0x96}, "0", 0x56),
-            ({28: 0x96}, "1", 0x96),
-            ({28: 0x99}, "0", 0x59),
-            ({28: 0x99}, "1", 0x99),
-            ({28: 0x5A}, "1", 0x9A),
-            ({28: 0x35}, "1", 0xB5),
-            ({28: 0xD5}, "0", 0x55),
-            ({28: 0x15}, "1", 0x95),
+            ({28: 0x95}, "0", 0x40),
+            ({28: 0x95}, "1", 0x80),
+            ({28: 0x55}, "1", 0x80),
+            ({28: 0x55}, "0", 0x40),
+            ({28: 0x96}, "0", 0x40),
+            ({28: 0x96}, "1", 0x80),
+            ({28: 0x99}, "0", 0x40),
+            ({28: 0x99}, "1", 0x80),
+            ({28: 0x5A}, "1", 0x80),
+            ({28: 0x35}, "1", 0x80),
+            ({28: 0xD5}, "0", 0x40),
+            ({28: 0x15}, "1", 0x80),
         ],
         [],
         ["2", "-1"],
@@ -685,28 +685,14 @@ struct String {
   String(const char *s) : v(s ? atol(s) : 0) {}
   long toInt() const { return v; }
 };
-void rmw_note_command_sent(const unsigned char *cmd, int length);
-void rmw_set_resending(bool resending);
-void rmw_note_command_queued(const unsigned char *cmd, int length, bool ring);
 std::vector<byte> sent;
 int send_count;
-// Models the hand-over in the two real send_command() versions (HeishaMon.ino): a command that is not
-// handed over (listen-only, ESP32 queue full) is not reported to the pending-byte memory; a command
-// that is buffered (ESP8266, answer of the previous command still pending) is, and reports false.
-// queued models the ESP32 send_command(): every accepted frame goes into cmdQueue first.
-bool listen_only = false, queue_full = false, buffered = false, queued = false;
 bool send_command(byte* data, int length) {
   if (length <= 0) return false;
-  if (listen_only || queue_full) return false;
   ++send_count; sent.assign(data, data + length);
-  if (queued) rmw_note_command_queued(data, length, true);
-  else if (buffered) rmw_note_command_queued(data, length, false);
-  else rmw_note_command_sent(data, length);
-  return !buffered;
+  return true;
 }
 void log_message(char*) {}
-unsigned long fake_millis = 0;
-unsigned long millis() { return fake_millis; }
 """
 
 
@@ -714,7 +700,6 @@ unsigned long millis() { return fake_millis; }
 ACT_DATA = """
 char actData[DATASIZE] = { 0x71, (char)0xc8, 0x01, 0x10 };
 void reset_act_data() {
-  fake_millis += 100000; // everything remembered by earlier commands has expired
   memset(actData + 4, 0, sizeof(actData) - 4);
   actData[0] = 0x71; actData[1] = (char)0xc8; actData[2] = 0x01; actData[3] = 0x10;
   actData[20] = 0x6A; actData[30] = 0x5A; actData[83] = 0x98;
@@ -755,12 +740,10 @@ static bool run_direct(const char *name, const char *payloadText) {
   }
   return send_count == 1;
 }
-// a main data block arrives (readSerial(): decode_heatpump_data() replaces actData, then the hook)
-static void deliver_block(unsigned long after_ms, int a0 = -1, int v0 = 0, int a1 = -1, int v1 = 0, unsigned int frames_waiting = 0) {
-  fake_millis += after_ms;
+// a main data block arrives: decode_heatpump_data() replaces actData
+static void deliver_block(int a0 = -1, int v0 = 0, int a1 = -1, int v1 = 0) {
   if (a0 >= 0) actData[a0] = (char)v0;
   if (a1 >= 0) actData[a1] = (char)v1;
-  rmw_data_block_received(frames_waiting);
 }
 """
 GENERIC_REJECTED = ["", "abc", "1x", "1.0", " 1", "+1", "1 ", "-", "999999999999999"]
@@ -961,87 +944,51 @@ def main():
     assert f"| {5000 + new_ids[-1][0]} |" not in modbus_doc, "no register row without a command"
     cases += 3 + len(new_ids)
 
-    # --- sequences (shadow of the bytes sent by shared-byte commands) -------------------------------
+    # --- sequences: commands in a row, checks against other settings ------------------------------
     sequences = r"""
-  { // two nibble commands in a row on byte 33: the second one keeps the first
+  { // commands in a row on one byte: each sends only its own field, actData is never changed
     reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    assert(run_command("SetEfficiencyStage1Time", "30") && sent[33] == 0x87);
-    assert(actData[33] == 0x75); // actData itself is never changed
+    char before[sizeof(actData)]; memcpy(before, actData, sizeof(before));
+    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x06);
+    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x80);
+    assert(run_command("SetSensorOffsetOutdoor", "-1") && sent[35] == 0x06);
+    assert(run_command("SetSensorOffsetRemoteTh1", "1") && sent[35] == 0xA0);
+    assert(run_command("SetStaticPressure", "1") && sent[31] == 0x20);
+    assert(run_command("SetExtraPump", "1") && sent[31] == 0x0A);
+    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x02);
+    assert(run_command("SetDefrostSignal", "0") && sent[28] == 0x40);
+    assert(run_command("SetCoolingWaterMode", "0") && sent[28] == 0x04);
+    assert(memcmp(before, actData, sizeof(before)) == 0);
+    for (unsigned int i = 0; i < sent.size(); ++i) if (i != 28) assert(sent[i] == panasonicSendQuery[i]);
   }
-  { // the memory expires after 12 s: back to the data block
+  { // the web console and the rules engine call the setter directly: same frame
     reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    fake_millis += 11999;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    fake_millis += 12000;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
+    assert(run_direct("SetEfficiencyStage1Time", "25") && sent[33] == 0x06);
+    assert(run_direct("SetExtraPump", "0") && sent[31] == 0x05);
   }
-  { // bivalent operating mode, then external pump (both byte 27)
-    reset_act_data(); actData[26] = (char)0x56;
-    assert(run_command("SetBivalentOperatingMode", "1") && sent[27] == 0x65);
-    assert(run_command("SetBivalentExternalPump", "1") && sent[27] == 0xA5);
-    assert(run_command("SetDemandControlEnable", "1") && sent[27] == 0xA6);
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x96);
-  }
-  { // both sensor offsets (byte 35)
+  { // checks against other settings use the last data block: a parent switched on a moment ago counts once it is read back
     reset_act_data();
-    assert(run_command("SetSensorOffsetRemoteTh1", "1") && sent[35] == 0xA6);
-    assert(run_command("SetSensorOffsetOutdoor", "-1.5") && sent[35] == 0xA5);
-    assert(actData[35] == (char)0x86);
-  }
-  { // byte 31: extra pump, static pressure and extra pump mode in a row, bits 7-6 always 0
-    reset_act_data(); actData[24] = (char)0x56; actData[31] = (char)0x5A;
-    assert(run_command("SetExtraPump", "2") && sent[31] == 0x1B);
-    assert(run_command("SetStaticPressure", "1") && sent[31] == 0x2B);
-    assert(run_command("SetExtraPumpMode", "0") && sent[31] == 0x27);
-    assert(run_command("SetStaticPressure", "0") && sent[31] == 0x17);
-  }
-  { // the remembered byte is also used for the state checks of other commands
-    reset_act_data(); actData[24] = (char)0x56; actData[31] = (char)0x5B;
-    assert(run_command("SetExtraPump", "0") && sent[31] == 0x15);
-    assert(!run_command("SetExtraPumpMode", "0")); // extra pump is not on DHW any more, although actData still says so
-    reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x55;
-    assert(run_command("SetBivalentAPHeat", "1") && sent[26] == 0x6E);
-    assert(run_command("SetBivalentAPStartDelay", "35") && sent[67] == 36);
-  }
-  { // a rejected command, a setter call that only validates (Modbus) and a command for another byte leave no memory
+    assert(!run_command("SetDHWHeaterType", "1"));
+    assert(run_command("SetDHWInstalled", "1") && sent[24] == 0x02);
+    assert(!run_command("SetDHWHeaterType", "1"));      // the data block still reports no tank
+    deliver_block(24, 0x56);
+    assert(run_command("SetDHWHeaterType", "1") && sent[25] == 0x02);
+    // extra pump on DHW needs the tank; the tank cannot be removed while the data block reports the extra pump on DHW
+    assert(run_command("SetExtraPump", "2") && sent[31] == 0x03);
+    assert(run_command("SetDHWInstalled", "0") && sent[24] == 0x01); // still allowed: the block shows heating
+    deliver_block(31, 0x5B);
+    assert(!run_command("SetDHWInstalled", "0"));
+    assert(run_command("SetExtraPumpMode", "0") && sent[31] == 0x04);
+    assert(run_command("SetExtraPump", "1") && sent[31] == 0x0A);
+    deliver_block(31, 0x5A);
+    assert(run_command("SetDHWInstalled", "0") && sent[24] == 0x01);
+    assert(!run_command("SetExtraPumpMode", "1"));      // needs the extra pump on DHW
     reset_act_data();
-    assert(!run_command("SetEfficiencyStage1Time", "3"));
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data();
-    { byte command[256]; char log[256]; char payload[] = "25";
-      assert(set_efficiency_stage1_time(payload, command, log) > 0 && command[33] == 0x76); }
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    assert(run_command("SetSensorOffsetRemoteTh1", "1") && sent[35] == 0xA6);
-    assert(run_command("SetHeatingOnDelay", "60") && sent[109] == 3);
-    assert(run_command("SetEfficiencyStage3Time", "15") && sent[34] == 0x04);
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
   }
-  { // SetHeatingOnOutdoorTemp: below the heating OFF temperature while the data block reports it, otherwise only 5..127
+  { // zone type: only the two one-zone values; a rejected or foreign state sends nothing
     reset_act_data();
-    assert(run_command("SetHeatingOnOutdoorTemp", "23") && sent[108] == 151);
-    assert(!run_command("SetHeatingOnOutdoorTemp", "24"));
-    actData[83] = 0; // not reported
-    assert(run_command("SetHeatingOnOutdoorTemp", "30") && sent[108] == 158);
-    assert(run_command("SetHeatingOnOutdoorTemp", "34") && sent[108] == 162); // highest value the menu can offer (OFF max 35 - 1)
-    assert(!run_command("SetHeatingOnOutdoorTemp", "35"));
-    reset_act_data(); actData[0] = 0; // no data block
-    assert(run_command("SetHeatingOnOutdoorTemp", "30") && sent[108] == 158);
-    assert(run_command("SetHeatingOnOutdoorTemp", "34") && sent[108] == 162);
-    assert(!run_command("SetHeatingOnOutdoorTemp", "35") && !run_command("SetHeatingOnOutdoorTemp", "127"));
-    assert(!run_command("SetHeatingOnOutdoorTemp", "4"));
-  }
-  { // zone type: only the two one-zone values, two commands in a row, a rejected or foreign state sends nothing
-    reset_act_data();
-    assert(run_command("SetZoneType", "1") && sent[21] == 0x19);
-    assert(run_command("SetZoneType", "0") && sent[21] == 0x15);
-    assert(actData[21] == 0x15);
+    assert(run_command("SetZoneType", "1") && sent[21] == 0x08);
+    assert(run_command("SetZoneType", "0") && sent[21] == 0x04);
     reset_act_data(); actData[21] = (char)0x16;
     assert(!run_command("SetZoneType", "0") && !run_command("SetZoneType", "1"));
     actData[21] = (char)0x26;
@@ -1050,145 +997,50 @@ def main():
     assert(!run_command("SetZoneType", "1") && !run_command("SetZoneType", "0"));
     reset_act_data(); actData[21] = 0;
     assert(!run_command("SetZoneType", "1"));
-    // a raw/cloud frame that sets two zones (0x16) is remembered: the command refuses even before the read-back
-    reset_act_data();
-    { byte frame[sizeof(panasonicSendQuery)]; memcpy(frame, panasonicSendQuery, sizeof(frame)); frame[21] = 0x16;
-      send_command(frame, sizeof(frame)); }
-    assert(!run_command("SetZoneType", "1"));
     reset_act_data();
   }
-  { // byte 28: the water mode commands never change bits 7-6 (and 5-4, and the other pair), for every byte value they accept
-    for (int value = 1; value < 256; ++value) {
-      for (int cooling = 0; cooling < 2; ++cooling) {
-        for (int payload = 0; payload < 2; ++payload) {
-          reset_act_data(); actData[28] = (char)value;
-          const int shift = cooling ? 2 : 0;
-          const int pair = (value >> shift) & 3;
-          char text[2] = { (char)('0' + payload), 0 };
-          const bool ok = run_command(cooling ? "SetCoolingWaterMode" : "SetHeatingWaterMode", text);
-          assert(ok == (pair == 1 || pair == 2));
-          if (ok) {
-            assert(sent[28] != 0);
-            assert((sent[28] & ~(3 << shift)) == (value & ~(3 << shift)));
-            assert(((sent[28] >> shift) & 3) == payload + 1);
-            assert((sent[28] & 0xC0) == (value & 0xC0));
-            for (unsigned int i = 0; i < sent.size(); ++i) if (i != 28) assert(sent[i] == panasonicSendQuery[i]);
-          }
-        }
-      }
-    }
-    reset_act_data();
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x96);
-    assert(run_command("SetCoolingWaterMode", "1") && sent[28] == 0x9A);
-    assert(run_command("SetHeatingWaterMode", "0") && sent[28] == 0x99);
-    reset_act_data();
-  }
-  { // byte 28: SetDefrostSignal changes exactly bits 7-6, for every byte value it accepts (payload 0 -> b01, 1 -> b10)
-    for (int value = 1; value < 256; ++value) {
-      for (int payload = 0; payload < 2; ++payload) {
-        reset_act_data(); actData[28] = (char)value;
-        char text[2] = { (char)('0' + payload), 0 };
-        assert(run_command("SetDefrostSignal", text));
-        assert((sent[28] & 0x3F) == (value & 0x3F));
-        assert(((sent[28] >> 6) & 3) == payload + 1);
-        for (unsigned int i = 0; i < sent.size(); ++i) if (i != 28) assert(sent[i] == panasonicSendQuery[i]);
-      }
-    }
-    reset_act_data(); actData[28] = 0;
-    assert(!run_command("SetDefrostSignal", "1") && !run_command("SetDefrostSignal", "0"));
-    reset_act_data(); actData[0] = 0;
-    assert(!run_command("SetDefrostSignal", "1") && !run_command("SetDefrostSignal", "0"));
-    // in a row with the water modes through the pending byte, in both orders; actData itself is never changed
-    reset_act_data();
-    assert(run_command("SetDefrostSignal", "0") && sent[28] == 0x55);
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x56);
-    assert(run_command("SetCoolingWaterMode", "1") && sent[28] == 0x5A);
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x9A);
-    assert(run_command("SetHeatingWaterMode", "0") && sent[28] == 0x99);
-    assert(actData[28] == (char)0x95);
-    // no check against bivalent control (byte 26 bits 1-0 = b10): the heat pump resolves the conflict itself
-    reset_act_data(); actData[26] = (char)0x5E;
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x95 && sent[26] == panasonicSendQuery[26]);
-    assert(run_command("SetDefrostSignal", "0") && sent[28] == 0x55);
-    reset_act_data(); actData[28] = (char)0x55;
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x95);
-    reset_act_data();
-  }
-  { // tank connection, then the tank heater type that needs it; a rejected tank command leaves the heater type blocked
-    reset_act_data();
-    assert(!run_command("SetDHWHeaterType", "1"));
-    assert(run_command("SetDHWInstalled", "1") && sent[24] == 0x56);
-    assert(run_command("SetDHWHeaterType", "1") && sent[25] == 0x26);
-    assert(run_command("SetDHWInstalled", "0") && sent[24] == 0x55);
-    assert(!run_command("SetDHWHeaterType", "0"));
-    reset_act_data();
-    assert(run_command("SetDHWInstalled", "1") && sent[24] == 0x56);
-    deliver_block(2000, 24, 0x55); // the pump did not apply it: the data block is the truth again
-    assert(!run_command("SetDHWHeaterType", "1"));
-    // capacity bits 7-6 stay when the tank flag changes, also through a pending byte
-    reset_act_data(); actData[24] = (char)0x96;
-    assert(run_command("SetDHWInstalled", "0") && sent[24] == 0x95);
-    assert(run_command("SetDHWInstalled", "1") && sent[24] == 0x96);
-    assert(run_command("SetSolarMode", "2") && sent[24] == 0xB6);
-    // the tank cannot be removed while the extra pump is on DHW, also when the extra pump command is still pending
-    reset_act_data(); actData[24] = (char)0x56; actData[31] = (char)0x5A;
-    assert(run_command("SetExtraPump", "2") && sent[31] == 0x1B);
-    assert(!run_command("SetDHWInstalled", "0"));
-    assert(run_command("SetExtraPump", "1") && sent[31] == 0x1A);
-    assert(run_command("SetDHWInstalled", "0") && sent[24] == 0x55);
+  { // water modes: the pair that is set must read b01 or b10
+    reset_act_data(); actData[28] = (char)0x51;
+    assert(!run_command("SetCoolingWaterMode", "1"));   // bits 3-2 read b00
+    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x02);
+    actData[28] = (char)0x5F;
+    assert(!run_command("SetHeatingWaterMode", "0") && !run_command("SetCoolingWaterMode", "0"));
     reset_act_data();
   }
   { // SG ready: the limits need the mode; SG ready and the bivalent operating mode exclude each other
     reset_act_data();
     assert(!run_command("SetSGReadyHeatPower1", "4.2") && !run_command("SetSGReadyCoolCapacity1", "-3"));
-    assert(run_command("SetSGReadyMode", "2") && sent[27] == 0x5D);
-    assert(run_command("SetSGReadyHeatPower1", "4.2") && sent[52] == 43); // uses the pending byte 27, not the data block
+    assert(run_command("SetSGReadyMode", "2") && sent[27] == 0x0C);
+    deliver_block(27, 0x5D);
+    assert(run_command("SetSGReadyHeatPower1", "4.2") && sent[52] == 43);
     assert(run_command("SetSGReadyCoolCapacity1", "-3") && sent[102] == 125);
-    assert(run_command("SetSGReadyMode", "1") && sent[27] == 0x59);
+    deliver_block(27, 0x59);
     assert(!run_command("SetSGReadyHeatPower1", "4.2")); // capacity mode: no power limits
     assert(run_command("SetSGReadyCoolCapacity2", "-6") && sent[103] == 122);
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x55);
+    deliver_block(27, 0x55);
     assert(!run_command("SetSGReadyCoolCapacity2", "-6"));
-    reset_act_data(); actData[26] = (char)0x5E;
-    assert(run_command("SetBivalentOperatingMode", "1") && sent[27] == 0x65);
-    assert(!run_command("SetSGReadyMode", "1") && !run_command("SetSGReadyMode", "2"));
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x55);
-    assert(run_command("SetSGReadyMode", "2") && sent[27] == 0x5D);
-    assert(!run_command("SetBivalentOperatingMode", "1"));
-    assert(run_command("SetBivalentOperatingMode", "2") && sent[27] == 0x7D); // intelligent does not conflict
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x5D);
-    reset_act_data();
-  }
-  { // state bivalent control off (26 = 0x5D) with a hidden bivalent SG ready pattern (27 = 0x65); every way out works
-    reset_act_data(); actData[26] = (char)0x5D; actData[27] = (char)0x65;
-    assert(run_command("SetSGReadyMode", "1") && sent[27] == 0x69);
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x65);
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x55);
-    assert(!run_command("SetBivalentOperatingMode", "1")); // needs bivalent control = yes
-    reset_act_data(); actData[26] = (char)0x5D; actData[27] = (char)0x65;
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x55);
-    assert(run_command("SetSGReadyMode", "2") && sent[27] == 0x5D);
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x55);
-    // bivalent control on, bivalent SG ready and SG ready both set (reached at the remote controller): both can be switched off
-    reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x69;
-    assert(!run_command("SetBivalentOperatingMode", "1"));
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x65);
-    reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x69;
-    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x59);
-    reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x6D;
-    assert(run_command("SetBivalentOperatingMode", "2") && sent[27] == 0x7D);
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x75);
-    // switching bivalent control on does not matter for "off"; SG ready on is refused as soon as it is on with b10
-    reset_act_data(); actData[26] = (char)0x5D; actData[27] = (char)0x65;
-    assert(run_command("SetSGReadyMode", "1") && sent[27] == 0x69);
     reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x65;
     assert(!run_command("SetSGReadyMode", "1") && !run_command("SetSGReadyMode", "2"));
-    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x65);
+    assert(run_command("SetSGReadyMode", "0") && sent[27] == 0x04);
+    assert(run_command("SetBivalentOperatingMode", "0") && sent[27] == 0x10);
+    reset_act_data(); actData[26] = (char)0x5E; actData[27] = (char)0x5D;
+    assert(!run_command("SetBivalentOperatingMode", "1"));
+    assert(run_command("SetBivalentOperatingMode", "2") && sent[27] == 0x30); // intelligent does not conflict
+    reset_act_data(); actData[26] = (char)0x5D; actData[27] = (char)0x65;
+    assert(run_command("SetSGReadyMode", "1") && sent[27] == 0x08);   // bivalent control off: hidden pattern does not matter
+    assert(!run_command("SetBivalentOperatingMode", "1"));             // needs bivalent control = yes
     reset_act_data();
   }
-  { // solar high limit and SG ready limits refuse without a data block and while their own byte reads 0
+  { // no data block, or the own byte 0: nothing is sent
     reset_act_data(); actData[0] = 0;
+    assert(!run_command("SetEfficiencyStage3Time", "15") && !run_command("SetBivalentAPStartDelay", "35"));
+    assert(!run_command("SetAntiFreezeMode", "0") && !run_command("SetDHWDefrost", "0"));
     assert(!run_command("SetSolarHighLimit", "80"));
+    reset_act_data(); actData[34] = 0; actData[35] = 0; actData[33] = 0; actData[36] = 0; actData[37] = 0; actData[22] = 0;
+    assert(!run_command("SetEfficiencyStage3Time", "15") && !run_command("SetSensorOffsetOutdoor", "1"));
+    assert(!run_command("SetSensorOffsetRemoteTh1", "1") && !run_command("SetEfficiencyStage1Time", "25"));
+    assert(!run_command("SetSensorOffsetDhwTank", "1") && !run_command("SetSensorOffsetFlow", "1"));
+    assert(!run_command("SetZ1SensorSettings", "1"));
     reset_act_data(); actData[64] = 0;
     assert(!run_command("SetSolarHighLimit", "80"));
     reset_act_data(); actData[27] = (char)0x5D; actData[52] = 0; actData[102] = 0;
@@ -1196,293 +1048,23 @@ def main():
     assert(run_command("SetSGReadyDHWPower1", "4.2") && sent[51] == 43 && run_command("SetSGReadyCoolCapacity2", "-6") && sent[103] == 122);
     reset_act_data();
   }
-  { // sensor offset of the return sensor and zone 1 sensor type: pending nibbles
-    reset_act_data();
-    assert(run_command("SetSensorOffsetReturn", "-2") && sent[36] == 0x48);
-    assert(run_command("SetSensorOffsetReturn", "1") && sent[36] == 0xA8);
-    assert(run_command("SetZ1SensorSettings", "2") && sent[22] == 0x13);
-    assert(run_command("SetZ1SensorSettings", "0") && sent[22] == 0x11);
-    assert(actData[36] == (char)0x88 && actData[22] == 0x11);
-  }
-  { // low nibbles of bytes 36 / 37 (DHW tank, flow): the other nibble stays, also across commands in a row
-    reset_act_data(); actData[36] = (char)0x48; actData[37] = (char)0x68;
-    assert(run_command("SetSensorOffsetDhwTank", "1") && sent[36] == 0x4A);
-    assert(run_command("SetSensorOffsetReturn", "3") && sent[36] == 0xEA);   // low nibble from the pending byte
-    assert(run_command("SetSensorOffsetDhwTank", "-3") && sent[36] == 0xE2); // high nibble from the pending byte
-    assert(run_command("SetSensorOffsetFlow", "0.5") && sent[37] == 0x69);
-    assert(run_command("SetSensorOffsetFlow", "-1") && sent[37] == 0x66);
-    for (unsigned int i = 0; i < sent.size(); ++i) if (i != 37) assert(sent[i] == panasonicSendQuery[i]);
-    assert(actData[36] == (char)0x48 && actData[37] == (char)0x68);
-    reset_act_data(); actData[36] = 0; actData[37] = 0;
-    assert(!run_command("SetSensorOffsetDhwTank", "1") && !run_command("SetSensorOffsetFlow", "1"));
-    reset_act_data(); actData[0] = 0;
-    assert(!run_command("SetSensorOffsetDhwTank", "1") && !run_command("SetSensorOffsetFlow", "1"));
-    reset_act_data();
-  }
-  { // shared-byte commands never send a byte they could not complete: no data block, byte 0
-    reset_act_data(); actData[0] = 0;
-    assert(!run_command("SetEfficiencyStage3Time", "15") && !run_command("SetBivalentAPStartDelay", "35"));
-    assert(!run_command("SetAntiFreezeMode", "0") && !run_command("SetDHWDefrost", "0"));
-    reset_act_data(); actData[34] = 0; actData[35] = 0; actData[33] = 0;
-    assert(!run_command("SetEfficiencyStage3Time", "15") && !run_command("SetSensorOffsetOutdoor", "1"));
-    assert(!run_command("SetSensorOffsetRemoteTh1", "1") && !run_command("SetEfficiencyStage1Time", "25"));
-    reset_act_data();
-  }
 """
     checks.append(sequences)
-    cases += 35
-
-    shadow_tests = r"""
-  const unsigned long SETTLE = 2000, LIFE = 12000;
-  { // N1: a data block received after the settle time ends the memory, whether it confirms or not
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    deliver_block(SETTLE, 33, 0x75); // rejected or not applied: actData is the truth
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    deliver_block(SETTLE, 33, 0x76); // confirmed
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    deliver_block(SETTLE, 33, 0x86);
-    assert(run_command("SetEfficiencyStage1Time", "30") && sent[33] == 0x87);
-  }
-  { // a block that is on its way when the command is handed over still carries the old value and does not end it
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    deliver_block(SETTLE - 1, 33, 0x75);
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    deliver_block(1); // 1 ms after the second command: still pending
-    assert(run_command("SetEfficiencyStage1Time", "30") && sent[33] == 0x87);
-    deliver_block(SETTLE, 33, 0x75); // the later block ends it (age counted from the last command)
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-  }
-  { // N1: the other documented failure: upstream SetHeatingControl after SetDHWDefrost, read-back received
-    reset_act_data(); actData[30] = (char)0x5A;
-    assert(run_command("SetDHWDefrost", "0") && sent[30] == 0x59);
-    assert(run_command("SetHeatingControl", "0") && sent[30] == 0x04); // upstream frame: only its own pair
-    assert(run_command("SetDHWDefrost", "1") && sent[30] == 0x56);     // pending 0x55 (defrost b01, control b01), not 0x59/0x5A
-    deliver_block(SETTLE, 30, 0x55);                                  // read-back
-    assert(run_command("SetDHWDefrost", "1") && sent[30] == 0x56);
-  }
-  { // N1: bivalent mode changed by the upstream setter: AP heat is refused afterwards (needs advanced parallel)
-    reset_act_data(); actData[26] = (char)0x5E;
-    assert(run_command("SetBivalentAPHeat", "1") && sent[26] == 0x6E);
-    assert(run_command("SetBivalentMode", "0") && sent[26] == 0x04);
-    assert(!run_command("SetBivalentAPHeat", "0"));
-    deliver_block(SETTLE, 26, 0x66);
-    assert(!run_command("SetBivalentAPHeat", "0"));
-  }
-  { // N1: the pad heater (upstream, byte 25) is kept by the heater capacity command
-    reset_act_data(); actData[25] = (char)0x25;
-    assert(run_command("SetInternalHeaterCapacity", "6") && sent[25] == 0x29);
-    assert(run_command("SetExternalPadHeater", "2") && sent[25] == 0x30);
-    assert(run_command("SetInternalHeaterCapacity", "3") && sent[25] == 0x35);
-  }
-  { // N1: alternative outside sensor (upstream, byte 20) is kept by the anti freeze command
-    reset_act_data(); actData[20] = (char)0x6A;
-    assert(run_command("SetAntiFreezeMode", "0") && sent[20] == 0x66);
-    assert(run_command("SetAltExternalSensor", "0") && sent[20] == 0x10);
-    assert(run_command("SetAntiFreezeMode", "1") && sent[20] == 0x5A);
-  }
-  { // N1: smart DHW (upstream, byte 24) changes the byte the extra pump gate reads
-    reset_act_data(); actData[24] = (char)0x56; actData[31] = (char)0x5B;
-    assert(run_command("SetSmartDHW", "1") && sent[24] == 0x80);
-    assert(run_command("SetExtraPumpMode", "0") && sent[31] == 0x17); // tank bits unchanged
-    actData[24] = (char)0x55; // user removed the tank in the meantime: read back, pending ends
-    deliver_block(SETTLE);
-    assert(!run_command("SetExtraPumpMode", "0"));
-  }
-  { // N2: web console and rules engine call send_command() directly, without send_heatpump_command()
-    reset_act_data();
-    assert(run_direct("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    assert(run_direct("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    assert(run_command("SetEfficiencyStage1Time", "30") && sent[33] == 0x87); // mixed paths
-    assert(actData[33] == 0x75);
-    reset_act_data(); actData[26] = (char)0x56; // bivalent control yes, mode alternative
-    assert(run_direct("SetBivalentOperatingMode", "1") && sent[27] == 0x65);
-    assert(run_direct("SetBivalentExternalPump", "1") && sent[27] == 0xA5);
-    assert(run_command("SetDemandControlEnable", "1") && sent[27] == 0xA6);
-  }
-  { // N2: a raw frame (SendRawValue / proxy) goes through send_command() too and is remembered
-    reset_act_data();
-    byte frame[sizeof(panasonicSendQuery)];
-    memcpy(frame, panasonicSendQuery, sizeof(frame));
-    frame[33] = 0x76;
-    send_command(frame, sizeof(frame));
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    // frames that are no write for the main data block are ignored: optional PCB header, short frame, no data block
-    reset_act_data();
-    frame[0] = 0xF1; frame[1] = 0x11; frame[2] = 0x01; frame[3] = 0x50; frame[33] = 0x76;
-    send_command(frame, sizeof(frame));
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data();
-    memcpy(frame, panasonicSendQuery, sizeof(frame)); frame[33] = 0x76;
-    send_command(frame, sizeof(frame) - 1);
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data(); actData[0] = 0;
-    send_command(frame, sizeof(frame));
-    actData[0] = 0x71;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-  }
-  { // N3: expiry is a difference of unsigned 32-bit times and an expired entry is invalidated
-    reset_act_data();
-    fake_millis = 1000;
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    { byte command[256]; char log[256]; char payload[] = "35";
-      fake_millis = 1000 + LIFE + 5; // expired; a dry run (Modbus) looks at the byte and does not use the entry
-      assert(set_efficiency_stage2_time(payload, command, log) > 0 && command[33] == 0x85);
-      // the dry run is read-only (it runs in another task): the entry is cleared by the next data block
-      deliver_block(0);
-      fake_millis = 1000 + 5000; // the clock is back in the old window, as it is after 2^32 ms
-      assert(set_efficiency_stage2_time(payload, command, log) > 0 && command[33] == 0x85); }
-    // a command shortly before the wrap of millis(): pending across the wrap, expired after it
-    reset_act_data();
-    fake_millis = 0xFFFFFFFFUL - 2000;
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    fake_millis += 5000; // wrapped
-    assert(fake_millis < 5000);
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    fake_millis += 13000;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    // the block hook invalidates as well, so a pending entry does not wait for a look
-    reset_act_data();
-    fake_millis = 1000;
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    deliver_block(LIFE + 1000);
-    fake_millis = 1000 + 5000;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-  }
-  { // N4: nothing handed over -> nothing remembered
-    reset_act_data();
-    listen_only = true;
-    assert(!run_command("SetEfficiencyStage1Time", "25"));
-    listen_only = false;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    reset_act_data();
-    queue_full = true;
-    assert(!run_command("SetEfficiencyStage1Time", "25"));
-    queue_full = false;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    // ESP8266: a buffered command (send_command returns false) is handed over and remembered
-    reset_act_data();
-    buffered = true;
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    buffered = false;
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-  }
-  { // dry run (Modbus validation) and rejected commands record nothing and never touch actData
-    reset_act_data();
-    { byte command[256]; char log[256]; char payload[] = "25";
-      assert(set_efficiency_stage1_time(payload, command, log) > 0 && command[33] == 0x76);
-      char bad[] = "3";
-      assert(set_efficiency_stage1_time(bad, command, log) == 0); }
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x85);
-    char before[sizeof(actData)]; memcpy(before, actData, sizeof(before));
-    assert(run_command("SetEfficiencyStage1Time", "25"));
-    deliver_block(SETTLE);
-    assert(memcmp(before, actData, sizeof(before)) == 0);
-  }
-  { // a frame byte with value 0 is no information: byte 35 stays with actData when only byte 33 was sent
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    actData[35] = (char)0x96; // changed at the remote controller; the block is not processed yet
-    assert(run_command("SetSensorOffsetOutdoor", "0") && sent[35] == 0x98);
-  }
-  { // one data block ends every pending byte that is old enough, not only the byte of the last command
-    reset_act_data();
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);
-    assert(run_command("SetSensorOffsetRemoteTh1", "1") && sent[35] == 0xA6);
-    deliver_block(SETTLE, 33, 0x76); // block ends all pending bytes that are old enough, not only the byte of the last command
-    assert(run_command("SetEfficiencyStage2Time", "35") && sent[33] == 0x86);
-    assert(run_command("SetSensorOffsetOutdoor", "-1.5") && sent[35] == 0x85); // byte 35 ended too: actData (0x86) is used
-  }
-  { // ESP32: a frame that still waits in cmdQueue is not ended by the blocks that arrive meanwhile
-    reset_act_data(); actData[28] = (char)0x55;
-    queued = true;
-    assert(run_command("SetEfficiencyStage1Time", "25") && sent[33] == 0x76);  // frame 1, another byte
-    assert(run_command("SetCoolingWaterMode", "1") && sent[28] == 0x59);        // frame 2
-    deliver_block(SETTLE, 28, 0x55, -1, 0, 2);     // both still queued
-    deliver_block(SETTLE, 28, 0x55, 33, 0x76, 1);  // frame 1 has left and is answered; frame 2 still waits
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x5A);        // frame 3, built from the pending 0x59
-    deliver_block(LIFE + 1000, 28, 0x55, -1, 0, 2); // waiting frames outlive the life time
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x9A);           // frame 4
-    deliver_block(SETTLE - 1, 28, 0x59, -1, 0, 0);  // all frames left just now: this block is too early to be trusted
-    assert(run_command("SetDefrostSignal", "0") && sent[28] == 0x5A);           // frame 5
-    deliver_block(1, 28, 0x9A, -1, 0, 0);           // frame 5 left; answer still shows the old value
-    deliver_block(SETTLE, 28, 0x5A);                // read-back with an empty queue ends the pending state
-    actData[28] = (char)0x55;
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x56);
-    queued = false;
-  }
-  { // other traffic in the queue does not keep an entry alive whose own frame has left
-    reset_act_data(); actData[28] = (char)0x55;
-    queued = true;
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x95);           // the pump will not take it
-    deliver_block(500, 28, 0x55, -1, 0, 0);          // the frame left, answer with the old value
-    for (int i = 0; i < 20; i++) {                   // a rule sends one command on another byte per block
-      assert(run_command("SetEfficiencyStage1Time", i % 2 ? "25" : "20"));
-      deliver_block(5000, 28, 0x55, -1, 0, 1);
-    }
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x56);        // actData, not the stale 0x95
-    deliver_block(0, -1, 0, -1, 0, 0);               // the queue drains
-    // a frame that never leaves the queue ends after the safety time
-    reset_act_data(); actData[28] = (char)0x55;
-    assert(run_command("SetDefrostSignal", "1") && sent[28] == 0x95);
-    deliver_block(59000, 28, 0x55, -1, 0, 1);
-    { byte command[256]; char log[256]; char payload[] = "1";
-      assert(set_heating_water_mode(payload, command, log) > 0 && command[28] == 0x96); }
-    deliver_block(1000, 28, 0x55, -1, 0, 1);
-    { byte command[256]; char log[256]; char payload[] = "1";
-      assert(set_heating_water_mode(payload, command, log) > 0 && command[28] == 0x56); }
-    deliver_block(0, -1, 0, -1, 0, 0);               // the queue drains: ring and entries are consistent again
-    queued = false;
-  }
-  { // ESP8266: a buffered frame that is sent later does not put its older value back
-    reset_act_data(); actData[28] = (char)0x55;
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x56);        // written directly
-    buffered = true;
-    assert(!run_command("SetCoolingWaterMode", "1") || true); assert(sent[28] == 0x5A);
-    std::vector<byte> second = sent;
-    assert(!run_command("SetDefrostSignal", "1") || true); assert(sent[28] == 0x9A);
-    std::vector<byte> third = sent;
-    buffered = false;
-    deliver_block(SETTLE, 28, 0x56);                 // answer to the first frame: the buffered ones are kept
-    rmw_set_resending(true); send_command(second.data(), (int)second.size()); rmw_set_resending(false);
-    assert(run_command("SetCoolingWaterMode", "0") && sent[28] == 0x96);        // newer value kept, not 0x5A
-    deliver_block(SETTLE, 28, 0x5A);                 // the third frame still waits
-    assert(run_command("SetCoolingWaterMode", "1") && sent[28] == 0x9A);
-    rmw_set_resending(true); send_command(third.data(), (int)third.size()); rmw_set_resending(false);
-    deliver_block(SETTLE, 28, 0x9A);                 // nothing waits any more: ends
-    actData[28] = (char)0x55;
-    assert(run_command("SetHeatingWaterMode", "1") && sent[28] == 0x56);
-  }
-"""
-    checks.append(shadow_tests)
-    cases += 17
+    cases += 8
 
     # structure of the production code that the host harness cannot compile (HeishaMon.ino, rules.cpp)
     ino = (ROOT / "HeishaMon/HeishaMon.ino").read_text()
     rules = (ROOT / "HeishaMon/rules.cpp").read_text()
-    assert ino.count("rmw_note_command_sent(command, length)") == 1 and ino.count("rmw_note_command_queued(command, length, ") == 2, "ESP8266 send; ESP32 queue and ESP8266 buffer path"
-    assert re.search(r"if \(xQueueSend\(cmdQueue, &cmd, 0\) != pdTRUE\) return false;[^\n]*\n\s*rmw_note_command_queued\(command, length, true\);", ino)
-    assert re.search(r"if \(cmdnrel \+ 1 <= MAXCOMMANDSINBUFFER\) rmw_note_command_queued\(command, length, false\);[^\n]*\n\s*pushCommandBuffer", ino)
-    assert re.search(r"sendCommandReadTime = millis\(\);[^\n]*\n\s*rmw_note_command_sent\(command, length\);", ino)
-    assert re.search(r"decode_heatpump_data\(data, actData[^\n]*\n#ifdef ESP32\n\s*rmw_data_block_received\(cmdQueue != NULL \? \(unsigned int\)uxQueueMessagesWaiting\(cmdQueue\) : 0\);[^\n]*\n#else\n\s*rmw_data_block_received\(0\);", ino)
-    assert ino.count("rmw_data_block_received(") == 2
-    assert re.search(r"rmw_set_resending\(true\);[^\n]*\n\s*send_command\(cmdbuffer\[cmdstart\]\.data, cmdbuffer\[cmdstart\]\.length\);\n\s*rmw_set_resending\(false\);", ino)
-    body = source.split("static byte effective_byte")[1].split("static byte merge_sent_byte")[0]
-    assert " = " not in body.replace("i = 0", "").replace("!= address", ""), "effective_byte is read-only"
-
-    settle = int(re.search(r"#define RMW_SETTLE_MS (\d+)UL", source)[1])
-    assert settle == int(re.search(r"#define SERIALTIMEOUT (\d+)", ino)[1]), "settle time is tied to SERIALTIMEOUT"
-    assert int(re.search(r"#define RMW_SHADOW_MS (\d+)UL", source)[1]) == 12000
+    # no pending state: the send path in HeishaMon.ino is untouched and the setters keep no memory
+    for text in (ino, source, header):
+        assert "rmw_" not in text and "effective_byte" not in text
+    assert "xQueueSend(cmdQueue, &cmd, 0);" in ino
     # every writer (MQTT/Modbus via send_heatpump_command, web console, rules) ends in send_command(cmd, len)
     assert re.search(r"if \(len > 0\) send_command\(cmd, len\);", source)
     assert re.search(r"len = tmp\.func\(cpy, cmd, log_msg\);.*?send_command\(cmd, len\);", ino, re.S)
     assert re.search(r"tmp\.func\(payload, cmd, log_msg\);.*?send_command\(cmd, len\);", rules, re.S)
     assert "send_heatpump_command(topicName, payload, send_command" in (ROOT / "HeishaMon/HeishaModbusServer.cpp").read_text()
-    assert "remember_rmw_command" not in source and "rmwCommands" not in source
-    cases += 13
+    cases += 6
 
     program = (
         SHIM

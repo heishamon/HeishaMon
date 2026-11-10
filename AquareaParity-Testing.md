@@ -52,7 +52,7 @@ This guide is for HeishaMon owners who want to help find out whether the new top
 
 **Web interface.** The new topics appear in the "Heatpump Values" table and in `/json`.
 
-**Not changed.** All existing topics keep their numbers and names; existing commands send the same bytes as before. Commands on bytes that hold several settings now send the whole byte, built from the last received values, so that two commands in a row do not undo each other.
+**Not changed.** All existing topics keep their numbers and names; existing commands send the same bytes as before. New commands on bytes that hold several settings send only their own field, like the existing ones.
 
 ## What you need
 

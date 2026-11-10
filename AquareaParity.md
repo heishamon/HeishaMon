@@ -88,10 +88,8 @@ This file documents the research behind the additional topics (TOP170 to TOP196)
 
 ## 4. What the new commands do with these findings
 
-- Commands on shared bytes send the whole byte, built from the new field and the last received value of the other bits, and are refused until a data block has been received. A short memory of sent bytes covers commands that follow each other faster than the read cycle.
-- The memory of a byte is kept while a frame that carries it still waits for transmission (ESP32 command queue, ESP8266 command buffer) and ends after that frame has been sent and a later data block has arrived; a buffered frame that is sent later does not put its older value back.
-- Known limit on ESP8266 (existing behaviour of the send path): a command sent while older commands are still buffered can overtake them, so the order on the wire can differ from the order of the commands.
-- Not covered: changes the heat pump makes by itself in another byte (bivalent control and defrost signal). After one of these two commands wait for the next data block before sending a command on byte 26 or 28.
+- Commands on shared bytes send only their own bit pair or nibble and leave the rest of the byte 0 (no change, see 3.1). Two commands in a row on the same byte therefore do not undo each other, and nothing has to be remembered between commands.
+- Commands are refused until a data block has been received and while their own byte reads 0. Checks against other settings use the last data block: right after a parent setting was switched on, a dependent command is refused until the next data block reports it.
 - Value ranges follow the installer menu of the service manual.
 - Some guards mirror the installer menu (for example `SetExtraPump 2` needs a DHW tank). They are not complete, see section 5.
 
@@ -125,6 +123,8 @@ Heat pump off, commands sent by MQTT, data block read back after each group, eve
 | Solar mode buffer and DHW | arrived, restored, no fault with the heat pump off (with the heat pump running: H28, see 3.4) |
 | Bivalent: control, heating, both delays, operating mode 1 and 2, mode alternative, external pump | arrived, restored; refusals as designed; the defrost signal stayed "no" |
 | Water temperature mode heating and cooling | arrived. As known from raw writes, the heat pump moved the curve bytes 75 to 78 (heating) and 86 to 88 (cooling) and did not move them back; they were restored with a raw write |
+
+After the shared-byte commands were changed to send only their own field (no pending-byte memory), the reworked firmware ran on the same unit (heat pump on, compressor idle): three pairs of commands were sent back to back on the same byte (stage 1 and 2 time on byte 33, both sensor offsets on byte 35, static pressure and extra pump on byte 31). Both fields arrived in every case and the other fields stayed; everything was restored.
 
 New observation: `SetZ1SensorSettings 2` (internal thermostat) moved bytes 38 and 39 (0x80 to 0x94 / 0x9C); they returned when the type was set back.
 
