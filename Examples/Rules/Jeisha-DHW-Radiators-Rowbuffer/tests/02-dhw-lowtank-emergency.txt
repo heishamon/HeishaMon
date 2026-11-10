@@ -1,5 +1,5 @@
 # DHW tank below 20C triggers a DHW cycle at the next scheduler tick;
-# mild weather arms the mode switch after 35s.
+# an evaporator outlet above 0C arms the mode switch after 35s.
 time 12 15
 silent Operating_Mode_State 0
 silent Heatpump_State 1
@@ -9,6 +9,7 @@ silent DHW_Target_Temp 48
 silent DHW_Heat_Delta -8
 silent Room_Thermostat_Temp 21
 silent Outside_Temp 10
+silent Eva_Outlet_Temp 6
 silent Heating_Off_Outdoor_Temp 16
 silent ThreeWay_Valve_State 0
 silent Z1_Heat_Curve_Target_Low_Temp 31

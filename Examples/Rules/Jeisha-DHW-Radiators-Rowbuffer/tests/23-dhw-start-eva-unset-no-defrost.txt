@@ -1,0 +1,23 @@
+# Evaporator outlet not reported yet: no forced defrost, the mode switch
+# follows after 35s.
+time 12 59
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent Max_Pump_Duty 112
+silent DHW_Temp 30
+silent DHW_Target_Temp 48
+silent DHW_Heat_Delta -8
+silent Room_Thermostat_Temp 21
+silent Outside_Temp 2
+silent Heating_Off_Outdoor_Temp 16
+silent ThreeWay_Valve_State 0
+silent Z1_Heat_Curve_Target_Low_Temp 31
+silent Z1_Heat_Curve_Target_High_Temp 40
+boot
+expectcmd SetMaxPumpDuty 112
+expectcmd SetPump 0
+adv 75
+expectcmd SetHeatpump 1
+adv 35
+expectcmd SetOperationMode 4
+expectnone

@@ -1,5 +1,5 @@
-# Scheduled DHW start at 13:00; cold weather (<5C) prepends a forced
-# defrost and delays the mode switch by 540s.
+# Scheduled DHW start at 13:00; an evaporator outlet at or below 0C
+# prepends a forced defrost and delays the mode switch by 540s.
 time 12 59
 silent Operating_Mode_State 0
 silent Heatpump_State 1
@@ -9,6 +9,7 @@ silent DHW_Target_Temp 48
 silent DHW_Heat_Delta -8
 silent Room_Thermostat_Temp 21
 silent Outside_Temp 2
+silent Eva_Outlet_Temp -1
 silent Heating_Off_Outdoor_Temp 16
 silent ThreeWay_Valve_State 0
 silent Z1_Heat_Curve_Target_Low_Temp 31
