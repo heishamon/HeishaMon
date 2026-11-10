@@ -32,8 +32,13 @@ String getIntMinus1(byte input);
 String getIntMinus128(byte input);
 String getIntMinus1Div5(byte input);
 String getIntMinus1Div50(byte input);
+String getIntMinus1Div10(byte input);
 String getIntMinus1Times10(byte input);
 String getIntMinus1Times50(byte input);
+String getLowNibbleMinus1Times5(byte input);
+String getHighNibbleMinus1Times5(byte input);
+String getLowNibbleOffset(byte input);
+String getHighNibbleOffset(byte input);
 String getValvePID(byte input);
 String getOpMode(byte input);
 String getPower(byte input);
@@ -47,7 +52,7 @@ static const char _unknown[] PROGMEM = "unknown";
 
 
 
-#define NUMBER_OF_TOPICS 170 //last topic number + 1
+#define NUMBER_OF_TOPICS 197 //last topic number + 1
 #define NUMBER_OF_TOPICS_EXTRA 6 //last topic number + 1
 #define NUMBER_OF_OPT_TOPICS 7 //last topic number + 1
 #define MAX_TOPIC_LEN 42 // max length + 1
@@ -251,6 +256,33 @@ static const char topics[][MAX_TOPIC_LEN] PROGMEM = {
   "Backup_Heater_Enable", //TOP167
   "Cooling_Enable", //TOP168
   "Heat_Request_Temp_With_Buffer", //TOP169
+  "Static_Pressure", //TOP170
+  "Heating_On_Outdoor_Temp", //TOP171
+  "Heating_On_Delay", //TOP172
+  "DHW_Booster_Delay", //TOP173
+  "Efficiency_Stage1_Time", //TOP174
+  "Efficiency_Stage2_Time", //TOP175
+  "Efficiency_Stage3_Time", //TOP176
+  "Sensor_Offset_Remote_Th1", //TOP177
+  "Sensor_Offset_Outdoor", //TOP178
+  "Anti_Stick_Mode", //TOP179
+  "Bivalent_Operating_Mode", //TOP180
+  "Bivalent_External_Pump", //TOP181
+  "Extra_Pump_Use", //TOP182
+  "Extra_Pump_Mode", //TOP183
+  "SG_Ready_1_DHW_Power", //TOP184
+  "SG_Ready_1_Heat_Power", //TOP185
+  "SG_Ready_1_Cool_Power", //TOP186
+  "SG_Ready_2_DHW_Power", //TOP187
+  "SG_Ready_2_Heat_Power", //TOP188
+  "SG_Ready_2_Cool_Power", //TOP189
+  "SG_Ready_Stop_Power", //TOP190
+  "SG_Ready_1_Cool_Capacity", //TOP191
+  "SG_Ready_2_Cool_Capacity", //TOP192
+  "Sensor_Offset_Return", //TOP193
+  "Defrost_Signal", //TOP194
+  "Sensor_Offset_DHW_Tank", //TOP195
+  "Sensor_Offset_Flow", //TOP196
 };
 
 static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit unsigned humber) as there aren't more then 255 bytes (actually only 203 bytes) to decode
@@ -424,6 +456,33 @@ static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit 
   120, //TOP167
   120, //TOP168
   152, //TOP169
+  31, //TOP170
+  108, //TOP171
+  109, //TOP172
+  60, //TOP173
+  33, //TOP174
+  33, //TOP175
+  34, //TOP176
+  35, //TOP177
+  35, //TOP178
+  34, //TOP179
+  27, //TOP180
+  27, //TOP181
+  31, //TOP182
+  31, //TOP183
+  51, //TOP184
+  52, //TOP185
+  53, //TOP186
+  54, //TOP187
+  55, //TOP188
+  56, //TOP189
+  57, //TOP190
+  102, //TOP191
+  103, //TOP192
+  36, //TOP193
+  28, //TOP194
+  36, //TOP195
+  37, //TOP196
 };
 
 
@@ -609,6 +668,33 @@ static const topicFP topicFunctions[] PROGMEM = {
   getBit3and4, //TOP167
   getBit5and6, //TOP168
   getIntMinus128, //TOP169
+  getBit3and4, //TOP170
+  getIntMinus128, //TOP171
+  getIntMinus1Times30, //TOP172
+  getIntMinus1, //TOP173
+  getLowNibbleMinus1Times5, //TOP174
+  getHighNibbleMinus1Times5, //TOP175
+  getLowNibbleMinus1Times5, //TOP176
+  getHighNibbleOffset, //TOP177
+  getLowNibbleOffset, //TOP178
+  getBit1and2, //TOP179
+  getBit3and4, //TOP180
+  getBit1and2, //TOP181
+  getBit7and8, //TOP182
+  getBit5and6, //TOP183
+  getIntMinus1Div10, //TOP184
+  getIntMinus1Div10, //TOP185
+  getIntMinus1Div10, //TOP186
+  getIntMinus1Div10, //TOP187
+  getIntMinus1Div10, //TOP188
+  getIntMinus1Div10, //TOP189
+  getIntMinus1Div10, //TOP190
+  getIntMinus128, //TOP191
+  getIntMinus128, //TOP192
+  getHighNibbleOffset, //TOP193
+  getBit1and2, //TOP194
+  getLowNibbleOffset, //TOP195
+  getLowNibbleOffset, //TOP196
 };
 
 static const char *DisabledEnabled[] PROGMEM = {"2", "Disabled", "Enabled"};
@@ -657,6 +743,15 @@ static const char *HeatCoolSwitch[] PROGMEM = {"2", "Heat", "Cool"};
 static const char *ClosedOpen[] PROGMEM = {"2", "Closed", "Open"};
 static const char *ZoneConfiguration[] PROGMEM = {"0", "Configuration code"};
 static const char *Steps[] PROGMEM = {"0", "Steps"};
+static const char *BivalentOperatingMode[] PROGMEM = {"3", "Auto", "SG ready", "Intelligent"};
+static const char *ExtraPumpUse[] PROGMEM = {"3", "Not used", "Heating", "DHW"};
+// The two-bit getters can return 0..2 (b01, b10, b11), and the description is looked up at [value + 1]: a table
+// for a field that can hold b11 needs three entries, otherwise the lookup reads behind the array.
+static const char *SGReadyControl[] PROGMEM = {"3", "Disabled", "Enabled, capacity", "Enabled, power consumption"};
+static const char *DisabledEnabledInvalid[] PROGMEM = {"3", "Disabled", "Enabled", "Invalid"};
+static const char *OffOnInvalid[] PROGMEM = {"3", "Off", "On", "Invalid"};
+static const char *YesNoInvalid[] PROGMEM = {"3", "No", "Yes", "Invalid"};
+static const char *HeatingControlInvalid[] PROGMEM = {"3", "Comfort", "Efficiency", "Invalid"};
 
 static const char **opttopicDescription[] PROGMEM = {
   OffOn,          //OPT0
@@ -827,7 +922,7 @@ static const char **topicDescription[] PROGMEM = {
   ZoneConfiguration, //TOP146
   Kilowatt, //TOP147
   DHWHeaterType, //TOP148
-  DisabledEnabled, //TOP149
+  SGReadyControl, //TOP149
   DisabledEnabled, //TOP150
   DisabledEnabled, //TOP151
   Celsius, //TOP152
@@ -848,4 +943,31 @@ static const char **topicDescription[] PROGMEM = {
   InactiveActive, //TOP167
   InactiveActive, //TOP168
   Celsius, //TOP169
+  DisabledEnabledInvalid, //TOP170
+  Celsius, //TOP171
+  Minutes, //TOP172
+  Minutes, //TOP173
+  Minutes, //TOP174
+  Minutes, //TOP175
+  Minutes, //TOP176
+  Kelvin, //TOP177
+  Kelvin, //TOP178
+  DisabledEnabledInvalid, //TOP179
+  BivalentOperatingMode, //TOP180
+  OffOnInvalid, //TOP181
+  ExtraPumpUse, //TOP182
+  HeatingControlInvalid, //TOP183
+  Kilowatt, //TOP184
+  Kilowatt, //TOP185
+  Kilowatt, //TOP186
+  Kilowatt, //TOP187
+  Kilowatt, //TOP188
+  Kilowatt, //TOP189
+  Kilowatt, //TOP190
+  Celsius, //TOP191
+  Celsius, //TOP192
+  Kelvin, //TOP193
+  YesNoInvalid, //TOP194
+  Kelvin, //TOP195
+  Kelvin, //TOP196
 };

@@ -835,6 +835,11 @@ bool readSerial()
       if (data_length == DATASIZE)  {  //receive a full data block
         if  (data[3] == 0x10) { //decode the normal data block
           decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
+#ifdef ESP32
+          rmw_data_block_received(cmdQueue != NULL ? (unsigned int)uxQueueMessagesWaiting(cmdQueue) : 0); // pending bytes of shared-byte settings, see commands.cpp
+#else
+          rmw_data_block_received(0); // pending bytes of shared-byte settings, see commands.cpp
+#endif
           if ( (!extraDataBlockAvailable) && ((actData[0] == 0x71) && (actData[0xc7] >= 3)) ) { //do we have valid header and byte 0xc7 is more or equal 3 then assume K&L and more series
             log_message(_F("Extra data available on this heatpump"));
             extraDataBlockAvailable = true; //request for extra data next run
@@ -895,7 +900,9 @@ bool readSerial()
 void popCommandBuffer() {
   // to make sure we can pop a command from the buffer
   if ((!sending) && cmdnrel > 0) {
+    rmw_set_resending(true); // this frame was noted when it was buffered, see commands.cpp
     send_command(cmdbuffer[cmdstart].data, cmdbuffer[cmdstart].length);
+    rmw_set_resending(false);
     cmdstart = (cmdstart + 1) % (MAXCOMMANDSINBUFFER);
     cmdnrel--;
   }
@@ -1006,7 +1013,8 @@ bool send_command(byte* command, int length) {
   struct cmdbuffer_t cmd;
   cmd.length = length;
   memcpy(&cmd.data, command, length);
-  xQueueSend(cmdQueue, &cmd, 0);
+  if (xQueueSend(cmdQueue, &cmd, 0) != pdTRUE) return false; // queue full: nothing was handed over
+  rmw_note_command_queued(command, length, true); // pending bytes of shared-byte settings, see commands.cpp
   return true;
 }
 
@@ -1020,6 +1028,7 @@ bool send_command(byte* command, int length) {
   }
   if ( sending ) {
     log_message(_F("Already sending data. Buffering this send request"));
+    if (cmdnrel + 1 <= MAXCOMMANDSINBUFFER) rmw_note_command_queued(command, length, false); // buffered below, see commands.cpp
     pushCommandBuffer(command, length);
     return false;
   }
@@ -1033,6 +1042,7 @@ bool send_command(byte* command, int length) {
 
   if (heishamonSettings.logHexdump) logHex((char*)command, length);
   sendCommandReadTime = millis(); //set sendCommandReadTime when to timeout the answer of this command
+  rmw_note_command_sent(command, length); // pending bytes of shared-byte settings, see commands.cpp
   return true;
 }
 #endif
