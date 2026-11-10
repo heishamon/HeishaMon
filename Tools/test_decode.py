@@ -58,7 +58,8 @@ byte optionalPCBQuery[20];
 const char* mqtt_topic_values = "main";
 const char* mqtt_topic_xvalues = "extra";
 const char* mqtt_topic_pcbvalues = "optional";
-void websocket_write_all(char*, uint16_t) {}
+std::vector<std::string> websocket_messages;
+void websocket_write_all(char* data, uint16_t) { websocket_messages.push_back(data); }
 void rules_event_cb(const char*, const char*) {}
 void log_message(char*) {}
 """
@@ -71,6 +72,9 @@ CASES = [
     (147, 25, 0x5E, "9"),
     (148, 25, 0x5E, "1"),
     (149, 27, 0x09, "1"),
+    (149, 27, 0x55, "0"),  # SG ready off (b01)
+    (149, 27, 0x59, "1"),  # on, capacity (b10)
+    (149, 27, 0x5D, "2"),  # on, power consumption (b11): SetSGReadyMode 2
     (150, 27, 0x06, "1"),
     (151, 30, 0x06, "1"),
     (152, 46, 0x99, "25"),
@@ -91,7 +95,95 @@ CASES = [
     (167, 120, 0x29, "1"),
     (168, 120, 0x19, "1"),
     (169, 152, 0x7B, "-5"),
+    (170, 31, 0x6A, "1"),
+    (170, 31, 0x5A, "0"),
+    (171, 108, 0x8F, "15"),
+    (172, 109, 0x03, "60"),
+    (173, 60, 0x5B, "90"),
+    (174, 33, 0x76, "25"),
+    (175, 33, 0x76, "30"),
+    (175, 33, 0x85, "35"),
+    (176, 34, 0xA7, "30"),
+    (176, 34, 0x64, "15"),
+    (177, 35, 0xA6, "1.0"),
+    (177, 35, 0x46, "-2.0"),
+    (178, 35, 0xA6, "-1.0"),
+    (178, 35, 0x89, "0.5"),
+    (179, 34, 0xA7, "1"),
+    (179, 34, 0x67, "0"),
+    (180, 27, 0x55, "0"),
+    (180, 27, 0x65, "1"),
+    (180, 27, 0x75, "2"),
+    (180, 27, 0x95, "0"),
+    (181, 27, 0x55, "0"),
+    (181, 27, 0x95, "1"),
+    (181, 27, 0x65, "0"),
+    (182, 31, 0x55, "0"),
+    (182, 31, 0x5A, "1"),
+    (182, 31, 0x5B, "2"),
+    (182, 31, 0x57, "2"),
+    (183, 31, 0x5A, "1"),
+    (183, 31, 0x5B, "1"),
+    (183, 31, 0x57, "0"),
+    (183, 31, 0x55, "0"),
+    (184, 51, 0x2B, "4.2"),
+    (184, 51, 0x06, "0.5"),
+    (185, 52, 0x65, "10.0"),
+    (186, 53, 0x29, "4.0"),
+    (187, 54, 0x2A, "4.1"),
+    (188, 55, 0x2B, "4.2"),
+    (189, 56, 0x29, "4.0"),
+    (190, 57, 0x2C, "4.3"),
+    (191, 102, 0x7D, "-3"),
+    (191, 102, 0x80, "0"),
+    (192, 103, 0x7A, "-6"),
+    (192, 103, 0x71, "-15"),
+    (193, 36, 0x48, "-2.0"),
+    (193, 36, 0xA8, "1.0"),
+    (195, 36, 0x89, "0.5"),
+    (195, 36, 0x48, "0.0"),
+    (195, 36, 0x82, "-3.0"),
+    (196, 37, 0x89, "0.5"),
+    (196, 37, 0x88, "0.0"),
+    (196, 37, 0x6E, "3.0"),
+    (194, 28, 0x95, "1"),  # defrost signal yes (b10), bits 5-0 = water modes
+    (194, 28, 0x55, "0"),  # no (b01)
+    (194, 28, 0x96, "1"),
+    (194, 28, 0x99, "1"),
+    (194, 28, 0x5A, "0"),
+    (194, 28, 0xD5, "2"),  # b11 is not a defined value
+    (147, 25, 0x2D, "9"),
+    (147, 25, 0x29, "6"),
+    (147, 25, 0x25, "3"),
 ]
+
+
+# Description text published for a value (websocket JSON). The description table is indexed with value + 1, so every
+# value that the field can hold (two-bit fields: 0..2, b11 included) needs an entry; (topic, byte, raw, description).
+DESCRIPTION_CASES = [
+    (149, 27, 0x55, "Disabled"),
+    (149, 27, 0x59, "Enabled, capacity"),
+    (149, 27, 0x5D, "Enabled, power consumption"),
+    (170, 31, 0x5A, "Disabled"),
+    (170, 31, 0x6A, "Enabled"),
+    (170, 31, 0x7A, "Invalid"),  # b11
+    (179, 34, 0x67, "Disabled"),
+    (179, 34, 0xA7, "Enabled"),
+    (179, 34, 0xE7, "Invalid"),
+    (180, 27, 0x75, "Intelligent"),
+    (181, 27, 0x55, "Off"),
+    (181, 27, 0x95, "On"),
+    (181, 27, 0xD5, "Invalid"),
+    (182, 31, 0x5B, "DHW"),
+    (183, 31, 0x5A, "Efficiency"),
+    (183, 31, 0x5E, "Invalid"),
+    (194, 28, 0x95, "Yes"),
+    (194, 28, 0x55, "No"),
+    (194, 28, 0xD5, "Invalid"),
+]
+# new topics (and TOP149, which SetSGReadyMode 2 makes reach b11) read the description at [value + 1]: the table must have
+# one entry more than the largest value of the getter (two-bit getters: 2)
+TWO_BIT_GETTERS = ("getBit1and2", "getBit3and4", "getBit5and6", "getBit7and8")
 
 
 def main():
@@ -109,6 +201,17 @@ def main():
         ]
         assert len(tables[name]) == count, name
     assert len(set(tables["topics"])) == count
+    for number, getter in enumerate(tables["topicFunctions"]):
+        if number != 149 and number < 170:
+            continue  # upstream topics are not touched here
+        name = tables["topicDescription"][number]
+        body = re.search(r"\b" + name + r"\[\] PROGMEM = \{\"(\d+)\"(.*?)\};", header, re.S)
+        entries = int(body[1])
+        if entries == 0:
+            continue  # value description (unit), not indexed by the value
+        assert len(re.findall(r'"[^"]*"', body[2])) == entries, name
+        if getter in TWO_BIT_GETTERS:
+            assert entries >= 3, f"TOP{number} {name} has no entry for b11 (index behind the table)"
     assert all(len(name.strip('"')) < 42 for name in tables["topics"])
     checks = []
     for topic, address, raw, expected in CASES:
@@ -141,6 +244,9 @@ def main():
   assert(getHeaterCapacity(0).toInt() == -1);
   assert(getHeaterCapacity(4).toInt() == 3);
   assert(getHeaterCapacity(8).toInt() == 6);
+  assert(getHeaterCapacity(12).toInt() == 9); // 9 kW = b11, as in the upstream decode table
+  assert(std::string(getIntMinus1Div10(0).c_str()) == "-0.1");
+  assert(std::string(getIntMinus1Div10(101).c_str()) == "10.0");
   assert(getIntMinus1Times30(0).toInt() == -30);
   assert(getIntMinus1Times30(255).toInt() == 7620);
   for (int n = 0; n < 4; ++n) {
@@ -153,6 +259,25 @@ def main():
   assert(getBit7and8(0).toInt() == -1);
 """
     )
+    for topic, address, raw, description in DESCRIPTION_CASES:
+        checks.append(
+            f"""
+  {{ char fresh[DATASIZE] = {{}};
+    memset(data, 0x55, sizeof(data));
+    data[{address}] = {raw};
+    websocket_messages.clear();
+    decode_heatpump_data(data, fresh, client, log_message, base, 60);
+    std::string wanted = "\\"topic\\": \\"TOP{topic}\\", ";
+    int found = 0;
+    for (const std::string &m : websocket_messages)
+      if (m.find(wanted) != std::string::npos) {{
+        found++;
+        assert(m.find("\\"description\\": \\"{description}\\"") != std::string::npos);
+      }}
+    assert(found == 1);
+  }}
+"""
+        )
     header = re.sub(r"^#include.*$", "", header, flags=re.M)
     source = re.sub(r"^#include.*$", "", source, flags=re.M)
     program = (
