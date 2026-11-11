@@ -1724,6 +1724,39 @@ void setupHttp() {
   webserver_start(80, &webserver_cb, 0);
 }
 
+// First boot after flashing and factory reset (boot button) show it with a
+// fast blinking LED for CONFIRM_BLINK_MS, then restart on their own so the
+// device comes up normally (setup hotspot) without a power cycle.
+// Note: on an ESP8266 the very first software restart after a serial (USB)
+// flash can hang until a hardware reset; that case needs a power cycle as before.
+#define CONFIRM_BLINK_MS 10000UL
+void confirmBlinkAndRestart(unsigned int halfPeriodMs) {
+#if defined(ESP8266)
+  pinMode(LEDPIN, FUNCTION_0); //set it as gpio
+  pinMode(LEDPIN, OUTPUT);
+#endif
+  unsigned long start = millis();
+  while ((unsigned long)(millis() - start) < CONFIRM_BLINK_MS) {
+#if defined(ESP8266)
+    digitalWrite(LEDPIN, HIGH);
+    delay(halfPeriodMs);
+    digitalWrite(LEDPIN, LOW);
+    delay(halfPeriodMs);
+#else
+    pixels.setPixelColor(0, 128, 0, 0);
+    pixels.show();
+    delay(halfPeriodMs);
+    pixels.setPixelColor(0, 0, 0, 128);
+    pixels.show();
+    delay(halfPeriodMs);
+#endif
+    yield();
+  }
+  loggingSerial.println(F("Restarting after the LED confirmation"));
+  delay(100);
+  ESP.restart();
+}
+
 void factoryReset() {
     loggingSerial.println("Factory reset request detected, clearing config."); 
     LittleFS.format();
@@ -1733,28 +1766,8 @@ void factoryReset() {
     WiFi.persistent(true);
     WiFi.disconnect();
     WiFi.persistent(false);
-    loggingSerial.println("Config cleared. Please reset to configure this device...");
-    //initiate debug led indication for factory reset
-#if defined(ESP8266)
-    pinMode(LEDPIN, FUNCTION_0); //set it as gpio
-    pinMode(LEDPIN, OUTPUT);
-    while (true) {
-      digitalWrite(LEDPIN, HIGH);
-      delay(100);
-      digitalWrite(LEDPIN, LOW);
-      delay(100);
-      yield();
-    }
-#else
-    while (true) {
-     delay(100);
-     pixels.setPixelColor(0, 128, 0, 0);
-     pixels.show();
-     delay(100);
-     pixels.setPixelColor(0, 0, 0, 128);
-     pixels.show();
-    }
-#endif
+    loggingSerial.println("Config cleared, restarting to configure this device...");
+    confirmBlinkAndRestart(100); // led indication for the factory reset, then boot with the setup hotspot
 }
 void doubleResetDetect() {
   if (LittleFS.exists("/doublereset")) {
@@ -2012,27 +2025,8 @@ void setup() {
       //first boot
       loggingSerial.println(F("Heishamon boot file missing, first start..."));
       File startupFile = LittleFS.open("/heishamon", "w");
-      startupFile.close();    
-#if defined(ESP8266)
-      pinMode(LEDPIN, FUNCTION_0); //set it as gpio
-      pinMode(LEDPIN, OUTPUT);
-      while (true) {
-        digitalWrite(LEDPIN, HIGH);
-        delay(50);
-        digitalWrite(LEDPIN, LOW);
-        delay(50);
-        yield();
-      }
-#else
-      while (true) {
-        delay(50);
-        pixels.setPixelColor(0, 128, 0, 0);
-        pixels.show();
-        delay(50);
-        pixels.setPixelColor(0, 0, 0, 128);
-       pixels.show();
-      }
-#endif      
+      startupFile.close();
+      confirmBlinkAndRestart(50); // visually confirm a good flash, then boot normally
     }
   }
   //double reset detect from start - removed, using boot button now
