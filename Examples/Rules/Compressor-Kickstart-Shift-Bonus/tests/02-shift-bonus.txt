@@ -1,0 +1,42 @@
+# Outlet >= target + 2 K for 11 ticks in a row raises the shift by 1 K;
+# a second run of 11 ticks raises it again; a compressor stop removes the whole bonus.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+set Main_Outlet_Temp 35
+note ticks 1..10 (t=40..175): counting only
+adv 175
+expectnone
+note tick 11 (t=190): +1
+adv 15
+expectcmd SetZ1HeatRequestTemperature 1
+pump
+note the target follows the shift; the outlet still overshoots it by 2 K
+set Z1_Water_Target_Temp 34
+set Main_Outlet_Temp 36
+adv 150
+expectnone
+adv 15
+expectcmd SetZ1HeatRequestTemperature 2
+pump
+note compressor stops: the next tick removes the bonus of 2 K
+set Heat_Power_Consumption 0
+set Compressor_Freq 0
+set Main_Outlet_Temp 34
+adv 15
+expectcmd SetZ1HeatRequestTemperature 0
+pump
+adv 120
+expectnone

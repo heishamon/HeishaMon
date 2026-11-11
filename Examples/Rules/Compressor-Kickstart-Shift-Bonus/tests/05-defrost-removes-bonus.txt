@@ -1,0 +1,26 @@
+# A defrost removes the bonus at the next tick, also while the compressor runs.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+set Main_Outlet_Temp 35
+adv 190
+expectcmd SetZ1HeatRequestTemperature 1
+pump
+set Defrosting_State 1
+adv 15
+expectcmd SetZ1HeatRequestTemperature 0
+pump
+adv 300
+expectnone

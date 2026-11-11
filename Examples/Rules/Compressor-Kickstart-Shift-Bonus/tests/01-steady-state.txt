@@ -1,0 +1,18 @@
+# Compressor runs on target: no tick sends a command.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+adv 600
+expectnone
