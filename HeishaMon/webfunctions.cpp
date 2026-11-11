@@ -891,7 +891,6 @@ int settingsNewPassword(struct webserver_t *client, settingsStruct *heishamonSet
         webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
       } break;
     case 1: {
-        webserver_send_content_P(client, webBodySettings1, strlen_P(webBodySettings1));
         webserver_send_content_P(client, webBodySettingsResetPasswordWarning, strlen_P(webBodySettingsResetPasswordWarning));
       } break;
     case 2: {
@@ -912,7 +911,6 @@ int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonS
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
     webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
-    webserver_send_content_P(client, webBodySettings1, strlen_P(webBodySettings1));
   } else if (client->content == 2) {
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));
     webserver_send_content_P(client, webBodySettingsNewWifiWarning, strlen_P(webBodySettingsNewWifiWarning));
@@ -971,7 +969,6 @@ int handleSettings(struct webserver_t *client) {
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
     webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
   } else if (client->content == 1) {
-    webserver_send_content_P(client, webBodySettings1, strlen_P(webBodySettings1));
     webserver_send_content_P(client, settingsForm1, strlen_P(settingsForm1));
     webserver_send_content_P(client, tzDataOptions, strlen_P(tzDataOptions));
   } else if (client->content == 2) {
