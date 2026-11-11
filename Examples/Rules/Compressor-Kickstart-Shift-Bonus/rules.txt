@@ -1,0 +1,60 @@
+on System#Boot then
+   #KickStartOn = 1;
+   #StateBeforeDHW = 0;
+   #SwitchOffTemp = 0;
+   #Bonus = 0;
+   setTimer(10, 40);
+end
+
+on timer=10 then
+   $SWV = @Z1_Heat_Request_Temp;
+   if @Defrosting_State == 0 && @Heat_Power_Consumption != 0 && @Pump_Duty < 95 && @Discharge_Temp < 35 then
+      if #SwitchOffTemp < 11 then
+         if @Main_Outlet_Temp >= @Z1_Water_Target_Temp + 2 then
+            #SwitchOffTemp = #SwitchOffTemp + 1;
+         else
+            #SwitchOffTemp = 0;
+         end
+      end
+   else
+      if @Z1_Heat_Request_Temp != ($SWV - #Bonus) then
+         @SetZ1HeatRequestTemperature = ($SWV - #Bonus);
+         #Bonus = 0;
+      end
+      #SwitchOffTemp = 0;
+   end
+   if #SwitchOffTemp == 11 && @Z1_Heat_Request_Temp < 5 then
+      @SetZ1HeatRequestTemperature = @Z1_Heat_Request_Temp + 1;
+      #Bonus = #Bonus + 1;
+      #SwitchOffTemp = 0;
+   end
+   if @Operating_Mode_State != 3 then
+      #StateBeforeDHW = @Heatpump_State;
+   end
+   if @DHW_Temp >= @DHW_Target_Temp && @DHW_Power_Consumption == 0 && @Operating_Mode_State == 3 then
+      if @Heatpump_State != #StateBeforeDHW then
+         @SetHeatpump = #StateBeforeDHW;
+      end
+      @SetOperationMode = 0;
+   end
+   if #KickStartOn == 1 then
+      if @Pump_Duty != 0 && @Operating_Mode_State == 0 && @Defrosting_State == 0 && @Compressor_Freq == 0 then
+         if @Main_Outlet_Temp < @Z1_Water_Target_Temp - 3 then
+            setTimer(11, 20);
+            setTimer(12, 310);
+            #KickStartOn = 0;
+            @SetZ1HeatRequestTemperature = @Z1_Heat_Request_Temp + 1;
+         end
+      end
+   end
+   setTimer(10, 15);
+end
+
+on timer=11 then
+   @SetZ1HeatRequestTemperature = @Z1_Heat_Request_Temp - 1;
+end
+
+on timer=12 then
+   #KickStartOn = 1;
+end
+
