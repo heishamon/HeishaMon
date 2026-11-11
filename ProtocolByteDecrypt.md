@@ -2,7 +2,7 @@
 
 Byte numbers are decimal; example values are hexadecimal. For the documented bit-pair fields, bits 1–2 are the most significant pair (mask 0xC0), bits 3–4 use 0x30, bits 5–6 use 0x0C, and bits 7–8 use 0x03. The individual zone-activity bits in byte 117 use masks 0x02 (Z2) and 0x01 (Z1).
 
-TOP144–TOP169 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 60 (external-heater time), byte 176 (possible bypass valve), byte 191 (meaning of heat-pump power), and byte 192 (possible T-CAP indicator) remain unexposed pending verification. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
+TOP144–TOP196 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 176 (possible bypass valve), byte 191 (meaning of heat-pump power), and byte 192 (possible T-CAP indicator) remain unexposed pending verification. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
 
 |  Topic# | Byte# | Possible Value | Value decrypt | Value Description |
 | :---- | ---- | ---- | ----- | ----:|
@@ -33,17 +33,17 @@ TOP144–TOP169 expose the additional documented fields below; see MQTT-Topics.m
 |  TOP140+TOP99+TOP100+TOP101 | 24 | 16 | 1st & 2nd bit Smart DHW (L series) (b01=Variable, b10=Standard) <br/> 3rd & 4th bit = solar buffer (0b01=no solar, 0b10=solar buffer, 0b11=solar dhw) <br/> 5th & 6th bit = buffer installed <br/> 7th & 8th bit = DHW installed |
 | TOP114+TOP147+TOP148 | 25 | 5e | 1st & 2nd bit = 10 <br/> 3rd & 4th bit = b01 no Pad Heater, b10 - Type A, b11 Type B <br/> 5th & 6th bit = b01 - Internal Heater 3kW, b10 - 6kW, b11 - 9kW <br/> 7th & 8th bit = b01 DHW Internal Heater , b10 - DHW External Heater | External Pad Heater <br/> Power of internal heater <br/> DHW heater Internal/External |
 |  TOP129/130/13/132 | 26 | 55 | (hex) Bivalent control, mode and ap settings. | Bivalent settings |
-| TOP149+TOP150 | 27 | 05 | SG Ready Control on/off (bit5and6) ,Demand Control on/off (bit7and8)  | SG Ready Control, Demand Control |
-|  TOP76+TOP81 | 28 | 09 | (hex) 09 - Compensation curve heat and direct cool, 05 - both compensation curves , 0a - direct heat and direct cool, 06 - heat direct, cool compensation curve  | Operation Setup -Installer -water temperature heating on status and cooling |
+| TOP149+TOP150+TOP180+TOP181 | 27 | 05 | 1st & 2nd bit = bivalent external pump (b01=Off, b10=On) <br/> 3rd & 4th bit = bivalent operating mode (b01=Auto, b10=SG ready, b11=Intelligent) <br/> SG Ready Control on/off (bit5and6) ,Demand Control on/off (bit7and8)  | SG Ready Control, Demand Control, bivalent operating mode and external pump |
+|  TOP76+TOP81+TOP194 | 28 | 09 | (hex) 09 - Compensation curve heat and direct cool, 05 - both compensation curves , 0a - direct heat and direct cool, 06 - heat direct, cool compensation curve <br/> 1st & 2nd bit = Defrost signal (b01=No, b10=Yes)  | Operation Setup -Installer -water temperature heating on status and cooling; Defrost signal (installer menu System setup) |
 |  TOP106 | 29 | 00 | 3rd & 4th bit = b01 - deltaT , b10 - Max. Duty | Pump flowrate (J/K/L series) |
 | TOP139+TOP151 | 30 | 00 |  5th & 6th bit = Heating Control (b01=Comfort, b10=Efficiency) <br/> 7th & 8th bit = DHW Defrost (b01=No, b10=Yes) | Heating Control (K/L series) <br/> DHW Defrost (K/L series) |
-|  TOP | 31 | 00 |   | 0 byte |
+| TOP170+TOP182+TOP183 | 31 | 5a | 1st & 2nd bit = b01 seen, meaning unknown <br/> 3rd & 4th bit = Static pressure (b01=No, b10=Yes) <br/> 5th & 6th bit = extra pump mode (b01=comfort, b10=efficiency) <br/> 7th & 8th bit = extra pump use (b01=not used, b10=heating, b11=DHW) <br/> Extra pump use and mode are derived from the observed values 55 = not used, 5a = heating/efficiency, 5b = DHW/efficiency, 57 = DHW/comfort | Static pressure, extra pump (tested on M series only; may work on other series, not tested there) |
 |  TOP | 32 | 00 |   | 0 byte |
-|  TOP | 33 | 00 |   | 0 byte |
-|  TOP | 34 | 00 |   | 0 byte |
-|  TOP | 35 | 00 |   | 0 byte |
-|  TOP | 36 | 00 |   | 0 byte |
-|  TOP | 37 | 00 |   | 0 byte |
+| TOP174+TOP175 | 33 | 75 | Low nibble = efficiency stage 1 time, high nibble = stage 2 time; each nibble = minutes / 5 + 1 (75: stage 1 20 min, stage 2 30 min) | Heating control efficiency stage times (tested on M series only; may work on other series, not tested there) |
+| TOP176+TOP179 | 34 | a7 | Low nibble = efficiency stage 3 time, minutes / 5 + 1 (7: 30 min) <br/> 1st & 2nd bit = Anti-stick mode (b01=disabled, b10=enabled) <br/> 3rd & 4th bit = b10 seen, meaning unknown | Efficiency stage 3 time, Anti-stick mode (tested on M series only; may work on other series, not tested there) |
+| TOP177+TOP178 | 35 | 86 | High nibble = sensor offset Th1 (remote), low nibble = sensor offset outdoor; each nibble = offset in K / 0.5 + 8 (8 = 0 K, a = +1 K, 6 = -1 K) | Sensor calibration offsets (tested on M series only; may work on other series, not tested there) |
+| TOP193+TOP195 | 36 | 88 | High nibble = sensor offset return sensor, low nibble = sensor offset DHW tank sensor; each nibble = offset in K / 0.5 + 8 | Sensor calibration offsets (tested on M series only; may work on other series, not tested there) |
+| TOP196 | 37 | 88 | Low nibble = sensor offset flow sensor, offset in K / 0.5 + 8; high nibble 8 seen, meaning unknown | Sensor calibration offsets (tested on M series only; may work on other series, not tested there) |
 |  TOP27 | 38 | 80 | Convert to DEC 128-128 = 0  | Zone 1 water shift set or direct mode value Temperature For Heat Mode [°C] |
 |  TOP28 | 39 | 8f | Convert to DEC 143-128 = 15 in direct mode set temp or shift value  | Zone 1 water shift set Temperature For Cool Mode [°C] |
 |  TOP34 | 40 | 80 | Convert to DEC 128-128 = 0  | Zone 2 water shift or direct mode set Temperature For Heat Mode [°C] |
@@ -57,16 +57,16 @@ TOP144–TOP169 expose the additional documented fields below; see MQTT-Topics.m
 |  TOP | 48 | 00 |   | 0 byte |
 |  TOP | 49 | 00 |   | 0 byte |
 |  TOP | 50 | 00 |   | 0 byte |
-|  TOP | 51 | 00 |   | 0 byte |
-|  TOP | 52 | 00 |   | 0 byte |
-|  TOP | 53 | 00 |   | 0 byte |
-|  TOP | 54 | 00 |   | 0 byte |
-|  TOP | 55 | 00 |   | 0 byte |
-|  TOP | 56 | 00 |   | 0 byte |
-|  TOP | 57 | 00 |   | 0 byte |
+| TOP184 | 51 | 2b | Convert to DEC (X-1)/10 | SG ready power consumption setting 1, DHW [kW] (tested on M series only; may work on other series, not tested there) |
+| TOP185 | 52 | 2b | Convert to DEC (X-1)/10 | SG ready power consumption setting 1, heating [kW] |
+| TOP186 | 53 | 29 | Convert to DEC (X-1)/10 | SG ready power consumption setting 1, cooling [kW] |
+| TOP187 | 54 | 29 | Convert to DEC (X-1)/10 | SG ready power consumption setting 2, DHW [kW] |
+| TOP188 | 55 | 29 | Convert to DEC (X-1)/10 | SG ready power consumption setting 2, heating [kW] |
+| TOP189 | 56 | 29 | Convert to DEC (X-1)/10 | SG ready power consumption setting 2, cooling [kW] (label by elimination) |
+| TOP190 | 57 | 2b | Convert to DEC (X-1)/10 | SG ready consumption limit while the heat pump is stopped [kW] |
 | TOP153 | 58 | 80 | Convert to DEC-128   | Delta T for Pool [°K] |
 |  TOP113 | 59 | 85 | Convert to DEC-128  | Delta T for buffer tank [°K]|
-|  TOP | 60 | 15 | Convert to DEC X-1   | Time set for external heaters 20min-3h, step 5min. |
+| TOP173 | 60 | 15 | Convert to DEC X-1   | Time set for external heaters 20min-3h, step 5min. (M series: DHW booster heater switch-on delay, 5b = 90 min) |
 |  TOP102 | 61 | 8a | Convert to DEC-128  | Solar Connection Set delta T for tank ON (DHW or Buffer) |
 |  TOP103 | 62 | 85 | Convert to DEC-128 | Solar Connection Set delta T for tank OFF (DHW or Buffer)| 
 |  TOP104 | 63 | 85 | Convert to DEC-128 | Set Antifreeze for solar |
@@ -108,14 +108,14 @@ TOP144–TOP169 expose the additional documented fields below; see MQTT-Topics.m
 |  TOP22 | 99 | 78 | Convert to DEC 120-128=-8 | DHW Delta for re-heat  [°K] |
 |  TOP70 | 100 | c1 |  Convert to DEC 193-128=65  | Sterilization boiling temperature [°C] |
 |  TOP71 | 101 | 0b |  Convert to DEC 11 - 1 = 10 | Sterilization max operation time [min] |
-|  TOP | 102 | 00 |   | 0 byte |
-|  TOP | 103 | 00 |   | 0 byte |
+| TOP191 | 102 | 7e | Convert to DEC-128 | SG ready capacity setting 1, cooling offset [°C] |
+| TOP192 | 103 | 7c | Convert to DEC-128 | SG ready capacity setting 2, cooling offset [°C] |
 |  TOP96 | 104 | 00 | Convert to DEC X-1  | Delay timer to start internal heater (J/K/L series) |
 |  TOP97 | 105 | 00 | Convert to DEC-128 | Delta to start internal heater for room heating (J/K/L series) |  
 |  TOP98 | 106 | 00 | Convert to DEC-128 | Delta to stop internal heater for room heating (J/K/L series) |
 |  TOP | 107 | 00 |   | 0 byte |
-|  TOP | 108 | 00 |   | 0 byte |
-|  TOP | 109 | 00 |   | 0 byte |
+| TOP171 | 108 | 8f | Convert to DEC-128 | Outdoor temperature for heating ON [°C] (tested on M series only; may work on other series, not tested there) |
+| TOP172 | 109 | 02 | Convert to DEC (X-1)*30 (02 = 30 min, 03 = 60 min) | Heating ON delay time [min] (tested on M series only; may work on other series, not tested there) |
 | TOP160+TOP161+TOP162+TOP163 | 110 | 55 | 1st & 2nd bit - Quiet mode <br/> 3rd&4th bit -  Powerful   <br/> 5th & 6th bit - Heat-Cool SW b10 - Cool   <br/> 7th & 8th bit - External SW b10-Open  | Actual/Real states of <br/> Quiet   <br/> Powerful   <br/> Heat-Cool SW   <br/> External SW |
 |  TOP20+TOP26 | 111 | 56 |  right 2 bits: 0b10=DHW 0b01=Room 3-Way Valve. Next 2 bits (from right) is defrosting state (0b01 = defrosting not active, 0b10 = defrosting active) | 3 way valve + Defrost status |
 | TOP60+TOP61+TOP164 | 112 | 55 | 1st & 2nd bit - Boiler Contact  <br/> 5th & 6th bit - External Heater <br/> 7th & 8th bit - Internal Heater (room or DHW)  <br/> ( b01 - OFF, b10 - ON )| Real status of Bivalent Boiler contact and Heaters relays (Line under icons)  |
