@@ -325,7 +325,9 @@ void loadSettings(settingsStruct *heishamonSettings) {
 // and connect to the strongest access point (BSSID) with our SSID, like the ESP32 does with
 // WIFI_ALL_CHANNEL_SCAN. The scan blocks for about 2 seconds. The same scan also fills the
 // network list of the settings page, so the initial scan at 15 seconds after boot is skipped.
-static void wifiBeginStrongest(const char *ssid, const char *password) {
+// Also used by the retry in check_wifi(): the access point is locked by BSSID, so when that node is
+// gone the retry must look for the strongest remaining one.
+void wifiBeginStrongest(const char *ssid, const char *password) {
   const char *pass = (password[0] == '\0') ? NULL : password;
   int best = -1;
   int found = 0;
