@@ -1405,17 +1405,24 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
     webserver_send(client, 200, (char *)"application/json", 0);
     webserver_send_content_P(client, PSTR("{\"heatpump\":["), 13);
   } else if ((client->content - 1) < NUMBER_OF_TOPICS) {
-    uint8_t maxTopics =  client->content + 4; //limit the amount of topic sent per webloop
-    for (uint8_t topic = client->content - 1; topic < NUMBER_OF_TOPICS && topic < maxTopics ; topic++) {
-      if (topicEnabled(topic)) { // TOP0 is always enabled, so the comma rule below still holds
-        if (topic > 0) {
-          webserver_send_content_P(client, PSTR(","), 1);
-        }
-        sendJsonHeatpumpTopic(client, actData, topic);
+    // send at most 5 topics per webloop. Skip switched off topics here: a webloop that sends nothing ends
+    // the response, so stop at the next enabled topic (or the end of the list), never after a disabled one.
+    uint8_t sent = 0;
+    uint8_t topic = client->content - 1;
+    for (; topic < NUMBER_OF_TOPICS; topic++) {
+      if (!topicEnabled(topic)) {
+        continue;
       }
-      client->content++;
+      if (sent == 5) {
+        break;
+      }
+      if (topic > 0) { // TOP0 is always enabled, so it is always the first one
+        webserver_send_content_P(client, PSTR(","), 1);
+      }
+      sendJsonHeatpumpTopic(client, actData, topic);
+      sent++;
     }
-    client->content--; // The webserver also increases by 1
+    client->content = topic; // The webserver also increases by 1
   } else if ((client->content - NUMBER_OF_TOPICS - 1) < extraTopics) {
     if (client->content == NUMBER_OF_TOPICS + 1) {
       webserver_send_content_P(client, PSTR("],\"heatpump extra\":["), 20);
