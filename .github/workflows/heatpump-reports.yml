@@ -1,0 +1,38 @@
+name: 'Heat pump model and topic value reports'
+
+# Handles issues from the "Add my heat pump model" and "Share my topic values" forms.
+# The logic is in .github/scripts/heatpump-reports.js. The issue text is only read by
+# that script and never passed to a shell.
+# Opening pull requests needs "Allow GitHub Actions to create and approve pull requests"
+# under Settings > Actions > General.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+# No concurrency group: GitHub keeps only one pending run per group and would drop
+# reports that arrive at the same time. The script retries instead.
+
+jobs:
+  handle:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'heat pump model') ||
+      contains(github.event.issue.labels.*.name, 'topic values') ||
+      startsWith(github.event.issue.title, 'New model:') ||
+      startsWith(github.event.issue.title, 'Topic values:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const handle = require('./.github/scripts/heatpump-reports.js');
+            const result = await handle({ github, context });
+            core.info(result);

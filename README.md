@@ -18,6 +18,7 @@ Latest release is available [here](https://github.com/Egyras/HeishaMon/releases)
 
 # Using the software
 HeishaMon is able to communicate with the Panasonic Aquarea H, J, K, L and M series. [Confirmed by users types of HP you can find here](HeatPumpType.md) \
+To find out whether your model is already known, press **Check my model** on the "Heatpump Values" panel of the web page. If it is not listed yet, you can add it through a prefilled GitHub issue form, optionally together with all topic values; HeishaMon itself sends nothing, and you check the form before you submit it. \
 If you want to compile this image yourself be sure to use the mentioned libraries and support for a filesystem on the esp8266 so select the correct flash option in arduino ide for that.
 
 When starting, without a configured wifi, an open-wifi-hotspot will be visible allowing you to configure your wifi network and your MQTT server. Configuration page will be located at http://192.168.4.1 . \

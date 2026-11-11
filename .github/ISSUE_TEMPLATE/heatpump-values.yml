@@ -1,0 +1,46 @@
+name: Share my topic values
+description: Share the topic values of your heat pump to help the development of HeishaMon. The "Check my model" button on the HeishaMon web page fills in the fields.
+title: "Topic values: "
+labels: ["topic values"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing. The values show which topics deliver data on which heat pump model. A workflow stores them in the `model-reports` branch of this repository and closes the issue; nothing else is done with them.
+
+        The **Check my model** button on the "Heatpump Values" panel of your HeishaMon fills in the fields. Please check them before you submit; nothing is sent until you submit the form.
+  - type: input
+    id: model_bytes
+    attributes:
+      label: Model bytes (TOP92)
+    validations:
+      required: true
+  - type: input
+    id: indoor_unit
+    attributes:
+      label: Indoor unit
+  - type: input
+    id: outdoor_unit
+    attributes:
+      label: Outdoor unit
+  - type: input
+    id: version
+    attributes:
+      label: HeishaMon firmware version
+  - type: input
+    id: board
+    attributes:
+      label: Board
+  - type: textarea
+    id: values
+    attributes:
+      label: Topic values
+      description: One line per topic (TOPn, XTOPn or OPTn, then "=" and the value; names in MQTT-Topics.md).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Installed parts that matter (DHW tank, buffer tank, solar, pool, second zone, optional PCB, bivalent heater), values that look wrong, or anything else.

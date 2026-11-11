@@ -1227,6 +1227,71 @@ async function refreshTable(){
     }
   } catch(e){console.error(e);}
 }
+// "Check my model": the browser reads HeatPumpType.md from GitHub and looks up the model bytes (TOP92).
+// If the model is not listed, the user can open a prefilled GitHub issue form to add it, optionally with
+// all topic values. Nothing is sent by HeishaMon: the browser opens GitHub, the user checks and submits.
+var hmRepo='heishamon/HeishaMon';
+function hmValues(){
+  var model='',lines=[];
+  document.querySelectorAll('#heishavalues td[id$="-Topic"]').forEach(function(c){
+    var t=c.textContent,v=document.getElementById(t+'-Value');
+    v=v?v.textContent:'';
+    if(t==='TOP92')model=v;
+    lines.push(t+'='+v);
+  });
+  return {model:model,lines:lines};
+}
+function hmKey(s){return s.replace(/\s/g,'').toUpperCase();}
+function checkModel(){
+  var box=document.getElementById('hmModelCheck'),m=hmValues().model;
+  function say(t){var p=document.createElement('div');p.textContent=t;p.style.marginBottom='8px';box.appendChild(p);}
+  box.style.display='';box.textContent='';
+  if(!m||/^(00 ?)+$/.test(m)){say('No data from the heat pump yet.');return;}
+  say('Looking up '+m+' in HeatPumpType.md ...');
+  fetch('https://raw.githubusercontent.com/'+hmRepo+'/main/HeatPumpType.md').then(function(r){
+    if(!r.ok)throw new Error(r.status);return r.text();
+  }).then(function(t){
+    var row=null;
+    t.split('\n').forEach(function(l){
+      var c=l.split('|');
+      if(!row&&c.length>5&&hmKey(c[2])===hmKey(m))row=c.map(function(x){return x.trim();});
+    });
+    box.textContent='';
+    if(row){
+      say('Your model is listed: '+row[3]+' / '+row[4]+(row[5]?' ('+row[5]+')':'')+'. Nothing to add.');
+      hmFormButton(box,row,'Share my topic values');
+    }else{
+      say('Your model '+m+' is not listed yet. You can add it: the form opens on GitHub, you fill in the indoor and outdoor unit from the type plate and submit it.');
+      hmFormButton(box,null,'Add my model');
+    }
+  }).catch(function(){
+    box.textContent='';
+    say('Could not load the model list from GitHub. You can still open the form to add your model.');
+    hmFormButton(box,null,'Add my model');
+  });
+}
+function hmFormButton(box,row,label){
+  var cb=null;
+  if(!row){
+    var l=document.createElement('label');cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=true;l.appendChild(cb);
+    l.appendChild(document.createTextNode(' Also send all topic values (helps the development of HeishaMon)'));
+    l.style.display='block';l.style.marginBottom='8px';box.appendChild(l);
+  }
+  var b=document.createElement('button');
+  b.className='btn btn-ghost';b.textContent=label;
+  b.style.cssText='padding:4px 10px;font-size:11px;height:24px;';
+  b.onclick=function(){
+    var d=hmValues(),ver=document.getElementById('sideVersion');
+    var q={template:row?'heatpump-values.yml':'heatpump-model.yml',title:(row?'Topic values: ':'New model: ')+d.model,
+      model_bytes:d.model,version:ver?ver.textContent:'',board:hmBoard};
+    if(row){q.indoor_unit=row[3];q.outdoor_unit=row[4];q.kit=row[5];}
+    if(row||cb.checked)q.values=d.lines.join('\n');
+    window.open('https://github.com/'+hmRepo+'/issues/new?'+Object.keys(q).map(function(k){
+      return k+'='+encodeURIComponent(q[k]);}).join('&'),'_blank','noopener');
+  };
+  box.appendChild(b);
+}
 function buildRow(item,idKey){
   var row=document.createElement('tr');
   var topic=item[idKey];
@@ -1397,13 +1462,21 @@ static const char webBodyEndDiv[] FLASHPROG = "</div>";
 static const char webBodyRootHeatpumpValues[] FLASHPROG = R"====(
 <div id='Heatpump' class='tab-pane active'>
 <div class='panel'>
-  <div class='panel-header'><h3>Heatpump Values</h3><span class='panel-meta' id='hpMeta'>Live</span></div>
+  <div class='panel-header'><h3>Heatpump Values</h3><span><span class='panel-meta' id='hpMeta'>Live</span> <button onclick='checkModel()' class='btn btn-ghost' title='Looks up your model bytes in HeatPumpType.md on GitHub. HeishaMon itself sends nothing.' style='padding:4px 10px;font-size:11px;height:24px;'>Check my model</button></span></div>
+  <div id='hmModelCheck' style='display:none;padding:12px 20px;font-size:12px;border-bottom:1px solid var(--border)'></div>
   <table><thead><tr>
     <th>Topic</th><th>Name</th><th>Value</th><th>Description</th>
   </tr></thead><tbody id='heishavalues'>
     <tr><td colspan='4' style='color:var(--text-muted);padding:24px;text-align:center'>Loading…</td></tr>
   </tbody></table>
 </div></div>
+<script>var hmBoard=')===="
+#ifdef ESP32
+"ESP32-S3 (large)"
+#else
+"ESP8266 (small)"
+#endif
+R"====(';</script>
 )====";
 
 static const char webBodyRootDallasValues[] FLASHPROG = R"====(

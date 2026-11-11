@@ -1,0 +1,87 @@
+name: Add my heat pump model
+description: Add your heat pump model to HeatPumpType.md. The "Check my model" button on the HeishaMon web page fills in most fields.
+title: "New model: "
+labels: ["heat pump model"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for adding your model. The model bytes (TOP92) identify a heat pump model in HeishaMon; together with the indoor and outdoor unit they go into [HeatPumpType.md](https://github.com/heishamon/HeishaMon/blob/main/HeatPumpType.md). A workflow checks the model bytes and, if they are new, opens a pull request that adds your model; the issue is closed when it is merged.
+
+        The **Check my model** button on the "Heatpump Values" panel of your HeishaMon fills in the model bytes, version and board, and if you choose so all topic values. Please add the indoor and outdoor unit from the type plates and check the fields before you submit; nothing is sent until you submit the form.
+  - type: input
+    id: model_bytes
+    attributes:
+      label: Model bytes (TOP92)
+      placeholder: 12 D7 0C 98 14 35 94 0D 83 10
+    validations:
+      required: true
+  - type: input
+    id: indoor_unit
+    attributes:
+      label: Indoor unit
+      description: From the type plate, for example WH-SDC0316M9E8. Write "Monoblock" for a monobloc unit.
+    validations:
+      required: true
+  - type: input
+    id: outdoor_unit
+    attributes:
+      label: Outdoor unit
+      description: From the type plate, for example WH-WXG09ME8.
+    validations:
+      required: true
+  - type: input
+    id: kit
+    attributes:
+      label: Kit name
+      description: If known, for example KIT-WC09J3E5. Write "Monoblock" for a monobloc unit.
+  - type: input
+    id: power
+    attributes:
+      label: Power in kW
+      placeholder: "9"
+  - type: dropdown
+    id: phases
+    attributes:
+      label: Power supply
+      options:
+        - 1ph
+        - 3ph
+        - Not known
+  - type: input
+    id: hp_type
+    attributes:
+      label: Type
+      description: For example HP, T-CAP, All-In-One, Super Quiet, as in HeatPumpType.md.
+  - type: dropdown
+    id: series
+    attributes:
+      label: Series
+      options:
+        - H
+        - J
+        - K
+        - L
+        - M
+        - Not known
+  - type: input
+    id: version
+    attributes:
+      label: HeishaMon firmware version
+      description: Filled in by the button.
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      description: Filled in by the button.
+  - type: textarea
+    id: values
+    attributes:
+      label: Topic values (optional)
+      description: One line per topic (TOPn, XTOPn or OPTn, then "=" and the value; names in MQTT-Topics.md). Filled in by the button if you chose to send them. They help to see which topics your model uses.
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Installed parts that matter (DHW tank, buffer tank, solar, pool, second zone, optional PCB, bivalent heater), values that look wrong, or anything else.
