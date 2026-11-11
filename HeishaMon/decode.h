@@ -612,21 +612,22 @@ static const topicFP topicFunctions[] PROGMEM = {
 };
 
 static const char *DisabledEnabled[] PROGMEM = {"2", "Disabled", "Enabled"};
-static const char *BlockedFree[] PROGMEM = {"2", "Blocked", "Free"};
+static const char *NotInstalledInstalled[] PROGMEM = {"2", "Not installed", "Installed"};
+static const char *BlockedFree[] PROGMEM = {"2", "Blocked", "Allowed"};
 static const char *OffOn[] PROGMEM = {"2", "Off", "On"};
 static const char *InactiveActive[] PROGMEM = {"2", "Inactive", "Active"};
 static const char *PumpFlowRateMode[] PROGMEM = {"2", "DeltaT", "Max flow"};
 static const char *HolidayState[] PROGMEM = {"3", "Off", "Scheduled", "Active"};
-static const char *OpModeDesc[] PROGMEM = {"9", "Heat", "Cool", "Auto(heat)", "DHW", "Heat+DHW", "Cool+DHW", "Auto(heat)+DHW", "Auto(cool)", "Auto(cool)+DHW"};
-static const char *Powerfulmode[] PROGMEM = {"4", "Off", "30min", "60min", "90min"};
-static const char *Quietmode[] PROGMEM = {"4", "Off", "Level 1", "Level 2", "Level 3"};
+static const char *OpModeDesc[] PROGMEM = {"9", "Heat", "Cool", "Auto (heat)", "DHW", "Heat+DHW", "Cool+DHW", "Auto (heat)+DHW", "Auto (cool)", "Auto (cool)+DHW"};
+static const char *Powerfulmode[] PROGMEM = {"4", "Off", "30 min", "60 min", "90 min"};
+static const char *Quietmode[] PROGMEM = {"4", "Off", "Level 1 (quiet)", "Level 2 (quieter)", "Level 3 (quietest)"};
 static const char *Valve[] PROGMEM = {"2", "Room", "DHW"};
 static const char *Valve2[] PROGMEM = {"2", "Cool", "Heat"};
 static const char *MixingValve[] PROGMEM = {"4", "Off", "Decrease","Increase","Invalid"};
 static const char *LitersPerMin[] PROGMEM = {"0", "l/min"};
 static const char *RotationsPerMin[] PROGMEM = {"0", "r/min"};
 static const char *Bar[] PROGMEM = {"0", "Bar"};
-static const char *Pressure[] PROGMEM = {"0", "Kgf/cm2"};
+static const char *Pressure[] PROGMEM = {"0", "kgf/cm2"};
 static const char *Celsius[] PROGMEM = {"0", "°C"};
 static const char *Kelvin[] PROGMEM = {"0", "K"};
 static const char *Hertz[] PROGMEM = {"0", "Hz"};
@@ -637,7 +638,7 @@ static const char *ErrorState[] PROGMEM = {"0", "Error"};
 static const char *Ampere[] PROGMEM = {"0", "Ampere"};
 static const char *Minutes[] PROGMEM = {"0", "Minutes"};
 static const char *Duty[] PROGMEM = {"0", "Duty"};
-static const char *ZonesState[] PROGMEM = {"3", "Zone1 active", "Zone2 active", "Zone1 and zone2 active"};
+static const char *ZonesState[] PROGMEM = {"3", "Zone 1 active", "Zone 2 active", "Zone 1 and zone 2 active"};
 static const char *HeatCoolModeDesc[] PROGMEM = {"2", "Comp. Curve", "Direct"};
 static const char *SolarModeDesc[] PROGMEM = {"3", "Disabled", "Buffer", "DHW"};
 static const char *ZonesSensorType[] PROGMEM = {"4", "Water Temperature", "External Thermostat", "Internal Thermostat", "Thermistor"};
@@ -680,7 +681,7 @@ static const char **xtopicDescription[] PROGMEM = {
 static const char **topicDescription[] PROGMEM = {
   OffOn,           //TOP0
   LitersPerMin,    //TOP1
-  DisabledEnabled, //TOP2
+  OffOn, //TOP2
   DisabledEnabled, //TOP3
   OpModeDesc,      //TOP4
   Celsius,         //TOP5
@@ -704,7 +705,7 @@ static const char **topicDescription[] PROGMEM = {
   Kelvin,          //TOP23
   Kelvin,          //TOP24
   Kelvin,          //TOP25
-  DisabledEnabled, //TOP26
+  InactiveActive, //TOP26
   Celsius,         //TOP27
   Celsius,         //TOP28
   Celsius,         //TOP29
@@ -777,8 +778,8 @@ static const char **topicDescription[] PROGMEM = {
   Minutes,         //TOP96
   Kelvin,          //TOP97
   Kelvin,          //TOP98
-  DisabledEnabled, //TOP99
-  DisabledEnabled, //TOP100
+  NotInstalledInstalled, //TOP99
+  NotInstalledInstalled, //TOP100
   SolarModeDesc,   //TOP101
   Kelvin,          //TOP102
   Kelvin,          //TOP103
