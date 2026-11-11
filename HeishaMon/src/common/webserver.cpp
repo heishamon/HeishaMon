@@ -575,7 +575,7 @@ static int webserver_parse_post(struct webserver_t *client, uint16_t size) {
         args.name = &client->buffer[0];
         if(d == ' ') {
           args.value = &client->buffer[pos+1];
-          args.len = size - (pos + 1);
+          args.len = pos1 - (pos + 1); // the value ends at pos1, not at the end of the buffer
           if(pos3 > -1) {
             args.len = pos3 - 1;
           }
