@@ -571,7 +571,7 @@ int openthermJsonFind(const char *name) {
 // RW (both) or R (provided to the thermostat)
 static void openthermJsonPair(struct webserver_t *client, int i) {
   struct heishaOTDataStruct_t *member = &heishaOTDataStruct[i];
-  char value[16];
+  char value[48]; // dtostrf of a large float (from an mqtt value) can be up to 42 chars
   char buf[96];
 
   switch (member->type) {

@@ -1,0 +1,25 @@
+# Known issue: timer 11 sends "current shift - 1". If the pump drops the +1 of the
+# kick, the shift ends 1 K below the old value.
+# Preamble: compressor running at low load in heat-only mode, outlet on target.
+silent Defrosting_State 0
+silent Heat_Power_Consumption 400
+silent Pump_Duty 80
+silent Discharge_Temp 30
+silent Compressor_Freq 25
+silent Main_Outlet_Temp 33
+silent Z1_Water_Target_Temp 33
+silent Z1_Heat_Request_Temp 0
+silent Operating_Mode_State 0
+silent Heatpump_State 1
+silent DHW_Temp 45
+silent DHW_Target_Temp 45
+silent DHW_Power_Consumption 0
+boot
+set Heat_Power_Consumption 0
+set Compressor_Freq 0
+set Main_Outlet_Temp 29
+adv 40
+expectcmd SetZ1HeatRequestTemperature 1
+note no pump: the command is dropped, the shift stays 0
+adv 20
+expectcmd SetZ1HeatRequestTemperature -1
