@@ -943,6 +943,8 @@ int getSettings(struct webserver_t *client, settingsStruct *heishamonSettings) {
         char masked_mqtt_password[PASSWORD_LENGTH];
         maskPassword(jsonDoc[F("mqtt_password")], masked_mqtt_password);
         jsonDoc[F("mqtt_password")] = masked_mqtt_password;
+        //the update password is never needed by the settings page (it has its own "current" and "new" fields)
+        jsonDoc.remove(F("ota_password"));
 #ifdef TLS_SUPPORT
         jsonDoc[F("mqtt_ca_cert")] = LittleFS.exists("/ca.pem") ? F("CA certificate stored in filesystem") : F("No CA certificate found");
 #endif   
