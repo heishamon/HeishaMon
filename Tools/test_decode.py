@@ -37,6 +37,7 @@ public:
   bool operator!=(const String& rhs) const { return value != rhs.value; }
 };
 #define PROGMEM
+#define pgm_read_byte(p) (*(const unsigned char *)(p))
 #define PSTR(x) x
 #define _F(x) x
 #define memcpy_P memcpy
@@ -208,7 +209,30 @@ def main():
   assert(getBit7and8(0).toInt() == -1);
 """
     )
-    header = re.sub(r"^#include.*$", "", header, flags=re.M)
+    groups = re.search(r"topicGroup\[\]\s*PROGMEM\s*=\s*\{(.*?)\};", header, re.S)[1]
+    groups = re.findall(r"\bTG_[A-Z0-9_]+", groups)
+    assert len(groups) == count
+    basic = groups.count("TG_BASIC")
+    installer = groups.count("TG_INSTALLER")
+    checks.append(
+        f"""
+  // topic groups: the default leaves out the installer settings, basic can't be switched off
+  setTopicGroups(TOPIC_GROUPS_DEFAULT);
+  assert(topicEnabled(0) && !topicEnabled(170) && !topicEnabled(NUMBER_OF_TOPICS));
+  resetlastalldatatime(); client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == NUMBER_OF_TOPICS - {installer});
+  setTopicGroups(0);
+  resetlastalldatatime(); client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == {basic});
+  setTopicGroups(TOPIC_GROUPS_DEFAULT); // enabling a group publishes it at the next read
+  client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == NUMBER_OF_TOPICS - {installer});
+"""
+    )
+    header = re.sub(r"^#(include|pragma once).*$", "", header, flags=re.M)
     source = re.sub(r"^#include.*$", "", source, flags=re.M)
     program = (
         SHIM
@@ -218,6 +242,7 @@ def main():
 int main() {
   char data[DATASIZE], previous[DATASIZE] = {}, base[] = "test";
   PubSubClient client;
+  setTopicGroups(TOPIC_GROUPS_ALL);
 """
         + "".join(checks)
         + "\n}\n"

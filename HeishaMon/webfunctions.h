@@ -17,6 +17,7 @@
 #include "s0.h"
 #include "HeishaOT.h"
 #include "gpio.h"
+#include "decode.h"
 
 #define HEATPUMP_VALUE_LEN    16
 
@@ -67,6 +68,7 @@ struct settingsStruct {
   bool logSerial1 = true; //log to serial1 (gpio2) from start
   bool opentherm = false; //opentherm enable flag
   bool hotspot = true; //enable wifi hotspot when wifi is not connected
+  uint16_t topicGroups = TOPIC_GROUPS_DEFAULT; //bit per topic group (decode.h), a cleared bit stops publishing those topics
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
   bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)

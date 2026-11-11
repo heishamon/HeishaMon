@@ -265,6 +265,15 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->logSerial1 = ( jsonDoc[F("logSerial1")] == "enabled" ) ? true : false;
           heishamonSettings->optionalPCB = ( jsonDoc[F("optionalPCB")] == "enabled" ) ? true : false;
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
+          heishamonSettings->topicGroups = (1 << TG_BASIC);
+          for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+            char key[sizeof(topicGroupKeys[0])];
+            strcpy_P(key, topicGroupKeys[g]);
+            JsonVariant v = jsonDoc[key];
+            bool enabled = v.isNull() ? ((TOPIC_GROUPS_DEFAULT >> g) & 1) : (v == "enabled"); //missing key: use the default
+            if (enabled) heishamonSettings->topicGroups |= (1 << g);
+          }
+          setTopicGroups(heishamonSettings->topicGroups);
 #ifdef ESP32          
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
           heishamonSettings->ethernet = ( jsonDoc[F("ethernet")] == "disabled" ) ? false : true; //default to true if not found in settings
@@ -510,6 +519,11 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("opentherm")] = "disabled";
   }
+  for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+    char key[sizeof(topicGroupKeys[0])];
+    strcpy_P(key, topicGroupKeys[g]);
+    jsonDoc[key] = ((heishamonSettings->topicGroups >> g) & 1) ? "enabled" : "disabled";
+  }
 #ifdef ESP32  
   if (heishamonSettings->proxy) {
     jsonDoc[F("proxy")] = "enabled";
@@ -675,6 +689,11 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("logSerial1")] = String("disabled");
   jsonDoc[F("optionalPCB")] = String("disabled");
   jsonDoc[F("opentherm")] = String("disabled");
+  for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+    char key[sizeof(topicGroupKeys[0])];
+    strcpy_P(key, topicGroupKeys[g]);
+    jsonDoc[key] = String("disabled"); //unchecked checkboxes are not posted
+  }
 
 #ifdef ESP32  
   jsonDoc[F("proxy")] = String("disabled");
@@ -779,6 +798,13 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("s0_2_minpulsewidth")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "s0_2_maxpulsewidth") == 0) {
       jsonDoc[F("s0_2_maxpulsewidth")] = tmp->value;
+    } else if (strncmp(tmp->name.c_str(), "topics_", 7) == 0) {
+      for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+        if (strcmp_P(tmp->name.c_str(), topicGroupKeys[g]) == 0) {
+          jsonDoc[tmp->name] = tmp->value;
+          break;
+        }
+      }
     } else {
       // Handle gpio_N_mode keys dynamically
       for (int i = 0; i < NUMGPIO_USER; i++) {
@@ -1381,10 +1407,12 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
   } else if ((client->content - 1) < NUMBER_OF_TOPICS) {
     uint8_t maxTopics =  client->content + 4; //limit the amount of topic sent per webloop
     for (uint8_t topic = client->content - 1; topic < NUMBER_OF_TOPICS && topic < maxTopics ; topic++) {
-      if (topic > 0) {
-        webserver_send_content_P(client, PSTR(","), 1);
+      if (topicEnabled(topic)) { // TOP0 is always enabled, so the comma rule below still holds
+        if (topic > 0) {
+          webserver_send_content_P(client, PSTR(","), 1);
+        }
+        sendJsonHeatpumpTopic(client, actData, topic);
       }
-      sendJsonHeatpumpTopic(client, actData, topic);
       client->content++;
     }
     client->content--; // The webserver also increases by 1
