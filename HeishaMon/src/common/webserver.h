@@ -113,6 +113,13 @@ typedef struct webserver_t {
   WiFiClient *client;
   unsigned long lastseen;
   unsigned long lastping;
+#if defined(ESP32)
+  // Buffered HTTP TX, flushed incrementally from webserver_loop().
+  uint8_t *tx_data;
+  uint16_t tx_used;
+  unsigned long tx_last_progress;
+  uint8_t tx_failed;
+#endif
   uint8_t is_websocket:1;
   uint8_t reqtype:1;
   uint8_t async:1;
