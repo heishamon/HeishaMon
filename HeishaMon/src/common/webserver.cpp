@@ -364,7 +364,19 @@ static int webserver_parse_post(struct webserver_t *client, uint16_t size) {
      * & delimiter
      */
 
-    unsigned char *ptr1 = (unsigned char *)memchr(&client->buffer[pos+1], '&', size-(pos+1));
+    /*
+     * An argument never continues past the end of its line. Without
+     * this limit, the arguments of a request line were searched in
+     * everything that was already buffered, so a '&' in a header or
+     * in the body of a small POST was taken as the end of a GET
+     * argument and the headers in between were thrown away.
+     */
+    uint16_t end = size;
+    if(ptrD != NULL && posD > pos) {
+      end = posD;
+    }
+
+    unsigned char *ptr1 = (unsigned char *)memchr(&client->buffer[pos+1], '&', end-(pos+1));
     if(ptr1 != NULL) {
       uint16_t pos1 = ptr1-client->buffer;
 
