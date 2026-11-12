@@ -1316,7 +1316,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                 cmdStruct tmp;
                 memcpy_P(&tmp, &commands[x], sizeof(tmp));
                 if (strcmp((char *)args->name, tmp.name) == 0) {
-                  len = tmp.func(cpy, cmd, log_msg);
+                  len = heatpump_command(&tmp, cpy, cmd, log_msg);
                   if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
                     loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
                     ESP.restart();
