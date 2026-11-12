@@ -34,6 +34,8 @@ int dBmToQuality(int dBm) {
 }
 
 
+static String wifiScanJson; // last WiFi scan result for /wifiscan
+
 void getWifiScanResults(int numSsid) {
   if (numSsid > 0) { //found wifi networks
     int indexes[numSsid];
@@ -70,7 +72,10 @@ void getWifiScanResults(int numSsid) {
       String quality = String(dBmToQuality(WiFi.RSSI(indexes[i]))) + "%";
       wifiJsonObject[F("rssi")] = quality;
     }
-    saveJsonToFile(wifiJsonDoc,"/wifiscan.json");
+    // Kept in RAM for /wifiscan, not on flash: a scan runs up to once a
+    // minute while the settings page is open.
+    wifiScanJson = "";
+    serializeJson(wifiJsonDoc, wifiScanJson);
     WiFi.scanDelete();
   }
 }
@@ -1029,22 +1034,8 @@ int handleWifiScan(struct webserver_t *client) {
 #endif
   if (client->content == 0) {
     webserver_send(client, 200, (char *)"application/json", 0);
-    if (LittleFS.begin()) {
-      File scanfile = LittleFS.open("/wifiscan.json", "r");
-      if (scanfile) {
-        size_t size = scanfile.size();
-        if (size > 0 ) {
-          // Allocate a buffer to store contents of the file.
-          std::unique_ptr<char[]> buf(new char[size]);
-          scanfile.readBytes(buf.get(), size);
-          webserver_send_content(client, buf.get(), size);
-          scanfile.close();
-        } else {
-          webserver_send_content_P(client, PSTR("[]"), 2);
-        }
-      } else {
-        webserver_send_content_P(client, PSTR("[]"), 2);
-      }
+    if (wifiScanJson.length() > 0) {
+      webserver_send_content(client, (char *)wifiScanJson.c_str(), wifiScanJson.length());
     } else {
       webserver_send_content_P(client, PSTR("[]"), 2);
     }

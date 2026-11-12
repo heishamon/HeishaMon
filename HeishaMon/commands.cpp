@@ -1366,12 +1366,27 @@ void send_heatpump_command(char* topic, char *msg, bool (*send_command)(byte*, i
 }
 
 
+// The optional PCB state is saved every OPTIONALPCBSAVETIME seconds; only a
+// changed state is written, so an unchanged one causes no flash wear.
+static byte optionalPCBSaved[OPTIONALPCBQUERYSIZE];
+static bool optionalPCBSavedValid = false;
+
+static void rememberOptionalPCB(const byte* command, int length) {
+  if (length != OPTIONALPCBQUERYSIZE) return;
+  memcpy(optionalPCBSaved, command, OPTIONALPCBQUERYSIZE);
+  optionalPCBSavedValid = true;
+}
+
 bool saveOptionalPCB(byte* command, int length) {
+  if (optionalPCBSavedValid && length == OPTIONALPCBQUERYSIZE && memcmp(command, optionalPCBSaved, OPTIONALPCBQUERYSIZE) == 0) {
+    return true;  // unchanged since the last save or load
+  }
   if (LittleFS.begin()) {
     File pcbfile = LittleFS.open("/optionalpcb.raw", "w");
     if (pcbfile) {
       pcbfile.write(command, length);
       pcbfile.close();
+      rememberOptionalPCB(command, length);
       return true;
     }
 
@@ -1385,6 +1400,7 @@ bool loadOptionalPCB(byte* command, int length) {
       if (pcbfile) {
         pcbfile.read(command, length);
         pcbfile.close();
+        rememberOptionalPCB(command, length);
         return true;
       }
     }
