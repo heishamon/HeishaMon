@@ -112,6 +112,24 @@ unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char
   return sizeof(panasonicSendQuery);
 }
 
+// A field ends where the next field of the same byte starts: SetQuietMode is built with mask 0xFF, but the heat pump
+// reports the quiet mode schedule in the bits above it.
+bool heatpump_command_unchanged(const cmdStruct *command, const unsigned char *cmd, unsigned int len, const char *data) {
+  if (!(command->flags & CMD_REPORTED) || command->address >= len || (byte)data[0] != 0x71) {
+    return false;
+  }
+  byte bits = (byte)(command->mask << command->shift);
+  for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+    cmdStruct other;
+    memcpy_P(&other, &commands[i], sizeof(other));
+    if (other.address == command->address && other.shift > command->shift) {
+      bits &= (byte)((1 << other.shift) - 1);
+    }
+  }
+  const byte value = cmd[command->address];
+  return value != 0 && ((byte)data[command->address] & bits) == value;
+}
+
 // The commands below can't be described by a row of settings in commands[].
 
 unsigned int set_operation_mode(char *msg, unsigned char *cmd, char *log_msg) {
@@ -365,7 +383,9 @@ void send_heatpump_command(char* topic, char *msg, bool (*send_command)(byte*, i
     if (strcmp(topic, tmp.name) == 0) {
       len = heatpump_command(&tmp, msg, cmd, log_msg);
       log_message(log_msg);
-      if (len > 0) send_command(cmd, len);
+      if (len > 0 && !skip_settings_command(&tmp, cmd, len)) {
+        send_command(cmd, len);
+      }
     }
   }
 

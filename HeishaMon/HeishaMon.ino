@@ -117,6 +117,8 @@ QueueHandle_t logQueue = NULL;
 char actData[DATASIZE] = { '\0' };
 char actDataExtra[DATASIZE] = { '\0' };
 char actOptData[OPTDATASIZE]  = { '\0' };
+static uint8_t mainBlocksSinceCommand = 0;
+static unsigned long lastMainBlockTime = 0;
 
 // log message to sprintf to
 #define LOG_MSG_SIZE 256
@@ -831,6 +833,10 @@ bool readSerial()
       if (data_length == DATASIZE)  {  //receive a full data block
         if  (data[3] == 0x10) { //decode the normal data block
           decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
+          if (mainBlocksSinceCommand < 255) {
+            mainBlocksSinceCommand++;
+          }
+          lastMainBlockTime = millis();
           if ( (!extraDataBlockAvailable) && ((actData[0] == 0x71) && (actData[0xc7] >= 3)) ) { //do we have valid header and byte 0xc7 is more or equal 3 then assume K&L and more series
             log_message(_F("Extra data available on this heatpump"));
             extraDataBlockAvailable = true; //request for extra data next run
@@ -1003,6 +1009,9 @@ bool send_command(byte* command, int length) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
   }
+  if (command[0] == 0xf1 && command[1] == 0x6c) { // the next block may still show the old value
+    mainBlocksSinceCommand = 0;
+  }
   struct cmdbuffer_t cmd;
   cmd.length = length;
   memcpy(&cmd.data, command, length);
@@ -1022,6 +1031,9 @@ bool send_command(byte* command, int length) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
   }
+  if (command[0] == 0xf1 && command[1] == 0x6c) { // the next block may still show the old value
+    mainBlocksSinceCommand = 0;
+  }
   if ( sending ) {
     log_message(_F("Already sending data. Buffering this send request"));
     pushCommandBuffer(command, length);
@@ -1040,6 +1052,18 @@ bool send_command(byte* command, int length) {
   return true;
 }
 #endif
+
+// Only fresh data proves a value is already set: the first block after a settings command may still show the old value, and old data says nothing about the current state.
+bool skip_settings_command(const cmdStruct *command, unsigned char *cmd, unsigned int len) {
+  if (mainBlocksSinceCommand >= 2 && (unsigned long)(millis() - lastMainBlockTime) <= 3000UL * heishamonSettings.waitTime
+      && heatpump_command_unchanged(command, cmd, len, actData)) {
+    char msg[96];
+    snprintf_P(msg, sizeof(msg), PSTR("%s not sent: the heat pump already reports this value"), command->name);
+    log_message(msg);
+    return true;
+  }
+  return false;
+}
 
 // Callback function that is called when a message has been pushed to one of your topics.
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -1325,7 +1349,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                   strcat((char *)client->userdata, log_msg);
                   strcat((char *)client->userdata, "\n");
                   log_message(log_msg);
-                  send_command(cmd, len);
+                  if (!skip_settings_command(&tmp, cmd, len)) {
+                    send_command(cmd, len);
+                  }
                 }
               }
 
