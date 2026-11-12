@@ -50,18 +50,28 @@ void setInstallerCommandsAllowed(bool allowed) {
   installerCommandsAllowed = allowed;
 }
 
-// The whole payload must be an integer of at most 5 characters
-static bool strict_number(const char *msg, long &value) {
+// The whole payload must be a number: an optional minus and digits, with tenths also one decimal ("3.5").
+// The value is returned as an integer, or in tenths.
+static bool strict_number(const char *msg, bool tenths, long &value) {
   const size_t length = msg == NULL ? 0 : strlen(msg);
-  if (length == 0 || length > 5) return false;
-  size_t index = msg[0] == '-' ? 1 : 0;
-  if (index == length) return false;
+  if (length == 0 || length > (tenths ? 7u : 5u)) return false;
+  const bool negative = msg[0] == '-';
+  size_t index = negative ? 1 : 0;
+  if (index == length || msg[index] < '0' || msg[index] > '9') return false;
   value = 0;
-  for (size_t i = index; i < length; ++i) {
-    if (msg[i] < '0' || msg[i] > '9') return false;
-    value = value * 10 + msg[i] - '0';
+  for (; index < length && msg[index] >= '0' && msg[index] <= '9'; ++index) {
+    value = value * 10 + msg[index] - '0';
   }
-  if (index == 1) value = -value;
+  if (tenths) {
+    value *= 10;
+    if (index < length) {
+      if (msg[index] != '.' || index + 2 != length || msg[index + 1] < '0' || msg[index + 1] > '9') return false;
+      value += msg[index + 1] - '0';
+      index += 2;
+    }
+  }
+  if (index != length) return false;
+  if (negative) value = -value;
   return true;
 }
 
@@ -75,10 +85,16 @@ unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char
   if (command->type == CMD_FUNC) return command->func(msg, cmd, log_msg);
 
   long value = 0;
-  if (command->type == CMD_STRICT) {
-    if (!strict_number(msg, value) || value < command->minimum || value > command->maximum || value % command->step != 0) {
-      snprintf_P(log_msg, 256, PSTR("%s ignored: expected integer %d..%d, step %d"), command->name,
-                 (int)command->minimum, (int)command->maximum, (int)command->step);
+  const bool tenths = command->type == CMD_TENTHS;
+  if (command->type == CMD_STRICT || tenths) {
+    if (!strict_number(msg, tenths, value) || value < command->minimum || value > command->maximum || value % command->step != 0) {
+      if (tenths) {
+        snprintf_P(log_msg, 256, PSTR("%s ignored: expected %.1f..%.1f, step %.1f"), command->name,
+                   command->minimum / 10.0, command->maximum / 10.0, command->step / 10.0);
+      } else {
+        snprintf_P(log_msg, 256, PSTR("%s ignored: expected integer %d..%d, step %d"), command->name,
+                   (int)command->minimum, (int)command->maximum, (int)command->step);
+      }
       return 0;
     }
   } else {
@@ -88,7 +104,11 @@ unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char
 
   memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
   cmd[command->address] = (byte)(((value / command->divisor + command->offset) & command->mask) << command->shift);
-  snprintf_P(log_msg, 256, PSTR("%s set to %ld"), command->name, value);
+  if (tenths) {
+    snprintf_P(log_msg, 256, PSTR("%s set to %.1f"), command->name, value / 10.0);
+  } else {
+    snprintf_P(log_msg, 256, PSTR("%s set to %ld"), command->name, value);
+  }
   return sizeof(panasonicSendQuery);
 }
 

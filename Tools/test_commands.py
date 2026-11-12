@@ -183,12 +183,39 @@ GATE = r"""
     setInstallerCommandsAllowed(false);
     assert(heatpump_command(&installer, payload, buffer, log) == 0);
   }
+  // payloads with one decimal: a sensor offset in a high nibble (0.5 K steps) and a whole byte in 0.1 steps
+  { const cmdStruct offset = { "SetOffset", 0, CMD_DECIMAL(35, 4, -35, 35, 5, 5, 8) };
+    const cmdStruct power = { "SetPower", 0, CMD_DECIMAL(51, 0, 1, 254, 1, 1, 1) };
+    struct { const cmdStruct *command; const char *payload; int value; } cases[] = {
+      { &offset, "-3.5", 0x10 }, { &offset, "-0.5", 0x70 }, { &offset, "0", 0x80 }, { &offset, "0.0", 0x80 },
+      { &offset, "0.5", 0x90 }, { &offset, "2", 0xC0 }, { &offset, "3.5", 0xF0 }, { &offset, "-0", 0x80 },
+      { &offset, "3.6", -1 }, { &offset, "4", -1 }, { &offset, "-4", -1 }, { &offset, "0.25", -1 },
+      { &offset, "1.", -1 }, { &offset, ".5", -1 }, { &offset, "-", -1 }, { &offset, "-.5", -1 },
+      { &offset, "", -1 }, { &offset, "abc", -1 }, { &offset, "1.5x", -1 }, { &offset, " 1", -1 },
+      { &offset, "1,5", -1 }, { &offset, "0.5.0", -1 }, { &offset, "99999999", -1 },
+      { &power, "0.1", 2 }, { &power, "4", 41 }, { &power, "4.2", 43 }, { &power, "25.4", 255 },
+      { &power, "0", -1 }, { &power, "0.0", -1 }, { &power, "25.5", -1 }, { &power, "-1", -1 },
+    };
+    for (auto &c : cases) {
+      byte buffer[256]; char log[256]; char payload[16];
+      memset(buffer, 0xa5, sizeof(buffer)); strcpy(payload, c.payload);
+      unsigned int length = heatpump_command(c.command, payload, buffer, log);
+      if (c.value < 0) {
+        if (length != 0) fail(c.command->name, c.payload, "length not 0");
+        for (byte b : buffer) if (b != 0xa5) fail(c.command->name, c.payload, "buffer touched");
+      } else if (length != sizeof(panasonicSendQuery) || buffer[c.command->address] != c.value) {
+        printf("FAIL %s '%s': 0x%02X, expected 0x%02X\\n", c.command->name, c.payload, buffer[c.command->address], c.value);
+        exit(1);
+      }
+    }
+    assert(heatpump_command(&offset, nullptr, nullptr, (char *)memset(new char[256], 0, 256)) == 0);
+  }
   for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
     if (commands[i].type == CMD_FUNC) continue;
     byte buffer[256]; char log[256];
     memset(buffer, 0xa5, sizeof(buffer));
     unsigned int length = heatpump_command(&commands[i], nullptr, buffer, log);
-    if (commands[i].type == CMD_STRICT) { assert(length == 0); for (byte b : buffer) assert(b == 0xa5); }
+    if (commands[i].type == CMD_STRICT || commands[i].type == CMD_TENTHS) { assert(length == 0); for (byte b : buffer) assert(b == 0xa5); }
     else assert(length == sizeof(panasonicSendQuery));
     assert(commands[i].address >= 4 && commands[i].address < sizeof(panasonicSendQuery));
     assert(commands[i].divisor > 0 && commands[i].step > 0);

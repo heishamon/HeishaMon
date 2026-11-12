@@ -43,6 +43,8 @@ enum cmdType : uint8_t {
   CMD_NUMBER,  // any number, the leading digits of the payload are used (as String::toInt), not range checked
   CMD_CHOICE,  // as CMD_NUMBER, but everything outside 0..maximum counts as 0
   CMD_STRICT,  // the whole payload must be an integer minimum..maximum in multiples of step, else nothing is sent
+  CMD_TENTHS,  // as CMD_STRICT, but the payload may have one decimal ("3", "3.5"); value, minimum, maximum and
+               // step are in tenths
 };
 
 #define CMD_INSTALLER 0x01  // installer setting, only accepted after setInstallerCommandsAllowed(true)
@@ -77,6 +79,9 @@ struct cmdStruct {
 // a checked value: minimum..maximum in multiples of step, sent as value / divisor + offset
 #define CMD_CHECKED(address, shift, minimum, maximum, step, divisor, offset) \
                                                     CMD_STRICT, (address), (shift), 0xFF, (offset), (divisor), (step), (minimum), (maximum), NULL
+// a checked value with one decimal: as CMD_CHECKED, with minimum, maximum, step and divisor in tenths
+#define CMD_DECIMAL(address, shift, minimum, maximum, step, divisor, offset) \
+                                                    CMD_TENTHS, (address), (shift), 0xFF, (offset), (divisor), (step), (minimum), (maximum), NULL
 // built by its own function
 #define CMD_FUNCTION(func)                          CMD_FUNC,   0,         0,       0,    0,     1,      1,   0,      0,      (func)
 
