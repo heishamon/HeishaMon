@@ -193,6 +193,23 @@ String getErrorInfo(char* data) { // TOP44 //
 }
 
 
+static uint16_t enabledTopicGroups = TOPIC_GROUPS_DEFAULT;
+
+void setTopicGroups(uint16_t groups) {
+  groups |= (1 << TG_BASIC);
+  if (groups & ~enabledTopicGroups) {
+    lastalldatatime = 0; // publish the topics of a newly enabled group straight away
+  }
+  enabledTopicGroups = groups;
+}
+
+bool topicEnabled(unsigned int Topic_Number) {
+  if (Topic_Number >= NUMBER_OF_TOPICS) {
+    return false;
+  }
+  return (enabledTopicGroups >> pgm_read_byte(&topicGroup[Topic_Number])) & 1;
+}
+
 void resetlastalldatatime() {
   lastalldatatime = 0;
   lastallextradatatime = 0;
@@ -360,7 +377,7 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
       updateTopic[Topic_Number] = true;
     }
 
-    if (updateTime || updateTopic[Topic_Number]) {
+    if ((updateTime || updateTopic[Topic_Number]) && topicEnabled(Topic_Number)) {
       char log_msg[256];
       char mqtt_topic[256];
       sprintf_P(log_msg, PSTR("received TOP%d %s: %s"), Topic_Number, topics[Topic_Number], Topic_Value.c_str());
@@ -384,7 +401,9 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
       } else {
         snprintf_P(log_msg, sizeof(log_msg), PSTR("{\"data\": {\"heishavalues\": {\"topic\": \"TOP%u\", \"value\": %s, \"description\": \"%s\"}}}"), Topic_Number, dataValue.c_str(),modeDescription(topicDescription[Topic_Number], dataValue.toInt()));
       }
-      websocket_write_all(log_msg, strlen(log_msg));          
+      if (topicEnabled(Topic_Number)) {
+        websocket_write_all(log_msg, strlen(log_msg));
+      }
       rules_event_cb(_F("@"), topics[Topic_Number]);
     }
   }

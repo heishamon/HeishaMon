@@ -1709,6 +1709,19 @@ static const char settingsForm2[] FLASHPROG = R"====(
     </div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Topic groups</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Switched off groups are not published to MQTT or shown on the main page. Rules and Modbus still see all values. The basic topics are always published.</span></div>
+    <div class='setting-row'><label class='setting-label'>Heating &amp; cooling</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_heatcool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>zone 1, curves, setpoints</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Zone 2</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_zone2' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>DHW &amp; heaters</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_dhw_heaters' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>heater states, sterilization, delays</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Diagnostics</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_diagnostics' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>refrigerant circuit, fans, pressures</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Buffer, solar &amp; pool</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_buffer_solar_pool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also dry concrete</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Bivalent</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_bivalent' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>External control &amp; SG ready</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_external_sgready' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also demand control, optional PCB</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Installer settings</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_installer' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>static installer menu settings</span></div></div>
+  </div></div>
+  <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Behavior</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'><label class='setting-label'>WiFi hotspot when disconnected</label><div class='checkbox-wrap'><input type='checkbox' name='hotspot' value='enabled'></div></div>
@@ -1818,6 +1831,19 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <span class='setting-hint'>seconds</span>
       </div>
     </div>
+  </div></div>
+  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Topic groups</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Switched off groups are not published to MQTT or shown on the main page. Rules and Modbus still see all values. The basic topics are always published.</span></div>
+    <div class='setting-row'><label class='setting-label'>Heating &amp; cooling</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_heatcool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>zone 1, curves, setpoints</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Zone 2</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_zone2' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>DHW &amp; heaters</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_dhw_heaters' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>heater states, sterilization, delays</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Diagnostics</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_diagnostics' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>refrigerant circuit, fans, pressures</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Buffer, solar &amp; pool</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_buffer_solar_pool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also dry concrete</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Bivalent</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_bivalent' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>External control &amp; SG ready</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_external_sgready' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also demand control, optional PCB</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Installer settings</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_installer' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>static installer menu settings</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Behavior</h3></div>

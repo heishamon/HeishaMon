@@ -252,6 +252,22 @@ The topics above are relative to the configured MQTT base topic. New topics TOP1
 
 All Topics related with state can have also value -1 - unknown - but only in abnormal situations.
 
+### Topic groups
+
+The main topics are split into groups. In Settings, under *Topic groups*, every group except the basic one can be switched off. A switched off topic is not published to MQTT, not sent over the websocket and left out of `/json`, but it is still decoded: rules (`@Name`), Modbus and `/json?topic=` keep working. The installer settings group is off by default. Values that were published before a group was switched off stay retained on the broker until you remove them.
+
+| Group | Settings key | Default | Topics |
+|---|---|---|---|
+| Basic (always on) | - | on | TOP0-20, 26, 38-41, 44, 92, 160-161 |
+| Heating & cooling | `topics_heatcool` | on | TOP22-24, 27-33, 36, 42, 45, 56, 72-77, 79-81, 94, 124, 127, 166, 169 |
+| Zone 2 | `topics_zone2` | on | TOP34-35, 37, 43, 57, 82-89, 118, 123, 128, 165 |
+| DHW & heaters | `topics_dhw_heaters` | on | TOP25, 58-61, 68-71, 78, 90-91, 96-98, 140, 151, 158-159 |
+| Diagnostics | `topics_diagnostics` | on | TOP21, 49-55, 62-67, 93, 115-117, 125-126, 142 |
+| Buffer, solar & pool | `topics_buffer_solar_pool` | on | TOP46-48, 101-105, 113-114, 144, 152-153 |
+| Bivalent | `topics_bivalent` | on | TOP129-138, 164, 180-181 |
+| External control & SG ready | `topics_external_sgready` | on | TOP110, 119-122, 149-150, 154-157, 162-163, 184-192 |
+| Installer settings | `topics_installer` | off | TOP95, 99-100, 106-109, 111-112, 139, 141, 143, 145-148, 167-168, 170-179, 182-183, 193-196 |
+
 ## Extra Sensor Topics:
 Some heatpumps (K/L series and newer) send an additional "extra data block" on top of the normal data block. HeishaMon detects this automatically at boot and, if available, starts requesting and decoding it as well. These extra topics provide separate, more precise power consumption/production values (Watt) per mode, published under the `extra/` topic prefix. If your heatpump does not support the extra data block, these topics will not be published.
 
