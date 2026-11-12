@@ -246,11 +246,7 @@ void check_wifi() {
       }
       if ((wifistatus == WL_DISCONNECTED) && (WiFi.softAPgetStationNum() == 0)) {
         log_message(_F("Retrying configured WiFi, ..."));
-        if (heishamonSettings.wifi_password[0] == '\0') {
-          WiFi.begin(heishamonSettings.wifi_ssid);
-        } else {
-          WiFi.begin(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);
-        }
+        wifiBeginStrongest(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);  // scan again, the old node may be gone
       } else {
         log_message(_F("Reconnecting to WiFi failed. Waiting a few seconds before trying again."));
         WiFi.disconnect(true);

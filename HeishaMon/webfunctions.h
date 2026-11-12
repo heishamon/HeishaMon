@@ -87,6 +87,9 @@ void setupConditionals();
 int getFreeMemory(void);
 char *getUptime(void);
 void setupWifi(settingsStruct *heishamonSettings);
+#if defined(ESP8266)
+void wifiBeginStrongest(const char *ssid, const char *password);
+#endif
 int getWifiQuality(void);
 int getFreeMemory(void);
 void ntpReload(settingsStruct *heishamonSettings);
