@@ -53,7 +53,7 @@ static const char _unknown[] PROGMEM = "unknown";
 
 
 
-#define NUMBER_OF_TOPICS 197 //last topic number + 1
+#define NUMBER_OF_TOPICS 199 //last topic number + 1
 #define NUMBER_OF_TOPICS_EXTRA 6 //last topic number + 1
 #define NUMBER_OF_OPT_TOPICS 7 //last topic number + 1
 #define MAX_TOPIC_LEN 42 // max length + 1
@@ -129,7 +129,7 @@ static const byte topicGroup[] PROGMEM = {
   TG_BIVALENT, TG_BIVALENT, TG_INSTALLER, TG_INSTALLER, TG_EXTERNAL_SGREADY, // TOP180-184
   TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, // TOP185-189
   TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_INSTALLER, TG_INSTALLER, // TOP190-194
-  TG_INSTALLER, TG_INSTALLER, // TOP195-196
+  TG_INSTALLER, TG_INSTALLER, TG_BASIC, TG_BASIC, // TOP195-198
 };
 static_assert(sizeof(topicGroup) == NUMBER_OF_TOPICS, "every main topic needs a group in topicGroup[]");
 
@@ -362,6 +362,8 @@ static const char topics[][MAX_TOPIC_LEN] PROGMEM = {
   "Defrost_Signal", //TOP194
   "Sensor_Offset_DHW_Tank", //TOP195
   "Sensor_Offset_Flow", //TOP196
+  "Heat_Pump_Capacity", //TOP197
+  "Heat_Pump_Type", //TOP198
 };
 
 static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit unsigned humber) as there aren't more then 255 bytes (actually only 203 bytes) to decode
@@ -562,6 +564,8 @@ static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit 
   28, //TOP194
   36, //TOP195
   37, //TOP196
+  191, //TOP197
+  192, //TOP198
 };
 
 
@@ -774,6 +778,8 @@ static const topicFP topicFunctions[] PROGMEM = {
   getBit1and2, //TOP194
   getLowNibbleOffset, //TOP195
   getLowNibbleOffset, //TOP196
+  getIntMinus1, //TOP197
+  getIntMinus1, //TOP198
 };
 
 static const char *DisabledEnabled[] PROGMEM = {"2", "Disabled", "Enabled"};
@@ -820,6 +826,7 @@ static const char *DHWHeaterType[] PROGMEM = {"2", "Internal", "External"};
 static const char *Kilowatt[] PROGMEM = {"0", "kW"};
 static const char *HeatCoolSwitch[] PROGMEM = {"2", "Heat", "Cool"};
 static const char *ClosedOpen[] PROGMEM = {"2", "Closed", "Open"};
+static const char *HeatPumpType[] PROGMEM = {"2", "Standard", "T-CAP"};
 static const char *ZoneConfiguration[] PROGMEM = {"0", "Configuration code"};
 static const char *Steps[] PROGMEM = {"0", "Steps"};
 static const char *BivalentOperatingMode[] PROGMEM = {"3", "Auto", "SG ready", "Intelligent"};
@@ -1042,4 +1049,6 @@ static const char **topicDescription[] PROGMEM = {
   DisabledEnabled, //TOP194
   Kelvin, //TOP195
   Kelvin, //TOP196
+  Kilowatt, //TOP197
+  HeatPumpType, //TOP198
 };
