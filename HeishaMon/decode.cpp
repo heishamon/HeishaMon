@@ -90,6 +90,29 @@ String getIntMinus1Times50(byte input) {
   return (String)(value * 50);
 }
 
+// Nibble fields (minutes / 5 + 1): low nibble of byte 33 / 34 and high nibble of byte 33
+String getLowNibbleMinus1Times5(byte input) {
+  return String(((int)(input & 0x0F) - 1) * 5);
+}
+
+String getHighNibbleMinus1Times5(byte input) {
+  return String(((int)(input >> 4) - 1) * 5);
+}
+
+// kW with one decimal: (value - 1) / 10 (SG ready power consumption limits)
+String getIntMinus1Div10(byte input) {
+  return String((((float)input - 1) / 10), 1);
+}
+
+// Nibble fields (offset in K / 0.5 + 8): sensor offsets in byte 35
+String getLowNibbleOffset(byte input) {
+  return String((((int)(input & 0x0F) - 8) / 2.0f), 1);
+}
+
+String getHighNibbleOffset(byte input) {
+  return String((((int)(input >> 4) - 8) / 2.0f), 1);
+}
+
 
 String unknown(byte input) {
   return "-1";
