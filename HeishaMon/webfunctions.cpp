@@ -290,6 +290,9 @@ void loadSettings(settingsStruct *heishamonSettings) {
           if ( jsonDoc[F("updateAllTime")]) heishamonSettings->updateAllTime = jsonDoc[F("updateAllTime")];
           if (heishamonSettings->updateAllTime < heishamonSettings->waitTime) heishamonSettings->updateAllTime = heishamonSettings->waitTime;
           if ( jsonDoc[F("updataAllDallasTime")]) heishamonSettings->updataAllDallasTime = jsonDoc[F("updataAllDallasTime")];
+          if (!jsonDoc[F("settingsChangeWarn")].isNull()) { // isNull() instead of a truth test, so a stored 0 (off) is kept
+            heishamonSettings->settingsChangeWarn = jsonDoc[F("settingsChangeWarn")];
+          }
           if (heishamonSettings->updataAllDallasTime < heishamonSettings->waitDallasTime) heishamonSettings->updataAllDallasTime = heishamonSettings->waitDallasTime;
           //if (jsonDoc[F("s0_1_gpio")]) heishamonSettings->s0Settings[0].gpiopin = jsonDoc[F("s0_1_gpio")];
           if (jsonDoc[F("s0_1_ppkwh")]) heishamonSettings->s0Settings[0].ppkwh = jsonDoc[F("s0_1_ppkwh")];
@@ -593,6 +596,7 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   jsonDoc[F("dallasResolution")] = heishamonSettings->dallasResolution;
   jsonDoc[F("updateAllTime")] = heishamonSettings->updateAllTime;
   jsonDoc[F("updataAllDallasTime")] = heishamonSettings->updataAllDallasTime;
+  jsonDoc[F("settingsChangeWarn")] = heishamonSettings->settingsChangeWarn;
   jsonDoc[F("s0_1_ppkwh")] = heishamonSettings->s0Settings[0].ppkwh;
   jsonDoc[F("s0_1_interval")] = heishamonSettings->s0Settings[0].lowerPowerInterval;
   jsonDoc[F("s0_1_minpulsewidth")] = heishamonSettings->s0Settings[0].minimalPulseWidth;
@@ -814,6 +818,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("dallasResolution")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "updataAllDallasTime") == 0) {
       jsonDoc[F("updataAllDallasTime")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "settingsChangeWarn") == 0) {
+      jsonDoc[F("settingsChangeWarn")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "wifi_ssid") == 0) {
       wifi_ssid = tmp->value.c_str();
     } else if (strcmp(tmp->name.c_str(), "wifi_password") == 0) {
