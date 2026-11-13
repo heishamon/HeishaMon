@@ -190,7 +190,7 @@ TOP141 | main/Quiet_Mode_Priority | Quiet Mode Priority (0=sound, 1=capacity)
 TOP142 | main/Expansion_Valve | Expansion Valve (Steps)
 TOP143 | main/DHW_Sensor_Selection | DHW tank sensor selection (0=Top, 1=Center) (K/L series All-In-One only)
 TOP144 | main/Dry_Concrete_State | Concrete drying (0=off, 1=on)
-TOP145 | main/DHW_Capacity_Mode | DHW capacity (0=Standard, 1=Variable; J series)
+TOP145 | main/DHW_Capacity_Mode | DHW capacity (0=Standard, 1=Variable; J series). On the M series this field reads 0 and a write was not kept; the DHW capacity is TOP140 there
 TOP146 | main/Zone_Configuration | Zone configuration (decimal raw code: 21=one zone, Z1 room; 25=one zone, Z1 pool; 22=two zones, Z2 room; 38=two zones, Z2 pool)
 TOP147 | main/Internal_Heater_Capacity | Configured internal heater capacity (3/6/9 kW; -1=unavailable)
 TOP148 | main/DHW_Heater_Type | DHW heater type (0=internal, 1=external)
