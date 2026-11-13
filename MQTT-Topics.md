@@ -345,7 +345,7 @@ SET36 | SetBivalentStartTemp | Set bivalent start temp | -15 to 35
 SET37 | SetBivalentAPStartTemp | Set bivalent adv. par. start temp | -15 to 35
 SET38 | SetBivalentAPStopTemp | Set bivalent adv. par. stop temp | -15 to 35
 SET39 | SetHeatingControl | Set heating control | 0=comfort, 1=efficiency
-SET40 | SetSmartDHW | Set SmartDHW | 0=variable, 1=standard
+SET40 | SetSmartDHW | Set SmartDHW (DHW capacity); readback TOP140; write acceptance is hardware-verified on the M series | 0=variable, 1=standard
 SET41 | SetQuietModePriority | Set Quiet Mode Priority | 0=sound, 1=capacity
 SET42 | SetPumpFlowrateMode | Set Pump Flowrate Mode | 0=deltaT, 1=max. duty
 SET43 | SetDHWSensorSelection | Set DHW tank sensor selection (K/L series All-In-One only) | 0=Top, 1=Center
@@ -355,14 +355,14 @@ SET46 | SetHeaterOnOutdoorTemp | Outdoor temperature for heater ON | -15 to 20
 SET47 | SetForceHeater | Force heater mode (emergency heating), same as the heater button on the remote. State is reported in TOP68 | 0=off, 1=on
 SET48 | SetReset | Reset/confirm active heatpump fault code (e.g. H72). Equivalent to pressing "Reset" on the CZ-TAW1 remote / indoor unit panel. Writes byte 8 of the outgoing query. Clears latched errors that soft power-cycle (`SetHeatpump` 0→1) cannot clear. | 0=no action, 1=reset
 SET49 | SetSterilizationTemp | Set DHW sterilization target temperature; experimental, L-series write acceptance is hardware-verified | integer 55-75 (degrees C)
-SET50 | SetSterilizationMaxTime | Set DHW sterilization holding time after reaching target temperature; experimental, L-series write acceptance is hardware-verified | 5, 10, 15, ..., 60 minutes; other values are rejected without sending a command
+SET50 | SetSterilizationMaxTime | Set DHW sterilization holding time after reaching target temperature; experimental, write acceptance is hardware-verified on the L and M series | 5, 10, 15, ..., 60 minutes; other values are rejected without sending a command
 SET51 | SetHeatToCoolTemp | Outdoor temperature for automatic heat-to-cool switching; readback TOP79 | integer -127..127 °C (wire range)
 SET52 | SetCoolToHeatTemp | Outdoor temperature for automatic cool-to-heat switching; readback TOP80 | integer -127..127 °C (wire range)
 SET53 | SetRoomOperationMaxTime | Maximum room heating operation time when alternating with DHW; readback TOP158 | 30..7620 minutes, multiples of 30 (wire range)
 SET54 | SetDHWHeatupMaxTime | Maximum DHW heat-up time; readback TOP159 | integer 1..254 minutes (wire range)
 SET55 | SetQuietModeSchedule | Enable/disable the existing quiet-mode schedule; readback TOP3 | 0=off, 1=on
 
-SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples but have not been hardware-tested here. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
+SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples. SET52 and SET55 were hardware-tested on an M-series unit (written with a changed value, read back, restored), the others not. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
 
 Example: publish `21` to `panasonic_heat_pump/commands/SetHeatToCoolTemp`, `90` to `panasonic_heat_pump/commands/SetRoomOperationMaxTime`, or `1` to `panasonic_heat_pump/commands/SetQuietModeSchedule` (replace the base topic as configured).
 
