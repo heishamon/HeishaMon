@@ -70,6 +70,64 @@ RECORDED = {
     "SetRoomOperationMaxTime": (97, [None, None, None, None, None, None, None, None, 3, None, None, None, 11, None, None, None, None, None]),
     "SetDHWHeatupMaxTime": (98, [None, None, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
     "SetQuietModeSchedule": (7, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    # installer menu settings, recorded from their per-command functions before they became table rows
+    "SetAntiFreezeMode": (20, [None, 4, 8, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetPoolDelta": (58, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetDemandControlEnable": (27, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetDHWDefrost": (30, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetStaticPressure": (31, [None, 16, 32, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetHeatingOnOutdoorTemp": (108, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetHeatingOnDelay": (109, [None, None, None, None, None, None, None, None, 3, None, None, None, 11, None, None, None, None, None]),
+    "SetDHWBoosterDelay": (60, [None, None, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetEfficiencyStage1Time": (33, [None, 1, None, None, None, None, None, None, 13, None, None, None, None, None, None, None, None, None]),
+    "SetEfficiencyStage2Time": (33, [None, 16, None, None, None, None, None, None, 208, None, None, None, None, None, None, None, None, None]),
+    "SetEfficiencyStage3Time": (34, [None, 1, None, None, None, None, None, None, 13, None, None, None, None, None, None, None, None, None]),
+    "SetSensorOffsetRemoteTh1": (35, [None, 128, 160, 192, 224, None, None, None, None, None, None, None, None, 160, None, None, None, None]),
+    "SetSensorOffsetOutdoor": (35, [None, 8, 10, 12, 14, None, None, None, None, None, None, None, None, 10, None, None, None, None]),
+    "SetBivalentAPHeat": (26, [None, 16, 32, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetBivalentOperatingMode": (27, [None, 16, 32, 48, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetBivalentExternalPump": (27, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetBivalentAPStartDelay": (67, [None, None, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetBivalentAPStopDelay": (69, [None, None, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetExtraPump": (31, [None, 5, 10, 3, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetExtraPumpMode": (31, [None, 4, 8, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetInternalHeaterCapacity": (25, [None, None, None, None, 4, 8, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetSolarOnDelta": (61, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetSolarOffDelta": (62, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetSolarFrostProtection": (63, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetRoomHolidayShiftTemp": (43, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetZoneType": (21, [None, 4, 8, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetHeatingWaterMode": (28, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetCoolingWaterMode": (28, [None, 4, 8, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetLiquidType": (20, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetDHWHeaterType": (25, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetDHWInstalled": (24, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetSolarMode": (24, [None, 16, 32, 48, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetSolarHighLimit": (64, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetSGReadyMode": (27, [None, 4, 8, 12, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetSGReadyDHWPower1": (51, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyHeatPower1": (52, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyCoolPower1": (53, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyDHWPower2": (54, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyHeatPower2": (55, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyCoolPower2": (56, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyStopPower": (57, [None, None, 11, 21, 31, 61, None, 211, None, None, None, None, None, 11, 216, None, None, None]),
+    "SetSGReadyCoolCapacity1": (102, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetSGReadyCoolCapacity2": (103, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetSensorOffsetReturn": (36, [None, 128, 160, 192, 224, None, None, None, None, None, None, None, None, 160, None, None, None, None]),
+    "SetZ1SensorSettings": (22, [None, 1, 2, 3, 4, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetDefrostSignal": (28, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetSensorOffsetDhwTank": (36, [None, 8, 10, 12, 14, None, None, None, None, None, None, None, None, 10, None, None, None, None]),
+    "SetSensorOffsetFlow": (37, [None, 8, 10, 12, 14, None, None, None, None, None, None, None, None, 10, None, None, None, None]),
+    # added later; expected bytes from the encoding of the row, not recorded from an older function
+    "SetSGReadyHeatCapacity1": (71, [None, 1, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetSGReadyDHWCapacity1": (72, [None, 1, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetSGReadyHeatCapacity2": (73, [None, 1, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetSGReadyDHWCapacity2": (74, [None, 1, 2, 3, 4, 7, None, 22, 61, 76, 128, None, None, None, None, None, None, None]),
+    "SetBivalentAPDHW": (26, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetOptionalPCB": (20, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetDHWHolidayShiftTemp": (44, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
+    "SetDryConcrete": (5, [None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
 }
 
 # Checked commands: (byte, [(payload, value)], [refused payloads])
@@ -97,7 +155,18 @@ CHECKED = {
     "SetQuietModeSchedule": (7, [("0", 64), ("1", 128)], ["2", "-1"]),
     "SetSterilizationTemp": (100, [("55", 183), ("75", 203)], ["54", "76", "-55"]),
     "SetSterilizationMaxTime": (101, [("5", 6), ("60", 61)], ["0", "4", "7", "65"]),
+    "SetSensorOffsetRemoteTh1": (35, [("-3.5", 0x10), ("-0.5", 0x70), ("0", 0x80), ("1.5", 0xB0), ("3.5", 0xF0)], ["4", "-4", "0.25", "3.6"]),
+    "SetSensorOffsetFlow": (37, [("-3.5", 0x01), ("0.0", 0x08), ("3.5", 0x0F)], ["4", "0.3", "1,5"]),
+    "SetSGReadyHeatPower2": (55, [("0.1", 2), ("4.2", 43), ("10", 101), ("25.4", 255)], ["0", "25.5", "-1"]),
+    "SetEfficiencyStage2Time": (33, [("0", 0x10), ("5", 0x20), ("70", 0xF0)], ["3", "75", "-5"]),
+    "SetHeatingOnDelay": (109, [("30", 2), ("7620", 255)], ["0", "45", "7650"]),
+    "SetInternalHeaterCapacity": (25, [("3", 0x04), ("6", 0x08), ("9", 0x0C)], ["0", "7", "12"]),
+    "SetExtraPump": (31, [("0", 0x05), ("1", 0x0A), ("2", 0x03)], ["3", "-1"]),
+    "SetExtraPumpMode": (31, [("0", 0x04), ("1", 0x08)], ["2", "-1"]),
+    "SetSolarMode": (24, [("0", 0x10), ("1", 0x20), ("2", 0x30)], ["3", "-1"]),
+    "SetZ1SensorSettings": (22, [("0", 1), ("3", 4)], ["4", "-1"]),
 }
+DECIMAL = {"SetSensorOffsetRemoteTh1", "SetSensorOffsetFlow", "SetSGReadyHeatPower2"}
 REFUSED = ["", "abc", "1x", "1.0", " 1", "+1", "1 ", "-", "999999999999999"]
 
 SHIM = r"""
@@ -266,7 +335,8 @@ def main():
     for topic, (address, accepted, refused) in CHECKED.items():
         for payload, value in accepted:
             checks.append(CASE.format(topic=topic, payload=payload, address=address, value=value))
-        for payload in refused + REFUSED:
+        # a payload with one decimal ("1.0") is valid for the commands that take tenths
+        for payload in refused + [p for p in REFUSED if not (p == "1.0" and topic in DECIMAL)]:
             checks.append(CASE.format(topic=topic, payload=payload, address=address, value=-1))
 
     program = SHIM + header + template + encoder + "\n".join(stubs) + dispatcher

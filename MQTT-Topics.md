@@ -194,7 +194,7 @@ TOP145 | main/DHW_Capacity_Mode | DHW capacity (0=Standard, 1=Variable; J series
 TOP146 | main/Zone_Configuration | Zone configuration (decimal raw code: 21=one zone, Z1 room; 25=one zone, Z1 pool; 22=two zones, Z2 room; 38=two zones, Z2 pool)
 TOP147 | main/Internal_Heater_Capacity | Configured internal heater capacity (3/6/9 kW; -1=unavailable)
 TOP148 | main/DHW_Heater_Type | DHW heater type (0=internal, 1=external)
-TOP149 | main/SG_Ready_Control | SG Ready control (0=disabled, 1=enabled)
+TOP149 | main/SG_Ready_Control | SG Ready control (0=disabled, 1=enabled, capacity, 2=enabled, power consumption)
 TOP150 | main/Demand_Control | Demand control (0=disabled, 1=enabled)
 TOP151 | main/DHW_Defrost | DHW defrost option (0=no, 1=yes; K/L series)
 TOP152 | main/Dry_Concrete_Target_Temp | Current stage target temperature for concrete drying (°C)
@@ -361,11 +361,70 @@ SET52 | SetCoolToHeatTemp | Outdoor temperature for automatic cool-to-heat switc
 SET53 | SetRoomOperationMaxTime | Maximum room heating operation time when alternating with DHW; readback TOP158 | 30..7620 minutes, multiples of 30 (wire range)
 SET54 | SetDHWHeatupMaxTime | Maximum DHW heat-up time; readback TOP159 | integer 1..254 minutes (wire range)
 SET55 | SetQuietModeSchedule | Enable/disable the existing quiet-mode schedule; readback TOP3 | 0=off, 1=on
+SET56 | SetOptionalPCB | Optional PCB connectivity in the installer menu (not the optional PCB emulation); readback TOP110. Shared byte, see below | 0=no, 1=yes
+SET57 | SetAntiFreezeMode | Anti freezing option; readback TOP109. Shared byte, see below | 0=off, 1=on
+SET58 | SetLiquidType | Circulation liquid; readback TOP107. Shared byte, see below | 0=water, 1=glycol
+SET59 | SetStaticPressure | Static pressure option; readback TOP170. Shared byte, see below | 0=disabled, 1=enabled
+SET60 | SetDefrostSignal | Defrost signal, installer menu System setup; readback TOP194. Shared byte, see below | 0=no, 1=yes
+SET61 | SetInternalHeaterCapacity | Back-up heater capacity; readback TOP147. Shared byte, see below | 3, 6 or 9 (kW); the manuals list 3 / 6 / 9 kW depending on the model, a unit may offer fewer
+SET62 | SetZoneType | Zone 1 type room / pool; readback TOP146. Shared byte, see below | 0=room, 1=pool
+SET63 | SetZ1SensorSettings | Zone 1 sensor type; readback TOP111. Shared byte, see below | 0=water temperature, 1=external thermostat, 2=internal thermostat, 3=thermistor
+SET64 | SetSensorOffsetRemoteTh1 | Sensor offset Th1 (remote); readback TOP177. Shared byte, see below | -3.5..3.5 K in steps of 0.5, e.g. `-1.5` (wire range); installer menu -3..3 K
+SET65 | SetSensorOffsetOutdoor | Sensor offset outdoor sensor; readback TOP178. Shared byte, see below | -3.5..3.5 K in steps of 0.5, e.g. `-1.5` (wire range); installer menu -3..3 K
+SET66 | SetSensorOffsetReturn | Sensor offset return sensor; readback TOP193. Shared byte, see below | -3.5..3.5 K in steps of 0.5, e.g. `-1.5` (wire range); installer menu -3..3 K
+SET67 | SetSensorOffsetFlow | Sensor offset flow sensor; readback TOP196. Shared byte, see below | -3.5..3.5 K in steps of 0.5, e.g. `-1.5` (wire range); installer menu -3..3 K
+SET68 | SetSensorOffsetDhwTank | Sensor offset DHW tank sensor; readback TOP195. Shared byte, see below | -3.5..3.5 K in steps of 0.5, e.g. `-1.5` (wire range); installer menu -3..3 K
+SET69 | SetHeatingOnOutdoorTemp | Outdoor temperature for heating ON; readback TOP171. The installer menu keeps it below the heating OFF temperature (SetHeatingOffOutdoorTemp) | integer -127..127 °C (wire range); installer menu from 5 °C, below the heating OFF temperature
+SET70 | SetHeatingOnDelay | Heating ON delay time; readback TOP172 | 30..7620 minutes, multiples of 30 (wire range); installer menu 30..1440 minutes
+SET71 | SetHeatingWaterMode | Water temperature mode for heating; readback TOP76. Shared byte, see below | 0=compensation curve, 1=direct
+SET72 | SetCoolingWaterMode | Water temperature mode for cooling; readback TOP81. Shared byte, see below | 0=compensation curve, 1=direct
+SET73 | SetEfficiencyStage1Time | Efficiency stage 1 duration; readback TOP174. Shared byte, see below | 0..70 minutes, multiples of 5 (wire range); installer menu 0..60 minutes
+SET74 | SetEfficiencyStage2Time | Efficiency stage 2 duration; readback TOP175. Shared byte, see below | 0..70 minutes, multiples of 5 (wire range); no limit in the manuals, 0..60 minutes seen on the test unit
+SET75 | SetEfficiencyStage3Time | Efficiency stage 3 duration; readback TOP176. Shared byte, see below | 0..70 minutes, multiples of 5 (wire range); no limit in the manuals, 0..30 minutes seen on the test unit
+SET76 | SetDHWInstalled | DHW tank connection; readback TOP100. Shared byte, see below | 0=no, 1=yes
+SET77 | SetDHWHeaterType | Tank heater type; readback TOP148. Shared byte, see below | 0=internal, 1=external
+SET78 | SetDHWBoosterDelay | Switch-on delay of the external DHW booster heater; readback TOP173 | integer 1..254 minutes (wire range); installer menu 20..180 minutes in steps of 5
+SET79 | SetDHWDefrost | Use tank water for defrost; readback TOP151. Shared byte, see below | 0=no, 1=yes
+SET80 | SetExtraPump | Extra pump use; readback TOP182. Shared byte, see below | 0=not used, 1=heating, 2=DHW
+SET81 | SetExtraPumpMode | Extra pump mode; readback TOP183. Shared byte, see below | 0=comfort, 1=efficiency
+SET82 | SetRoomHolidayShiftTemp | Room heating shift in holiday mode; readback TOP45 | integer -127..127 K (wire range)
+SET83 | SetDHWHolidayShiftTemp | DHW shift in holiday mode; readback TOP25 | integer -127..127 K (wire range)
+SET84 | SetSolarMode | Solar connection mode; readback TOP101. Shared byte, see below | 0=disabled, 1=buffer, 2=DHW
+SET85 | SetSolarOnDelta | Solar connection: delta T for tank ON; readback TOP102 | integer -127..127 K (wire range); installer menu 5..15 K
+SET86 | SetSolarOffDelta | Solar connection: delta T for tank OFF; readback TOP103 | integer -127..127 K (wire range); installer menu 2..10 K
+SET87 | SetSolarFrostProtection | Solar connection: anti-freeze temperature; readback TOP104 | integer -127..127 °C (wire range); installer menu -20..10 °C
+SET88 | SetSolarHighLimit | Solar connection: tank high limit; readback TOP105 | integer -127..127 °C (wire range); installer menu 70..90 °C
+SET89 | SetPoolDelta | Pool delta T; readback TOP153 | integer -127..127 K (wire range); installer menu 0..10 K
+SET90 | SetBivalentAPHeat | Bivalent "heating" in advanced parallel mode; readback TOP132. Shared byte, see below | 0=no, 1=yes
+SET91 | SetBivalentAPDHW | Bivalent "DHW" in advanced parallel mode; readback TOP133. Shared byte, see below | 0=no, 1=yes
+SET92 | SetBivalentOperatingMode | Bivalent operating mode; readback TOP180. Shared byte, see below | 0=auto, 1=SG ready, 2=intelligent
+SET93 | SetBivalentExternalPump | Bivalent external pump; readback TOP181. Shared byte, see below | 0=off, 1=on
+SET94 | SetBivalentAPStartDelay | Delay for the bivalent heat source start in advanced parallel mode; readback TOP136 | integer 1..254 minutes (wire range); no limit in the manuals, 5..250 minutes in steps of 5 seen on the test unit
+SET95 | SetBivalentAPStopDelay | Delay for the bivalent heat source stop in advanced parallel mode; readback TOP137 | integer 1..254 minutes (wire range); no limit in the manuals, 5..250 minutes in steps of 5 seen on the test unit
+SET96 | SetDryConcrete | Dry concrete (screed drying) program on / off; readback TOP144. Shared byte, see below | 0=off, 1=on
+SET97 | SetSGReadyMode | SG ready; readback TOP149. Shared byte, see below | 0=off, 1=on, capacity, 2=on, power consumption
+SET98 | SetSGReadyHeatCapacity1 | SG ready capacity setting 1, heating; readback TOP154 | integer 0..254 % (wire range); installer menu 50..150 %
+SET99 | SetSGReadyDHWCapacity1 | SG ready capacity setting 1, DHW; readback TOP155 | integer 0..254 % (wire range); installer menu 50..150 %
+SET100 | SetSGReadyCoolCapacity1 | SG ready capacity setting 1, cooling offset; readback TOP191 | integer -127..127 °C (wire range); installer menu -15..0 °C
+SET102 | SetSGReadyHeatCapacity2 | SG ready capacity setting 2, heating; readback TOP156 | integer 0..254 % (wire range); installer menu 50..150 %
+SET103 | SetSGReadyDHWCapacity2 | SG ready capacity setting 2, DHW; readback TOP157 | integer 0..254 % (wire range); installer menu 50..150 %
+SET104 | SetSGReadyCoolCapacity2 | SG ready capacity setting 2, cooling offset; readback TOP192 | integer -127..127 °C (wire range); installer menu -15..0 °C
+SET105 | SetSGReadyHeatPower1 | SG ready power consumption setting 1, heating; readback TOP185 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET106 | SetSGReadyDHWPower1 | SG ready power consumption setting 1, DHW; readback TOP184 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET107 | SetSGReadyCoolPower1 | SG ready power consumption setting 1, cooling; readback TOP186 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET108 | SetSGReadyHeatPower2 | SG ready power consumption setting 2, heating; readback TOP188 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET109 | SetSGReadyDHWPower2 | SG ready power consumption setting 2, DHW; readback TOP187 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET110 | SetSGReadyCoolPower2 | SG ready power consumption setting 2, cooling; readback TOP189 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET111 | SetSGReadyStopPower | SG ready consumption limit while the heat pump is stopped; readback TOP190 | 0.1..25.4 kW in steps of 0.1 (wire range); installer menu 0.5..10.0 kW
+SET112 | SetDemandControlEnable | Demand control option in the installer menu (not the optional PCB value of SetDemandControl); readback TOP150. Shared byte, see below | 0=disabled, 1=enabled
 
 SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples but have not been hardware-tested here. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
 
 Example: publish `21` to `panasonic_heat_pump/commands/SetHeatToCoolTemp`, `90` to `panasonic_heat_pump/commands/SetRoomOperationMaxTime`, or `1` to `panasonic_heat_pump/commands/SetQuietModeSchedule` (replace the base topic as configured).
 
+SET56–SET112 were tested on M series only; may work on other series, not tested there. SET101 is not used: the SET numbers follow the Modbus command ID + 1, and ID 100 is reserved for SetReset. The commands require complete payloads (the sensor offsets also accept one decimal `.0` or `.5`, the SG ready power limits one decimal); empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. As for SET51–SET55, the ranges above describe the nonzero protocol encoding of the field, not the installer-menu limits; the heat pump may reject or change values outside its own menu range. Where the Panasonic manuals give an installer-menu range, it is listed after the accepted range ("installer menu"); HeishaMon does not enforce it. The 0.5 K step of the sensor offsets comes from the encoding, not from the manuals. The commands do not check other settings or the heat pump state, so check the readback topic.
+
+**Shared-byte commands:** bytes 5, 20, 21, 22, 24, 25, 26, 27, 28, 30, 31, 33, 34, 35, 36 and 37 hold several settings. A zero bit pair or nibble means "no change" for that field, so each command sends only its own bit pair or nibble and leaves the rest of the byte 0, like SetBivalentControl. A bit pair is sent as b01 / b10 (b11 for a third value). SetExtraPump 0 and 1 send use and mode together (nibble 0x5 / 0xA), SetExtraPump 2 sends only the use pair; SetExtraPumpMode sends only the mode pair.
 
 *If you operate your heatpump in water mode with direct temperature setup: topics ending xxxRequestTemperature will set the absolute target temperature.*
 

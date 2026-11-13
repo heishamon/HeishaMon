@@ -76,7 +76,7 @@ All floats are IEEE 754 float32, unscaled.
 
 | Other group | Reserved block | Access | Implemented |
 | --- | --- | --- | --- |
-| Heat-pump commands | 5000-5999 | FC06 / FC16, int16 | 5000-5048; 5015 is reserved for JSON-only SetCurves and rejects writes |
+| Heat-pump commands | 5000-5999 | FC06 / FC16, int16 | 5000-5098 and 5100-5110; 5015 is reserved for JSON-only SetCurves and rejects writes |
 | Optional PCB commands | 6000-6999 | FC06 / FC16, int16 | 6000-6013 |
 | System commands | 7000-7999 | FC06 / FC16, int16 | 7000 = SetReset |
 | Float32 commands | 20000-29999 | FC16, float32 (2 registers) | 20000 + 2 * (command address - 5000): heat pump 20000-21999, optional PCB 22000-23999, system 24000-25999 |
@@ -142,8 +142,8 @@ commands: SetZ1HeatRequestTemperature, SetZ1CoolRequestTemperature,
 SetZ2HeatRequestTemperature, SetZ2CoolRequestTemperature, SetDHWTemp, SetFloorHeatDelta,
 SetFloorCoolDelta, SetDHWHeatDelta, SetHeaterStartDelta, SetHeaterStopDelta, SetBufferDelta,
 SetHeatingOffOutdoorTemp, SetBivalentStartTemp, SetBivalentAPStartTemp,
-SetBivalentAPStopTemp, SetHeaterOnOutdoorTemp, SetSterilizationTemp, SetHeatToCoolTemp and SetCoolToHeatTemp. All other commands (modes, states, times,
-duty) are unscaled signed int16. Allowed values are those of the regular HeishaMon command
+SetBivalentAPStopTemp, SetHeaterOnOutdoorTemp, SetSterilizationTemp, SetHeatToCoolTemp, SetCoolToHeatTemp, SetPoolDelta, SetHeatingOnOutdoorTemp, SetSensorOffsetRemoteTh1, SetSensorOffsetOutdoor, SetSensorOffsetReturn, SetSensorOffsetDhwTank, SetSensorOffsetFlow, SetSolarOnDelta, SetSolarOffDelta, SetSolarFrostProtection, SetSolarHighLimit, SetSGReadyCoolCapacity1, SetSGReadyCoolCapacity2, SetRoomHolidayShiftTemp and SetDHWHolidayShiftTemp (the sensor offsets therefore accept whole degrees only through Modbus; use MQTT for half degrees). All other commands (modes, states, times,
+duty) are unscaled signed int16; this includes the SG ready power limits (SetSGReadyDHWPower1 to SetSGReadyStopPower), which take whole kW only through Modbus (write 4 for 4.0 kW; use MQTT for tenths). Allowed values are those of the regular HeishaMon command
 handlers. SetCurves needs JSON and must use MQTT/HTTP.
 
 **Optional PCB temperature commands are x100, like the temperature readings**:
@@ -256,6 +256,62 @@ is `MAIN_COMMANDS` in `HeishaMon/ModbusRegisterMap.h`. IDs 1-1000 map to
 | 5051 | `SetRoomOperationMaxTime` |
 | 5052 | `SetDHWHeatupMaxTime` |
 | 5053 | `SetQuietModeSchedule` |
+| 5054 | `SetOptionalPCB` |
+| 5055 | `SetAntiFreezeMode` |
+| 5056 | `SetLiquidType` |
+| 5057 | `SetStaticPressure` |
+| 5058 | `SetDefrostSignal` |
+| 5059 | `SetInternalHeaterCapacity` |
+| 5060 | `SetZoneType` |
+| 5061 | `SetZ1SensorSettings` |
+| 5062 | `SetSensorOffsetRemoteTh1` |
+| 5063 | `SetSensorOffsetOutdoor` |
+| 5064 | `SetSensorOffsetReturn` |
+| 5065 | `SetSensorOffsetFlow` |
+| 5066 | `SetSensorOffsetDhwTank` |
+| 5067 | `SetHeatingOnOutdoorTemp` |
+| 5068 | `SetHeatingOnDelay` |
+| 5069 | `SetHeatingWaterMode` |
+| 5070 | `SetCoolingWaterMode` |
+| 5071 | `SetEfficiencyStage1Time` |
+| 5072 | `SetEfficiencyStage2Time` |
+| 5073 | `SetEfficiencyStage3Time` |
+| 5074 | `SetDHWInstalled` |
+| 5075 | `SetDHWHeaterType` |
+| 5076 | `SetDHWBoosterDelay` |
+| 5077 | `SetDHWDefrost` |
+| 5078 | `SetExtraPump` |
+| 5079 | `SetExtraPumpMode` |
+| 5080 | `SetRoomHolidayShiftTemp` |
+| 5081 | `SetDHWHolidayShiftTemp` |
+| 5082 | `SetSolarMode` |
+| 5083 | `SetSolarOnDelta` |
+| 5084 | `SetSolarOffDelta` |
+| 5085 | `SetSolarFrostProtection` |
+| 5086 | `SetSolarHighLimit` |
+| 5087 | `SetPoolDelta` |
+| 5088 | `SetBivalentAPHeat` |
+| 5089 | `SetBivalentAPDHW` |
+| 5090 | `SetBivalentOperatingMode` |
+| 5091 | `SetBivalentExternalPump` |
+| 5092 | `SetBivalentAPStartDelay` |
+| 5093 | `SetBivalentAPStopDelay` |
+| 5094 | `SetDryConcrete` |
+| 5095 | `SetSGReadyMode` |
+| 5096 | `SetSGReadyHeatCapacity1` |
+| 5097 | `SetSGReadyDHWCapacity1` |
+| 5098 | `SetSGReadyCoolCapacity1` |
+| 5100 | `SetSGReadyHeatCapacity2` |
+| 5101 | `SetSGReadyDHWCapacity2` |
+| 5102 | `SetSGReadyCoolCapacity2` |
+| 5103 | `SetSGReadyHeatPower1` |
+| 5104 | `SetSGReadyDHWPower1` |
+| 5105 | `SetSGReadyCoolPower1` |
+| 5106 | `SetSGReadyHeatPower2` |
+| 5107 | `SetSGReadyDHWPower2` |
+| 5108 | `SetSGReadyCoolPower2` |
+| 5109 | `SetSGReadyStopPower` |
+| 5110 | `SetDemandControlEnable` |
 
 ## Optional PCB commands
 
