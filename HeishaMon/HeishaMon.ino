@@ -535,9 +535,7 @@ void mqtt_reconnect()
     } else {
       mqtt_client.setClient(mqtt_wifi_client);
     }
-      mqtt_client.setSocketTimeout(10);
-      mqtt_client.setKeepAlive(30);
-      mqtt_client.setServer(heishamonSettings.mqtt_server, atoi(heishamonSettings.mqtt_port));
+    mqtt_client.setServer(heishamonSettings.mqtt_server, atoi(heishamonSettings.mqtt_port));
 #endif
     if (mqtt_client.connect(heishamonSettings.wifi_hostname, heishamonSettings.mqtt_username, heishamonSettings.mqtt_password, topic, 1, true, "Offline"))
     {
@@ -1846,8 +1844,9 @@ void switchSerial() {
 
 void setupMqtt() {
   mqtt_client.setBufferSize(1024);
+  mqtt_client.setSocketTimeout(10); //how long loop() waits for the rest of an incoming packet or the connack, any slower will block the main loop too long
+  mqtt_client.setKeepAlive(30); //the broker drops us after 1.5x keepalive without a packet, so it must outlast a wifi hiccup
 #ifdef TLS_SUPPORT
-  mqtt_client.setSocketTimeout(8); mqtt_client.setKeepAlive(30); //fast timeout, any slower than 10s will block the main loop too long (8s might be even safer to avoid reboots on bad wifi); short keepalive may lead to problems with TLS
   if (heishamonSettings.mqtt_tls_enabled) {
     if (mqtt_tls_client == nullptr) {
         mqtt_tls_client = new WiFiClientSecure();
@@ -1860,8 +1859,6 @@ void setupMqtt() {
     mqtt_client.setClient(mqtt_wifi_client);
   }
   last_tls_enabled = heishamonSettings.mqtt_tls_enabled;
-#else
-  mqtt_client.setSocketTimeout(10); mqtt_client.setKeepAlive(5); //fast timeout, any slower will block the main loop too long
 #endif
   mqtt_client.setServer(heishamonSettings.mqtt_server, atoi(heishamonSettings.mqtt_port));
   mqtt_client.setCallback(mqtt_callback);
