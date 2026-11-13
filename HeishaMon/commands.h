@@ -84,10 +84,19 @@ struct cmdStruct {
                                                     CMD_TENTHS, (address), (shift), 0xFF, (offset), (divisor), (step), (minimum), (maximum), NULL
 // built by its own function
 #define CMD_FUNCTION(func)                          CMD_FUNC,   0,         0,       0,    0,     1,      1,   0,      0,      (func)
+// two bits, exactly 0..maximum is sent as b01, b10, b11, anything else is refused
+#define CMD_OPTION(address, shift, maximum)         CMD_CHECKED((address), (shift), 0, (maximum), 1, 1, 1)
+// a whole byte, degrees or kelvin + 128, -127..127
+#define CMD_TEMP(address)                           CMD_CHECKED((address), 0, -127, 127, 1, 1, 128)
+// a sensor offset nibble, -3.5..3.5 K in 0.5 K steps, sent as offset / 0.5 + 8
+#define CMD_OFFSET(address, shift)                  CMD_DECIMAL((address), (shift), -35, 35, 5, 5, 8)
+// a power limit, 0.1..25.4 kW in 0.1 kW steps, sent as kW * 10 + 1
+#define CMD_KW(address)                             CMD_DECIMAL((address), 0, 1, 254, 1, 1, 1)
 
 unsigned int set_operation_mode(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_curves(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_zones(char *msg, unsigned char *cmd, char *log_msg);
+unsigned int set_extra_pump(char *msg, unsigned char *cmd, char *log_msg);
 
 // Build the datagram of a main command from its payload. Returns the length to send, 0 when the payload is refused.
 unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char *cmd, char *log_msg);
@@ -192,6 +201,108 @@ const cmdStruct commands[] PROGMEM = {
   { "SetRoomOperationMaxTime", 0, CMD_CHECKED(97, 0, 30, 7620, 30, 30, 1) },
   { "SetDHWHeatupMaxTime", 0, CMD_CHECKED(98, 0, 1, 254, 1, 1, 1) },
   { "SetQuietModeSchedule", 0, CMD_CHECKED(7, 6, 0, 1, 1, 1, 1) },
+  // Installer menu settings. Each command sends only its own field, the rest of the byte stays 0 (no change).
+  // The ranges are what the field can hold, not the installer menu limits. There are no checks against other
+  // settings or the state of the heat pump.
+  // -- System setup
+  // 0 = no, 1 = yes (installer menu, not the optional PCB emulation)
+  { "SetOptionalPCB", 0, CMD_OPTION(20, 0, 1) },
+  // 0 = off, 1 = on
+  { "SetAntiFreezeMode", 0, CMD_OPTION(20, 2, 1) },
+  // 0 = water, 1 = glycol
+  { "SetLiquidType", 0, CMD_OPTION(20, 6, 1) },
+  // 0 = off, 1 = on
+  { "SetStaticPressure", 0, CMD_OPTION(31, 4, 1) },
+  // 0 = no, 1 = yes
+  { "SetDefrostSignal", 0, CMD_OPTION(28, 6, 1) },
+  // 3, 6 or 9 kW
+  { "SetInternalHeaterCapacity", 0, CMD_CHECKED(25, 2, 3, 9, 3, 3, 0) },
+  // -- Zone 1 and sensors
+  // 0 = room, 1 = pool
+  { "SetZoneType", 0, CMD_OPTION(21, 2, 1) },
+  // 0 = water temperature, 1 = external thermostat, 2 = internal thermostat, 3 = thermistor
+  { "SetZ1SensorSettings", 0, CMD_CHECKED(22, 0, 0, 3, 1, 1, 1) },
+  // sensor offsets in K
+  { "SetSensorOffsetRemoteTh1", 0, CMD_OFFSET(35, 4) },
+  { "SetSensorOffsetOutdoor", 0, CMD_OFFSET(35, 0) },
+  { "SetSensorOffsetReturn", 0, CMD_OFFSET(36, 4) },
+  { "SetSensorOffsetFlow", 0, CMD_OFFSET(37, 0) },
+  { "SetSensorOffsetDhwTank", 0, CMD_OFFSET(36, 0) },
+  // -- Heating and cooling control
+  // degrees
+  { "SetHeatingOnOutdoorTemp", 0, CMD_TEMP(108) },
+  // minutes, steps of 30
+  { "SetHeatingOnDelay", 0, CMD_CHECKED(109, 0, 30, 7620, 30, 30, 1) },
+  // 0 = compensation curve, 1 = direct
+  { "SetHeatingWaterMode", 0, CMD_OPTION(28, 0, 1) },
+  { "SetCoolingWaterMode", 0, CMD_OPTION(28, 2, 1) },
+  // minutes, steps of 5
+  { "SetEfficiencyStage1Time", 0, CMD_CHECKED(33, 0, 0, 70, 5, 5, 1) },
+  { "SetEfficiencyStage2Time", 0, CMD_CHECKED(33, 4, 0, 70, 5, 5, 1) },
+  { "SetEfficiencyStage3Time", 0, CMD_CHECKED(34, 0, 0, 70, 5, 5, 1) },
+  // -- DHW tank
+  // 0 = no, 1 = yes
+  { "SetDHWInstalled", 0, CMD_OPTION(24, 0, 1) },
+  // 0 = internal, 1 = external
+  { "SetDHWHeaterType", 0, CMD_OPTION(25, 0, 1) },
+  // minutes
+  { "SetDHWBoosterDelay", 0, CMD_CHECKED(60, 0, 1, 254, 1, 1, 1) },
+  // 0 = off, 1 = on
+  { "SetDHWDefrost", 0, CMD_OPTION(30, 0, 1) },
+  // -- Extra pump
+  // 0 = not used, 1 = heating, 2 = DHW
+  { "SetExtraPump", 0, CMD_FUNCTION(set_extra_pump) },
+  // 0 = comfort, 1 = efficiency
+  { "SetExtraPumpMode", 0, CMD_OPTION(31, 2, 1) },
+  // -- Holiday
+  // room / DHW shift in K
+  { "SetRoomHolidayShiftTemp", 0, CMD_TEMP(43) },
+  { "SetDHWHolidayShiftTemp", 0, CMD_TEMP(44) },
+  // -- Solar
+  // 0 = off, 1 = buffer, 2 = DHW
+  { "SetSolarMode", 0, CMD_OPTION(24, 4, 2) },
+  // deltas in K, temperatures in degrees
+  { "SetSolarOnDelta", 0, CMD_TEMP(61) },
+  { "SetSolarOffDelta", 0, CMD_TEMP(62) },
+  { "SetSolarFrostProtection", 0, CMD_TEMP(63) },
+  { "SetSolarHighLimit", 0, CMD_TEMP(64) },
+  // -- Pool
+  // K
+  { "SetPoolDelta", 0, CMD_TEMP(58) },
+  // -- Bivalent
+  // advanced parallel heating / DHW 0 = no, 1 = yes
+  { "SetBivalentAPHeat", 0, CMD_OPTION(26, 4, 1) },
+  { "SetBivalentAPDHW", 0, CMD_OPTION(26, 6, 1) },
+  // 0 = auto, 1 = SG ready, 2 = intelligent
+  { "SetBivalentOperatingMode", 0, CMD_OPTION(27, 4, 2) },
+  // 0 = off, 1 = on
+  { "SetBivalentExternalPump", 0, CMD_OPTION(27, 6, 1) },
+  // minutes
+  { "SetBivalentAPStartDelay", 0, CMD_CHECKED(67, 0, 1, 254, 1, 1, 1) },
+  { "SetBivalentAPStopDelay", 0, CMD_CHECKED(69, 0, 1, 254, 1, 1, 1) },
+  // -- Service
+  // dry concrete program 0 = off, 1 = on
+  { "SetDryConcrete", 0, CMD_OPTION(5, 0, 1) },
+  // -- SG ready and demand control
+  // 0 = off, 1 = on (capacity), 2 = on (power consumption)
+  { "SetSGReadyMode", 0, CMD_OPTION(27, 2, 2) },
+  // capacity settings: heating and DHW in %, cooling offset in degrees
+  { "SetSGReadyHeatCapacity1", 0, CMD_CHECKED(71, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyDHWCapacity1", 0, CMD_CHECKED(72, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyCoolCapacity1", 0, CMD_TEMP(102) },
+  { "SetSGReadyHeatCapacity2", 0, CMD_CHECKED(73, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyDHWCapacity2", 0, CMD_CHECKED(74, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyCoolCapacity2", 0, CMD_TEMP(103) },
+  // power consumption limits in kW
+  { "SetSGReadyHeatPower1", 0, CMD_KW(52) },
+  { "SetSGReadyDHWPower1", 0, CMD_KW(51) },
+  { "SetSGReadyCoolPower1", 0, CMD_KW(53) },
+  { "SetSGReadyHeatPower2", 0, CMD_KW(55) },
+  { "SetSGReadyDHWPower2", 0, CMD_KW(54) },
+  { "SetSGReadyCoolPower2", 0, CMD_KW(56) },
+  { "SetSGReadyStopPower", 0, CMD_KW(57) },
+  // 0 = off, 1 = on
+  { "SetDemandControlEnable", 0, CMD_OPTION(27, 0, 1) },
 };
 
 struct optCmdStruct{
