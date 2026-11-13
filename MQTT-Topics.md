@@ -268,6 +268,67 @@ The main topics are split into groups. In Settings, under *Topic groups*, every 
 | External control & SG ready | `topics_external_sgready` | on | TOP110, 119-122, 149-150, 154-157, 162-163, 184-192 |
 | Installer settings | `topics_installer` | off | TOP95, 99-100, 106-109, 111-112, 139, 141, 143, 145-148, 167-168, 170-179, 182-183, 193-196 |
 
+### Settings that depend on other settings
+
+HeishaMon does not check settings against each other: a command is sent as it is, also when the setting it belongs to is switched off. The heat pump itself accepts such values (tested on M series only; may work on other series, not tested there). The remote controller and the Aquarea Service Cloud hide or grey out these fields. An integration that wants to behave like them can use the tables below.
+
+Sources: service manual of WH-SDC0316M9E8 / WH-WXG09ME8 ("SM" and page), the operating manual of the M series ("BA" and page), and the Aquarea Service Cloud on the M-series test unit ("Cloud": greyed out while the parent was off). Evidence for the Cloud and the test unit: [AquareaParity.md](AquareaParity.md), sections 3.4 and 3.5. Other series may differ.
+
+Settings that are only shown or adjustable when another setting has a given value:
+
+| Parent (topic = value) | Child settings (topic) | Commands | Source |
+|---|---|---|---|
+| Optional PCB connectivity (TOP110 = 1) | Zone setting incl. pool (TOP146), solar (TOP101), external error signal (TOP121), demand control (TOP150), SG ready (TOP149), external compressor switch (TOP122), heat/cool switch (TOP120), bivalent operating mode SG ready (TOP180 = 1) | SetZoneType, SetSolarMode, SetExternalError, SetDemandControlEnable, SetSGReadyMode, SetExternalCompressorControl, SetExternalHeatCoolControl, SetBivalentOperatingMode | SM 97, 100-106; Cloud |
+| DHW tank connection (TOP100 = 1) | DHW capacity (TOP140), tank heater (TOP148), DHW defrost (TOP151), extra pump (TOP182, TOP183), room operation and DHW heat-up time (TOP158, TOP159), DHW re-heat delta (TOP22), sterilisation (TOP70, TOP71), DHW heater on/off (TOP58), DHW target temperature (TOP9), DHW operation modes | SetSmartDHW, SetDHWHeaterType, SetDHWDefrost, SetExtraPump, SetExtraPumpMode, SetRoomOperationMaxTime, SetDHWHeatupMaxTime, SetDHWHeatDelta, SetSterilizationTemp, SetSterilizationMaxTime, SetDHWHeaterState, SetDHWTemp, SetForceDHW | SM 97-98, 100-101; BA 19, 28, 33, 48; Cloud |
+| Tank heater external (TOP148 = 1) | DHW booster heater delay (TOP173) | SetDHWBoosterDelay | SM 101; BA 33 |
+| Buffer tank connection (TOP99 = 1) | Buffer delta (TOP113) | SetBufferDelta | SM 101; BA 33 |
+| Bivalent connection (TOP129 = 1) | Operating mode (TOP180), bivalent start temperature (TOP131), bivalent mode (TOP130) | SetBivalentOperatingMode, SetBivalentStartTemp, SetBivalentMode | SM 102; BA 34; Cloud |
+| Bivalent operating mode auto (TOP180 = 0) | Bivalent mode alternative / parallel / advanced parallel (TOP130) | SetBivalentMode | SM 102; BA 34 |
+| Bivalent mode advanced parallel (TOP130 = 2) | Advanced parallel heating and DHW (TOP132, TOP133) | SetBivalentAPHeat, SetBivalentAPDHW | SM 102; BA 34 |
+| Advanced parallel heating on (TOP132 = 1) | Start / stop temperatures and delays (TOP134-TOP137) | SetBivalentAPStartTemp, SetBivalentAPStopTemp, SetBivalentAPStartDelay, SetBivalentAPStopDelay | BA 34-35; Cloud |
+| Advanced parallel DHW on (TOP133 = 1) | DHW delay (TOP138) | – | BA 35 |
+| Bivalent mode alternative (TOP130 = 0), or operating mode SG ready / intelligent | Bivalent external pump (TOP181) | SetBivalentExternalPump | BA 34-35; Cloud |
+| Solar connection on (TOP101 = 1 or 2) | Solar deltas, frost protection, high limit (TOP102-TOP105) | SetSolarOnDelta, SetSolarOffDelta, SetSolarFrostProtection, SetSolarHighLimit | SM 103; BA 38; Cloud |
+| SG ready on, capacity (TOP149 = 1) | Capacity settings 1 and 2 for heating, DHW and cooling (TOP154-TOP157, TOP191, TOP192) | SetSGReadyHeatCapacity1, SetSGReadyDHWCapacity1, SetSGReadyCoolCapacity1, SetSGReadyHeatCapacity2, SetSGReadyDHWCapacity2, SetSGReadyCoolCapacity2 | SM 105, 190; BA 39; Cloud |
+| SG ready on, power consumption (TOP149 = 2) | Power consumption limits (TOP184-TOP190) | SetSGReadyHeatPower1 ... SetSGReadyStopPower | SM 105, 190; BA 39; Cloud |
+| Heating control efficiency (TOP139 = 1) | Efficiency stage times (TOP174-TOP176) | SetEfficiencyStage1Time, SetEfficiencyStage2Time, SetEfficiencyStage3Time | SM 107; BA 41 |
+| Pump flow rate delta T (TOP106 = 0) | Delta T for heating and cooling (TOP23, TOP24) | SetFloorHeatDelta, SetFloorCoolDelta | SM 107; BA 46-47 |
+| Water temperature mode compensation curve / direct (TOP76, TOP81) | Curve points, or the fixed water temperature | SetCurves, SetZ1HeatRequestTemperature ... SetZ2CoolRequestTemperature | SM 109-110; BA 45, 47; Cloud |
+| Two zones (TOP146 = 22 or 38) | Zone 2 values (TOP34, TOP35, TOP82-TOP89) | SetZ2HeatRequestTemperature, SetZ2CoolRequestTemperature, SetCurves | SM 109-110; BA 45, 47 |
+| A zone is a pool (TOP146 = 25 or 38) | Pool delta (TOP153) | SetPoolDelta | SM 100; BA 32 |
+| Cooling (custom menu, TOP168 = 1; cooling models only) | Heat/cool switch (TOP120), water temperature mode, curve, delta T and switch temperatures for cooling (TOP81, TOP24, TOP79, TOP80), cool operation modes | SetExternalHeatCoolControl, SetCoolingWaterMode, SetFloorCoolDelta, SetHeatToCoolTemp, SetCoolToHeatTemp, SetOperationMode | SM 97-98, 106, 110, 189; BA 19, 40, 47-48 |
+| Extra pump DHW (TOP182 = 2) | Extra pump mode (TOP183) | SetExtraPumpMode | SM 108; BA 43 |
+| Heat/cool switch on (TOP120 = 1) | Weekly timer and operation mode auto are not usable | SetMainSchedule, SetOperationMode | SM 106, 190 |
+
+Settings that are adjustable but only take effect together with another one:
+
+| Setting (topic) | Takes effect only when | Source |
+|---|---|---|
+| Holiday shift of room and DHW temperature (TOP45, TOP25) | Holiday mode active (TOP19 = 2) | SM 193 |
+| Bivalent advanced parallel heating (TOP132) | Buffer tank connection on (TOP99 = 1) | SM 94, 184 |
+| Internal tank heater (TOP148 = 0), force heater (TOP68) | Back-up heater enabled in the custom menu (TOP167 = 1) | SM 163, 176 |
+| Back-up heater on/off settings (TOP78, TOP96-TOP98) | Heater released by the user (TOP59 = 1); not in cooling | SM 109, 155, 173 |
+| Heating ON outdoor temperature (TOP171) | Range 5 °C up to heating OFF temperature (TOP77) - 1 | SM 109; BA 46 |
+| Heat to cool temperature (TOP79) | At least 1 °C above cool to heat temperature (TOP80) | SM 161 |
+
+Couplings that change another setting (SM, and seen on the M-series test unit where marked):
+
+| Setting | Effect |
+|---|---|
+| Defrost signal (TOP194) and bivalent connection (TOP129) | They share one terminal: switching one on switches the other off (SM 106; test unit). |
+| SG ready (TOP149) and bivalent operating mode SG ready (TOP180 = 1) | They share one terminal; setting one resets the other (SM 103). SG ready on sets the bivalent operating mode to auto (SM 105). |
+| Buffer tank (TOP99) on without a buffer sensor | Error H43 within 5 s; it stays until reset, also after the buffer is set back (test unit). |
+| Solar connection (TOP101) on without a solar sensor, heat pump running | Error H28 within 5 s and the heat pump switched off; it stays until reset. With the heat pump off no error was seen (test unit). |
+| Water temperature mode (TOP76, TOP81) | The heat pump moved heating or cooling curve points; some did not return when the mode was set back (test unit). |
+| Zone 1 type (TOP146) | The heat pump changed the zone 1 request temperatures and curve points (test unit). |
+| Cooling enable (custom menu) | Switching it reset the zone 1 cooling curve and the automatic heat to cool / cool to heat temperatures (TOP79, TOP80) to factory values (test unit, set on the remote controller). |
+| Back-up heater capacity (TOP147) | Only 6 and 9 kW were tested, on a unit with a 9 kW heater. What a value above the installed heater does is not known. |
+| Solar high limit (TOP105) on a unit without solar | The value was reverted after about 5 s (test unit). |
+| Sensor offsets (TOP177, TOP178, TOP193, TOP195, TOP196) | Writing an offset stopped the compressor for about 4 minutes, also with an unchanged value; no error code (test unit). |
+| Dry concrete (TOP144) on | Starts the dry concrete program and switches the heat pump on (TOP0 = 1, circulation pump on, target of the first stage); switching it off returned to the previous state (test unit, heat pump off before). |
+
+Not covered: the remote controller menus of other series, and settings that only depend on the model (for example cooling capacity only on WH-WXG12ME8 / 16ME8, SM 156).
+
 ## Extra Sensor Topics:
 Some heatpumps (K/L series and newer) send an additional "extra data block" on top of the normal data block. HeishaMon detects this automatically at boot and, if available, starts requesting and decoding it as well. These extra topics provide separate, more precise power consumption/production values (Watt) per mode, published under the `extra/` topic prefix. If your heatpump does not support the extra data block, these topics will not be published.
 
