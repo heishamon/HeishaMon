@@ -141,9 +141,9 @@ TOP92 | main/Heat_Pump_Model | Heat pump model, all values in HeatPumpType.md
 TOP93 | main/Pump_Duty | Pump duty
 TOP94 | main/Zones_State | Zones state (0 = zone1 active, 1 = zone2 active, 2 = zone1 and zone2 active)
 TOP95 | main/Max_Pump_Duty | Max pump duty configured
-TOP96 | main/Heater_Delay_Time | Heater delay time (J-series only)
-TOP97 | main/Heater_Start_Delta | Heater start delta (J-series only)
-TOP98 | main/Heater_Stop_Delta | Heater stop delta (J-series only)
+TOP96 | main/Heater_Delay_Time | Heater delay time (J series; tested on M series)
+TOP97 | main/Heater_Start_Delta | Heater start delta (J series; tested on M series)
+TOP98 | main/Heater_Stop_Delta | Heater stop delta (J series; tested on M series)
 TOP99 | main/Buffer_Installed | Buffer tank installed
 TOP100 | main/DHW_Installed | DHW tank installed
 TOP101 | main/Solar_Mode | Solar mode (disabled, to buffer, to DHW)
@@ -151,7 +151,7 @@ TOP102 | main/Solar_On_Delta | Solar heating delta on
 TOP103 | main/Solar_Off_Delta | solar heating delta off
 TOP104 | main/Solar_Frost_Protection | Solar frost protection temp
 TOP105 | main/Solar_High_Limit | Solar max temp limit
-TOP106 | main/Pump_Flowrate_Mode | Settings for pump flow rate (0=DeltaT, 1=Maximum flow, J-series only)
+TOP106 | main/Pump_Flowrate_Mode | Settings for pump flow rate (0=DeltaT, 1=Maximum flow; J series; tested on M series)
 TOP107 | main/Liquid_Type | Type of liquid in settings (Water / Glycol)
 TOP108 | main/Alt_External_Sensor | If external outdoor sensor is selected
 TOP109 | main/Anti_Freeze_Mode | Is anti freeze mode enabled or disabled
@@ -326,15 +326,15 @@ SET17 | SetZones | Set zones to active | 0 = zone 1 active, 1 = zone2 active, 2 
 SET18 | SetFloorHeatDelta | Set floor heating delta in Kelvin | 1-15
 SET19 | SetFloorCoolDelta | Set floor cooling delta in Kelvin | 1-15
 SET20 | SetDHWHeatDelta | Set DHW heating delta in Kelvin | -12 to -2 (negative value)
-SET21 | SetHeaterDelayTime | Set heater start delay time (only J-series) | in minutes
-SET22 | SetHeaterStartDelta | Set heater start delta T (only J-series) | in kelvin
-SET23 | SetHeaterStopDelta | Set heater stop delta T (only J-series) | in kelvin
+SET21 | SetHeaterDelayTime | Set heater start delay time (J series; tested on M series) | in minutes; installer menu 10..60 minutes
+SET22 | SetHeaterStartDelta | Set heater start delta T (J series; tested on M series) | in kelvin; installer menu -10..-2 K
+SET23 | SetHeaterStopDelta | Set heater stop delta T (J series; tested on M series) | in kelvin; installer menu -3..0 K
 SET24 | SetMainSchedule | Set weekly schedule | 0=off, 1=on
 SET25 | SetAltExternalSensor | Set the alternative external outdoor sensor | 0=disabled, 1=enabled
 SET26 | SetExternalPadHeater | Set the external pad heater | 0=disabled, 1=type-A, 2=type-B
 SET27 | SetBufferDelta | Set buffer tank delta | 0 - 10
 SET28 | SetBuffer | Set buffer installed | 0=not installed, 1=installed
-SET29 | SetHeatingOffOutdoorTemp | Set Outdoor Temperature to stop heating | 5 to 35
+SET29 | SetHeatingOffOutdoorTemp | Set Outdoor Temperature to stop heating | 5 to 35; M series installer menu 6 to 35
 SET30 | SetExternalControl | Set external control switch | 0=disabled, 1=enabled
 SET31 | SetExternalError | Set external error signal| 0=disabled, 1=enabled
 SET32 | SetExternalCompressorControl | Set external compressor control switch | 0=disabled, 1=enabled
@@ -345,24 +345,26 @@ SET36 | SetBivalentStartTemp | Set bivalent start temp | -15 to 35
 SET37 | SetBivalentAPStartTemp | Set bivalent adv. par. start temp | -15 to 35
 SET38 | SetBivalentAPStopTemp | Set bivalent adv. par. stop temp | -15 to 35
 SET39 | SetHeatingControl | Set heating control | 0=comfort, 1=efficiency
-SET40 | SetSmartDHW | Set SmartDHW | 0=variable, 1=standard
+SET40 | SetSmartDHW | Set SmartDHW (DHW capacity); readback TOP140 | 0=variable, 1=standard
 SET41 | SetQuietModePriority | Set Quiet Mode Priority | 0=sound, 1=capacity
 SET42 | SetPumpFlowrateMode | Set Pump Flowrate Mode | 0=deltaT, 1=max. duty
 SET43 | SetDHWSensorSelection | Set DHW tank sensor selection (K/L series All-In-One only) | 0=Top, 1=Center
 SET44 | SetDHWHeaterState | Allow DHW backup/booster heater | 0=blocked, 1=free
 SET45 | SetRoomHeaterState | Allow Room backup/booster heater | 0=blocked, 1=free
-SET46 | SetHeaterOnOutdoorTemp | Outdoor temperature for heater ON | -15 to 20
+SET46 | SetHeaterOnOutdoorTemp | Outdoor temperature for heater ON | -15 to 20; M series installer menu -20 to 15
 SET47 | SetForceHeater | Force heater mode (emergency heating), same as the heater button on the remote. State is reported in TOP68 | 0=off, 1=on
 SET48 | SetReset | Reset/confirm active heatpump fault code (e.g. H72). Equivalent to pressing "Reset" on the CZ-TAW1 remote / indoor unit panel. Writes byte 8 of the outgoing query. Clears latched errors that soft power-cycle (`SetHeatpump` 0→1) cannot clear. | 0=no action, 1=reset
-SET49 | SetSterilizationTemp | Set DHW sterilization target temperature; experimental, L-series write acceptance is hardware-verified | integer 55-75 (degrees C)
-SET50 | SetSterilizationMaxTime | Set DHW sterilization holding time after reaching target temperature; experimental, L-series write acceptance is hardware-verified | 5, 10, 15, ..., 60 minutes; other values are rejected without sending a command
-SET51 | SetHeatToCoolTemp | Outdoor temperature for automatic heat-to-cool switching; readback TOP79 | integer -127..127 °C (wire range)
-SET52 | SetCoolToHeatTemp | Outdoor temperature for automatic cool-to-heat switching; readback TOP80 | integer -127..127 °C (wire range)
-SET53 | SetRoomOperationMaxTime | Maximum room heating operation time when alternating with DHW; readback TOP158 | 30..7620 minutes, multiples of 30 (wire range)
-SET54 | SetDHWHeatupMaxTime | Maximum DHW heat-up time; readback TOP159 | integer 1..254 minutes (wire range)
+SET49 | SetSterilizationTemp | Set DHW sterilization target temperature; experimental, write acceptance is hardware-verified on the L and M series | integer 55-75 (degrees C)
+SET50 | SetSterilizationMaxTime | Set DHW sterilization holding time after reaching target temperature; experimental, write acceptance is hardware-verified on the L and M series | 5, 10, 15, ..., 60 minutes; other values are rejected without sending a command
+SET51 | SetHeatToCoolTemp | Outdoor temperature for automatic heat-to-cool switching; readback TOP79 | integer -127..127 °C (wire range); installer menu 11..25 °C
+SET52 | SetCoolToHeatTemp | Outdoor temperature for automatic cool-to-heat switching; readback TOP80 | integer -127..127 °C (wire range); installer menu 5..14 °C
+SET53 | SetRoomOperationMaxTime | Maximum room heating operation time when alternating with DHW; readback TOP158 | 30..7620 minutes, multiples of 30 (wire range); installer menu 30 minutes to 10 hours
+SET54 | SetDHWHeatupMaxTime | Maximum DHW heat-up time; readback TOP159 | integer 1..254 minutes (wire range); installer menu 5 minutes to 4 hours
 SET55 | SetQuietModeSchedule | Enable/disable the existing quiet-mode schedule; readback TOP3 | 0=off, 1=on
 
-SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples but have not been hardware-tested here. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
+SET51–SET55 require complete integer payloads; empty, malformed, out-of-range or invalid-step values are rejected without sending a telegram. The ranges above describe the nonzero protocol encoding, not verified installer-menu limits. Use settings supported by your model; the heat pump may reject values outside its own menu range. These writes follow the documented telegram examples. SetQuietModeSchedule toggles the existing schedule and does not configure its times or change the quiet level.
+
+Hardware test on an M-series unit (WH-SDC0316M9E8 with WH-WXG09ME8): SET21–SET23, SET40, SET42 and SET49–SET55 were written with a value inside the installer-menu range, read back and restored.
 
 Example: publish `21` to `panasonic_heat_pump/commands/SetHeatToCoolTemp`, `90` to `panasonic_heat_pump/commands/SetRoomOperationMaxTime`, or `1` to `panasonic_heat_pump/commands/SetQuietModeSchedule` (replace the base topic as configured).
 
