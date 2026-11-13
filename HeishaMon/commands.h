@@ -203,106 +203,107 @@ const cmdStruct commands[] PROGMEM = {
   { "SetQuietModeSchedule", 0, CMD_CHECKED(7, 6, 0, 1, 1, 1, 1) },
   // Installer menu settings. Each command sends only its own field, the rest of the byte stays 0 (no change).
   // The ranges are what the field can hold, not the installer menu limits. There are no checks against other
-  // settings or the state of the heat pump.
+  // settings or the state of the heat pump. They are flagged CMD_INSTALLER: accepted only while the topic group
+  // "Installer settings" is switched on.
   // -- System setup
   // 0 = no, 1 = yes (installer menu, not the optional PCB emulation)
-  { "SetOptionalPCB", 0, CMD_OPTION(20, 0, 1) },
+  { "SetOptionalPCB", CMD_INSTALLER, CMD_OPTION(20, 0, 1) },
   // 0 = off, 1 = on
-  { "SetAntiFreezeMode", 0, CMD_OPTION(20, 2, 1) },
+  { "SetAntiFreezeMode", CMD_INSTALLER, CMD_OPTION(20, 2, 1) },
   // 0 = water, 1 = glycol
-  { "SetLiquidType", 0, CMD_OPTION(20, 6, 1) },
+  { "SetLiquidType", CMD_INSTALLER, CMD_OPTION(20, 6, 1) },
   // 0 = off, 1 = on
-  { "SetStaticPressure", 0, CMD_OPTION(31, 4, 1) },
+  { "SetStaticPressure", CMD_INSTALLER, CMD_OPTION(31, 4, 1) },
   // 0 = no, 1 = yes
-  { "SetDefrostSignal", 0, CMD_OPTION(28, 6, 1) },
+  { "SetDefrostSignal", CMD_INSTALLER, CMD_OPTION(28, 6, 1) },
   // 3, 6 or 9 kW
-  { "SetInternalHeaterCapacity", 0, CMD_CHECKED(25, 2, 3, 9, 3, 3, 0) },
+  { "SetInternalHeaterCapacity", CMD_INSTALLER, CMD_CHECKED(25, 2, 3, 9, 3, 3, 0) },
   // -- Zone 1 and sensors
   // 0 = room, 1 = pool
-  { "SetZoneType", 0, CMD_OPTION(21, 2, 1) },
+  { "SetZoneType", CMD_INSTALLER, CMD_OPTION(21, 2, 1) },
   // 0 = water temperature, 1 = external thermostat, 2 = internal thermostat, 3 = thermistor
-  { "SetZ1SensorSettings", 0, CMD_CHECKED(22, 0, 0, 3, 1, 1, 1) },
+  { "SetZ1SensorSettings", CMD_INSTALLER, CMD_CHECKED(22, 0, 0, 3, 1, 1, 1) },
   // sensor offsets in K
-  { "SetSensorOffsetRemoteTh1", 0, CMD_OFFSET(35, 4) },
-  { "SetSensorOffsetOutdoor", 0, CMD_OFFSET(35, 0) },
-  { "SetSensorOffsetReturn", 0, CMD_OFFSET(36, 4) },
-  { "SetSensorOffsetFlow", 0, CMD_OFFSET(37, 0) },
-  { "SetSensorOffsetDhwTank", 0, CMD_OFFSET(36, 0) },
+  { "SetSensorOffsetRemoteTh1", CMD_INSTALLER, CMD_OFFSET(35, 4) },
+  { "SetSensorOffsetOutdoor", CMD_INSTALLER, CMD_OFFSET(35, 0) },
+  { "SetSensorOffsetReturn", CMD_INSTALLER, CMD_OFFSET(36, 4) },
+  { "SetSensorOffsetFlow", CMD_INSTALLER, CMD_OFFSET(37, 0) },
+  { "SetSensorOffsetDhwTank", CMD_INSTALLER, CMD_OFFSET(36, 0) },
   // -- Heating and cooling control
   // degrees
-  { "SetHeatingOnOutdoorTemp", 0, CMD_TEMP(108) },
+  { "SetHeatingOnOutdoorTemp", CMD_INSTALLER, CMD_TEMP(108) },
   // minutes, steps of 30
-  { "SetHeatingOnDelay", 0, CMD_CHECKED(109, 0, 30, 7620, 30, 30, 1) },
+  { "SetHeatingOnDelay", CMD_INSTALLER, CMD_CHECKED(109, 0, 30, 7620, 30, 30, 1) },
   // 0 = compensation curve, 1 = direct
-  { "SetHeatingWaterMode", 0, CMD_OPTION(28, 0, 1) },
-  { "SetCoolingWaterMode", 0, CMD_OPTION(28, 2, 1) },
+  { "SetHeatingWaterMode", CMD_INSTALLER, CMD_OPTION(28, 0, 1) },
+  { "SetCoolingWaterMode", CMD_INSTALLER, CMD_OPTION(28, 2, 1) },
   // minutes, steps of 5
-  { "SetEfficiencyStage1Time", 0, CMD_CHECKED(33, 0, 0, 70, 5, 5, 1) },
-  { "SetEfficiencyStage2Time", 0, CMD_CHECKED(33, 4, 0, 70, 5, 5, 1) },
-  { "SetEfficiencyStage3Time", 0, CMD_CHECKED(34, 0, 0, 70, 5, 5, 1) },
+  { "SetEfficiencyStage1Time", CMD_INSTALLER, CMD_CHECKED(33, 0, 0, 70, 5, 5, 1) },
+  { "SetEfficiencyStage2Time", CMD_INSTALLER, CMD_CHECKED(33, 4, 0, 70, 5, 5, 1) },
+  { "SetEfficiencyStage3Time", CMD_INSTALLER, CMD_CHECKED(34, 0, 0, 70, 5, 5, 1) },
   // -- DHW tank
   // 0 = no, 1 = yes
-  { "SetDHWInstalled", 0, CMD_OPTION(24, 0, 1) },
+  { "SetDHWInstalled", CMD_INSTALLER, CMD_OPTION(24, 0, 1) },
   // 0 = internal, 1 = external
-  { "SetDHWHeaterType", 0, CMD_OPTION(25, 0, 1) },
+  { "SetDHWHeaterType", CMD_INSTALLER, CMD_OPTION(25, 0, 1) },
   // minutes
-  { "SetDHWBoosterDelay", 0, CMD_CHECKED(60, 0, 1, 254, 1, 1, 1) },
+  { "SetDHWBoosterDelay", CMD_INSTALLER, CMD_CHECKED(60, 0, 1, 254, 1, 1, 1) },
   // 0 = off, 1 = on
-  { "SetDHWDefrost", 0, CMD_OPTION(30, 0, 1) },
+  { "SetDHWDefrost", CMD_INSTALLER, CMD_OPTION(30, 0, 1) },
   // -- Extra pump
   // 0 = not used, 1 = heating, 2 = DHW
-  { "SetExtraPump", 0, CMD_FUNCTION(set_extra_pump) },
+  { "SetExtraPump", CMD_INSTALLER, CMD_FUNCTION(set_extra_pump) },
   // 0 = comfort, 1 = efficiency
-  { "SetExtraPumpMode", 0, CMD_OPTION(31, 2, 1) },
+  { "SetExtraPumpMode", CMD_INSTALLER, CMD_OPTION(31, 2, 1) },
   // -- Holiday
   // room / DHW shift in K
-  { "SetRoomHolidayShiftTemp", 0, CMD_TEMP(43) },
-  { "SetDHWHolidayShiftTemp", 0, CMD_TEMP(44) },
+  { "SetRoomHolidayShiftTemp", CMD_INSTALLER, CMD_TEMP(43) },
+  { "SetDHWHolidayShiftTemp", CMD_INSTALLER, CMD_TEMP(44) },
   // -- Solar
   // 0 = off, 1 = buffer, 2 = DHW
-  { "SetSolarMode", 0, CMD_OPTION(24, 4, 2) },
+  { "SetSolarMode", CMD_INSTALLER, CMD_OPTION(24, 4, 2) },
   // deltas in K, temperatures in degrees
-  { "SetSolarOnDelta", 0, CMD_TEMP(61) },
-  { "SetSolarOffDelta", 0, CMD_TEMP(62) },
-  { "SetSolarFrostProtection", 0, CMD_TEMP(63) },
-  { "SetSolarHighLimit", 0, CMD_TEMP(64) },
+  { "SetSolarOnDelta", CMD_INSTALLER, CMD_TEMP(61) },
+  { "SetSolarOffDelta", CMD_INSTALLER, CMD_TEMP(62) },
+  { "SetSolarFrostProtection", CMD_INSTALLER, CMD_TEMP(63) },
+  { "SetSolarHighLimit", CMD_INSTALLER, CMD_TEMP(64) },
   // -- Pool
   // K
-  { "SetPoolDelta", 0, CMD_TEMP(58) },
+  { "SetPoolDelta", CMD_INSTALLER, CMD_TEMP(58) },
   // -- Bivalent
   // advanced parallel heating / DHW 0 = no, 1 = yes
-  { "SetBivalentAPHeat", 0, CMD_OPTION(26, 4, 1) },
-  { "SetBivalentAPDHW", 0, CMD_OPTION(26, 6, 1) },
+  { "SetBivalentAPHeat", CMD_INSTALLER, CMD_OPTION(26, 4, 1) },
+  { "SetBivalentAPDHW", CMD_INSTALLER, CMD_OPTION(26, 6, 1) },
   // 0 = auto, 1 = SG ready, 2 = intelligent
-  { "SetBivalentOperatingMode", 0, CMD_OPTION(27, 4, 2) },
+  { "SetBivalentOperatingMode", CMD_INSTALLER, CMD_OPTION(27, 4, 2) },
   // 0 = off, 1 = on
-  { "SetBivalentExternalPump", 0, CMD_OPTION(27, 6, 1) },
+  { "SetBivalentExternalPump", CMD_INSTALLER, CMD_OPTION(27, 6, 1) },
   // minutes
-  { "SetBivalentAPStartDelay", 0, CMD_CHECKED(67, 0, 1, 254, 1, 1, 1) },
-  { "SetBivalentAPStopDelay", 0, CMD_CHECKED(69, 0, 1, 254, 1, 1, 1) },
+  { "SetBivalentAPStartDelay", CMD_INSTALLER, CMD_CHECKED(67, 0, 1, 254, 1, 1, 1) },
+  { "SetBivalentAPStopDelay", CMD_INSTALLER, CMD_CHECKED(69, 0, 1, 254, 1, 1, 1) },
   // -- Service
   // dry concrete program 0 = off, 1 = on
-  { "SetDryConcrete", 0, CMD_OPTION(5, 0, 1) },
+  { "SetDryConcrete", CMD_INSTALLER, CMD_OPTION(5, 0, 1) },
   // -- SG ready and demand control
   // 0 = off, 1 = on (capacity), 2 = on (power consumption)
-  { "SetSGReadyMode", 0, CMD_OPTION(27, 2, 2) },
+  { "SetSGReadyMode", CMD_INSTALLER, CMD_OPTION(27, 2, 2) },
   // capacity settings: heating and DHW in %, cooling offset in degrees
-  { "SetSGReadyHeatCapacity1", 0, CMD_CHECKED(71, 0, 0, 254, 1, 1, 1) },
-  { "SetSGReadyDHWCapacity1", 0, CMD_CHECKED(72, 0, 0, 254, 1, 1, 1) },
-  { "SetSGReadyCoolCapacity1", 0, CMD_TEMP(102) },
-  { "SetSGReadyHeatCapacity2", 0, CMD_CHECKED(73, 0, 0, 254, 1, 1, 1) },
-  { "SetSGReadyDHWCapacity2", 0, CMD_CHECKED(74, 0, 0, 254, 1, 1, 1) },
-  { "SetSGReadyCoolCapacity2", 0, CMD_TEMP(103) },
+  { "SetSGReadyHeatCapacity1", CMD_INSTALLER, CMD_CHECKED(71, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyDHWCapacity1", CMD_INSTALLER, CMD_CHECKED(72, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyCoolCapacity1", CMD_INSTALLER, CMD_TEMP(102) },
+  { "SetSGReadyHeatCapacity2", CMD_INSTALLER, CMD_CHECKED(73, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyDHWCapacity2", CMD_INSTALLER, CMD_CHECKED(74, 0, 0, 254, 1, 1, 1) },
+  { "SetSGReadyCoolCapacity2", CMD_INSTALLER, CMD_TEMP(103) },
   // power consumption limits in kW
-  { "SetSGReadyHeatPower1", 0, CMD_KW(52) },
-  { "SetSGReadyDHWPower1", 0, CMD_KW(51) },
-  { "SetSGReadyCoolPower1", 0, CMD_KW(53) },
-  { "SetSGReadyHeatPower2", 0, CMD_KW(55) },
-  { "SetSGReadyDHWPower2", 0, CMD_KW(54) },
-  { "SetSGReadyCoolPower2", 0, CMD_KW(56) },
-  { "SetSGReadyStopPower", 0, CMD_KW(57) },
+  { "SetSGReadyHeatPower1", CMD_INSTALLER, CMD_KW(52) },
+  { "SetSGReadyDHWPower1", CMD_INSTALLER, CMD_KW(51) },
+  { "SetSGReadyCoolPower1", CMD_INSTALLER, CMD_KW(53) },
+  { "SetSGReadyHeatPower2", CMD_INSTALLER, CMD_KW(55) },
+  { "SetSGReadyDHWPower2", CMD_INSTALLER, CMD_KW(54) },
+  { "SetSGReadyCoolPower2", CMD_INSTALLER, CMD_KW(56) },
+  { "SetSGReadyStopPower", CMD_INSTALLER, CMD_KW(57) },
   // 0 = off, 1 = on
-  { "SetDemandControlEnable", 0, CMD_OPTION(27, 0, 1) },
+  { "SetDemandControlEnable", CMD_INSTALLER, CMD_OPTION(27, 0, 1) },
 };
 
 struct optCmdStruct{

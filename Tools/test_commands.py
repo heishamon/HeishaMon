@@ -238,10 +238,12 @@ static void check(const char *topic, char *payload, int address, int value) {
 }
 
 int main() {
+  setInstallerCommandsAllowed(true);
 """
 
 # an installer command is refused until installer commands are allowed, a null payload never crashes
 GATE = r"""
+  setInstallerCommandsAllowed(false);
   { const cmdStruct installer = { "SetTest", CMD_INSTALLER, CMD_ONOFF(4, 0) };
     byte buffer[256]; char log[256]; char payload[] = "1";
     memset(buffer, 0xa5, sizeof(buffer));
@@ -251,6 +253,17 @@ GATE = r"""
     assert(heatpump_command(&installer, payload, buffer, log) == sizeof(panasonicSendQuery) && buffer[4] == 2);
     setInstallerCommandsAllowed(false);
     assert(heatpump_command(&installer, payload, buffer, log) == 0);
+  }
+  // the installer menu commands are flagged: refused while installer commands are not allowed
+  { byte buffer[256]; char log[256]; char payload[] = "1"; int flagged = 0;
+    for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+      if (!(commands[i].flags & CMD_INSTALLER)) continue;
+      flagged++;
+      memset(buffer, 0xa5, sizeof(buffer));
+      assert(heatpump_command(&commands[i], payload, buffer, log) == 0);
+      for (byte b : buffer) assert(b == 0xa5);
+    }
+    assert(flagged == 56);
   }
   // payloads with one decimal: a sensor offset in a high nibble (0.5 K steps) and a whole byte in 0.1 steps
   { const cmdStruct offset = { "SetOffset", 0, CMD_DECIMAL(35, 4, -35, 35, 5, 5, 8) };
