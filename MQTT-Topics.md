@@ -141,9 +141,9 @@ TOP92 | main/Heat_Pump_Model | Heat pump model, all values in HeatPumpType.md
 TOP93 | main/Pump_Duty | Pump duty
 TOP94 | main/Zones_State | Zones state (0 = zone1 active, 1 = zone2 active, 2 = zone1 and zone2 active)
 TOP95 | main/Max_Pump_Duty | Max pump duty configured
-TOP96 | main/Heater_Delay_Time | Heater delay time (J-series only)
-TOP97 | main/Heater_Start_Delta | Heater start delta (J-series only)
-TOP98 | main/Heater_Stop_Delta | Heater stop delta (J-series only)
+TOP96 | main/Heater_Delay_Time | Heater delay time (J and M series)
+TOP97 | main/Heater_Start_Delta | Heater start delta (J and M series)
+TOP98 | main/Heater_Stop_Delta | Heater stop delta (J and M series)
 TOP99 | main/Buffer_Installed | Buffer tank installed
 TOP100 | main/DHW_Installed | DHW tank installed
 TOP101 | main/Solar_Mode | Solar mode (disabled, to buffer, to DHW)
@@ -151,7 +151,7 @@ TOP102 | main/Solar_On_Delta | Solar heating delta on
 TOP103 | main/Solar_Off_Delta | solar heating delta off
 TOP104 | main/Solar_Frost_Protection | Solar frost protection temp
 TOP105 | main/Solar_High_Limit | Solar max temp limit
-TOP106 | main/Pump_Flowrate_Mode | Settings for pump flow rate (0=DeltaT, 1=Maximum flow, J-series only)
+TOP106 | main/Pump_Flowrate_Mode | Settings for pump flow rate (0=DeltaT, 1=Maximum flow; J and M series)
 TOP107 | main/Liquid_Type | Type of liquid in settings (Water / Glycol)
 TOP108 | main/Alt_External_Sensor | If external outdoor sensor is selected
 TOP109 | main/Anti_Freeze_Mode | Is anti freeze mode enabled or disabled
@@ -326,9 +326,9 @@ SET17 | SetZones | Set zones to active | 0 = zone 1 active, 1 = zone2 active, 2 
 SET18 | SetFloorHeatDelta | Set floor heating delta in Kelvin | 1-15
 SET19 | SetFloorCoolDelta | Set floor cooling delta in Kelvin | 1-15
 SET20 | SetDHWHeatDelta | Set DHW heating delta in Kelvin | -12 to -2 (negative value)
-SET21 | SetHeaterDelayTime | Set heater start delay time (only J-series) | in minutes
-SET22 | SetHeaterStartDelta | Set heater start delta T (only J-series) | in kelvin
-SET23 | SetHeaterStopDelta | Set heater stop delta T (only J-series) | in kelvin
+SET21 | SetHeaterDelayTime | Set heater start delay time (J and M series) | in minutes
+SET22 | SetHeaterStartDelta | Set heater start delta T (J and M series) | in kelvin
+SET23 | SetHeaterStopDelta | Set heater stop delta T (J and M series) | in kelvin
 SET24 | SetMainSchedule | Set weekly schedule | 0=off, 1=on
 SET25 | SetAltExternalSensor | Set the alternative external outdoor sensor | 0=disabled, 1=enabled
 SET26 | SetExternalPadHeater | Set the external pad heater | 0=disabled, 1=type-A, 2=type-B
