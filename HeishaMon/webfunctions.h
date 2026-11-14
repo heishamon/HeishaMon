@@ -38,6 +38,7 @@ struct settingsStruct {
   uint16_t updateAllTime = 300; // how often all data is resend to mqtt
   uint16_t updataAllDallasTime = 300; //how often all 1wire data is resent to mqtt
   uint16_t timezone = 0;
+  uint16_t settingsChangeWarn = 20; // log a warning when more settings changes are sent to the heat pump within an hour, 0 = off
 
   #define PASSWORD_LENGTH 65
 

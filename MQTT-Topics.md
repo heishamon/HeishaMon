@@ -304,6 +304,10 @@ MQTT: send mqtt message to base_topic/commands/SetTopic (e.g.: panasonic_heat_pu
 
 HTTP REST API: http://x.x.x.x/command?[topic]=[value]&[topic]=[value] (e.g.: http://x.x.x.x/command?SetQuietMode=3&SetZ1HeatRequestTemperature=21_
 
+A settings command is not sent when the heat pump already reports the requested value (MQTT, REST API, rules and Modbus); the log says so. `SendRawValue` is always sent.
+
+Nothing is blocked, but when more settings changes than set in "Warn about frequent settings changes" on the settings page (default 20, 0 = off) are sent within an hour, a warning is logged, at most once per hour. The `stats` topic shows the count as `settings changes last hour`.
+
  ID |Topic | Description | Value/Range
 :--- | :--- | --- | ---
 SET1  | SetHeatpump | Set heatpump on or off | 0=off, 1=on

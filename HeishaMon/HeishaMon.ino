@@ -117,6 +117,12 @@ QueueHandle_t logQueue = NULL;
 char actData[DATASIZE] = { '\0' };
 char actDataExtra[DATASIZE] = { '\0' };
 char actOptData[OPTDATASIZE]  = { '\0' };
+static uint8_t mainBlocksSinceCommand = 0;
+static unsigned long lastMainBlockTime = 0;
+// settings commands sent per minute in the last hour (index: minutes since boot % 60)
+static uint8_t settingsChanges[60] = { 0 };
+static unsigned long settingsChangesMinute = 0;
+static unsigned long lastSettingsChangeWarning = 0;
 
 // log message to sprintf to
 #define LOG_MSG_SIZE 256
@@ -831,6 +837,10 @@ bool readSerial()
       if (data_length == DATASIZE)  {  //receive a full data block
         if  (data[3] == 0x10) { //decode the normal data block
           decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
+          if (mainBlocksSinceCommand < 255) {
+            mainBlocksSinceCommand++;
+          }
+          lastMainBlockTime = millis();
           if ( (!extraDataBlockAvailable) && ((actData[0] == 0x71) && (actData[0xc7] >= 3)) ) { //do we have valid header and byte 0xc7 is more or equal 3 then assume K&L and more series
             log_message(_F("Extra data available on this heatpump"));
             extraDataBlockAvailable = true; //request for extra data next run
@@ -1003,6 +1013,9 @@ bool send_command(byte* command, int length) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
   }
+  if (command[0] == 0xf1 && command[1] == 0x6c) { // the next block may still show the old value
+    mainBlocksSinceCommand = 0;
+  }
   struct cmdbuffer_t cmd;
   cmd.length = length;
   memcpy(&cmd.data, command, length);
@@ -1022,6 +1035,9 @@ bool send_command(byte* command, int length) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
   }
+  if (command[0] == 0xf1 && command[1] == 0x6c) { // the next block may still show the old value
+    mainBlocksSinceCommand = 0;
+  }
   if ( sending ) {
     log_message(_F("Already sending data. Buffering this send request"));
     pushCommandBuffer(command, length);
@@ -1040,6 +1056,58 @@ bool send_command(byte* command, int length) {
   return true;
 }
 #endif
+
+// Minute buckets keep a sliding hour in 60 bytes of RAM.
+static unsigned int settingsChangesLastHour() {
+  unsigned long minute = millis() / 60000UL;
+  if (minute - settingsChangesMinute >= 60) {
+    memset(settingsChanges, 0, sizeof(settingsChanges));
+    settingsChangesMinute = minute;
+  }
+  while (settingsChangesMinute != minute) {
+    settingsChanges[++settingsChangesMinute % 60] = 0;
+  }
+  unsigned int count = 0;
+  for (uint8_t i = 0; i < 60; i++) {
+    count += settingsChanges[i];
+  }
+  return count;
+}
+
+// Warn instead of blocking, so automations that change settings often keep working (agreed in heishamon/HeishaMon#1076); one warning per hour keeps a 15 s rule from flooding the log.
+static void countSettingsChange(const char *name) {
+  unsigned int count = settingsChangesLastHour() + 1;
+  if (settingsChanges[settingsChangesMinute % 60] < 255) {
+    settingsChanges[settingsChangesMinute % 60]++;
+  }
+  if (heishamonSettings.settingsChangeWarn == 0 || count <= heishamonSettings.settingsChangeWarn) {
+    return;
+  }
+  if (lastSettingsChangeWarning != 0 && (unsigned long)(millis() - lastSettingsChangeWarning) < 3600000UL) {
+    return;
+  }
+  lastSettingsChangeWarning = millis() ? millis() : 1;
+  char msg[160];
+  snprintf_P(msg, sizeof(msg), PSTR("Warning: %u settings changes sent to the heat pump in the last hour (warning above %u), last one %s"),
+             count, heishamonSettings.settingsChangeWarn, name);
+  log_message(msg);
+}
+
+// Only fresh data proves a value is already set: the first block after a settings command may still show the old value, and old data says nothing about the current state.
+bool skip_settings_command(const cmdStruct *command, unsigned char *cmd, unsigned int len) {
+  if (len == 0 || heishamonSettings.listenonly) { // send_command() drops it
+    return false;
+  }
+  if (mainBlocksSinceCommand >= 2 && (unsigned long)(millis() - lastMainBlockTime) <= 3000UL * heishamonSettings.waitTime
+      && heatpump_command_unchanged(command, cmd, len, actData)) {
+    char msg[96];
+    snprintf_P(msg, sizeof(msg), PSTR("%s not sent: the heat pump already reports this value"), command->name);
+    log_message(msg);
+    return true;
+  }
+  countSettingsChange(command->name);
+  return false;
+}
 
 // Callback function that is called when a message has been pushed to one of your topics.
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -1325,7 +1393,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                   strcat((char *)client->userdata, log_msg);
                   strcat((char *)client->userdata, "\n");
                   log_message(log_msg);
-                  send_command(cmd, len);
+                  if (!skip_settings_command(&tmp, cmd, len)) {
+                    send_command(cmd, len);
+                  }
                 }
               }
 
@@ -2371,6 +2441,8 @@ void loop() {
     stats += toolongread;
     stats += F(",\"timeout reads\":");
     stats += timeoutread;
+    stats += F(",\"settings changes last hour\":");
+    stats += settingsChangesLastHour();
     stats += F(",\"version\":\"");
     stats += heishamon_version;
     stats += F("\",\"board\":\"");

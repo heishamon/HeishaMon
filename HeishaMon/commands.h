@@ -48,6 +48,10 @@ enum cmdType : uint8_t {
 };
 
 #define CMD_INSTALLER 0x01  // installer setting, only accepted after setInstallerCommandsAllowed(true)
+// The heat pump reports the setting in the same bits of the main data block, so a value it already reports is not
+// sent again. Not set on commands that start an action or a timer (force DHW/defrost/sterilization/heater, holiday,
+// powerful, reset), because sending them again is meant to repeat it, nor on SetPump (not reported) and SetCurves.
+#define CMD_REPORTED 0x02
 
 struct cmdStruct {
   char name[29];
@@ -84,6 +88,8 @@ struct cmdStruct {
                                                     CMD_TENTHS, (address), (shift), 0xFF, (offset), (divisor), (step), (minimum), (maximum), NULL
 // built by its own function
 #define CMD_FUNCTION(func)                          CMD_FUNC,   0,         0,       0,    0,     1,      1,   0,      0,      (func)
+// built by its own function into the field that starts at bit 'shift' of byte 'address' (for CMD_REPORTED)
+#define CMD_FUNCTION_AT(address, shift, func)       CMD_FUNC,   (address), (shift), 0xFF, 0,     1,      1,   0,      0,      (func)
 
 unsigned int set_operation_mode(char *msg, unsigned char *cmd, char *log_msg);
 unsigned int set_curves(char *msg, unsigned char *cmd, char *log_msg);
@@ -92,6 +98,9 @@ unsigned int set_zones(char *msg, unsigned char *cmd, char *log_msg);
 // Build the datagram of a main command from its payload. Returns the length to send, 0 when the payload is refused.
 unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char *cmd, char *log_msg);
 void setInstallerCommandsAllowed(bool allowed);
+bool heatpump_command_unchanged(const cmdStruct *command, const unsigned char *cmd, unsigned int len, const char *data);
+// Defined in HeishaMon.ino: true (and logged) when cmd is not sent because fresh data already reports its value.
+bool skip_settings_command(const cmdStruct *command, unsigned char *cmd, unsigned int len);
 
 //optional pcb commands
 unsigned int set_heat_cool_mode(char *msg, char *log_msg);
@@ -111,21 +120,21 @@ unsigned int set_byte_9(char *msg, char *log_msg);
 
 const cmdStruct commands[] PROGMEM = {
   // set heatpump state to on by sending 1
-  { "SetHeatpump", 0, CMD_ONOFF(4, 0) },
+  { "SetHeatpump", CMD_REPORTED, CMD_ONOFF(4, 0) },
   // set pump state to on by sending 1
   { "SetPump", 0, CMD_ONOFF(4, 4) },
   // set max pump duty
-  { "SetMaxPumpDuty", 0, CMD_VALUE(45, 1) },
+  { "SetMaxPumpDuty", CMD_REPORTED, CMD_VALUE(45, 1) },
   // set 0 for Off mode, set 1 for Quiet mode 1, set 2 for Quiet mode 2, set 3 for Quiet mode 3
-  { "SetQuietMode", 0, CMD_FIELD(7, 3, 0xFF, 1) },
+  { "SetQuietMode", CMD_REPORTED, CMD_FIELD(7, 3, 0xFF, 1) },
   // z1 heat request temp -  set from -5 to 5 to get same temperature shift point or set direct temp
-  { "SetZ1HeatRequestTemperature", 0, CMD_VALUE(38, 128) },
+  { "SetZ1HeatRequestTemperature", CMD_REPORTED, CMD_VALUE(38, 128) },
   // z1 cool request temp -  set from -5 to 5 to get same temperature shift point or set direct temp
-  { "SetZ1CoolRequestTemperature", 0, CMD_VALUE(39, 128) },
+  { "SetZ1CoolRequestTemperature", CMD_REPORTED, CMD_VALUE(39, 128) },
   // z2 heat request temp -  set from -5 to 5 to get same temperature shift point or set direct temp
-  { "SetZ2HeatRequestTemperature", 0, CMD_VALUE(40, 128) },
+  { "SetZ2HeatRequestTemperature", CMD_REPORTED, CMD_VALUE(40, 128) },
   // z2 cool request temp -  set from -5 to 5 to get same temperature shift point or set direct temp
-  { "SetZ2CoolRequestTemperature", 0, CMD_VALUE(41, 128) },
+  { "SetZ2CoolRequestTemperature", CMD_REPORTED, CMD_VALUE(41, 128) },
   // set mode to force DHW by sending 1
   { "SetForceDHW", 0, CMD_ONOFF(4, 6) },
   // set mode to force defrost  by sending 1
@@ -133,9 +142,9 @@ const cmdStruct commands[] PROGMEM = {
   // set mode to force sterilization by sending 1
   { "SetForceSterilization", 0, CMD_TRIGGER(8, 2) },
   // set sterilization target temperature in whole degrees Celsius (55-75)
-  { "SetSterilizationTemp", 0, CMD_CHECKED(100, 0, 55, 75, 1, 1, 128) },
+  { "SetSterilizationTemp", CMD_REPORTED, CMD_CHECKED(100, 0, 55, 75, 1, 1, 128) },
   // set sterilization holding time in 5-minute steps (5-60)
-  { "SetSterilizationMaxTime", 0, CMD_CHECKED(101, 0, 5, 60, 5, 1, 1) },
+  { "SetSterilizationMaxTime", CMD_REPORTED, CMD_CHECKED(101, 0, 5, 60, 5, 1, 1) },
   // set mode to force heater (emergency heating) by sending 1, off will be 0
   { "SetForceHeater", 0, CMD_ONOFF(5, 2) },
   // set Holiday mode by sending 1, off will be 0
@@ -143,55 +152,55 @@ const cmdStruct commands[] PROGMEM = {
   // set Powerful mode by sending 0 = off, 1 for 30min, 2 for 60min, 3 for 90 min
   { "SetPowerfulMode", 0, CMD_FIELD(7, 0, 0x07, 1) },
   // set Heat pump operation mode  3 = DHW only, 0 = heat only, 1 = cool only, 2 = Auto, 4 = Heat+DHW, 5 = Cool+DHW, 6 = Auto + DHW
-  { "SetOperationMode", 0, CMD_FUNCTION(set_operation_mode) },
+  { "SetOperationMode", CMD_REPORTED, CMD_FUNCTION_AT(6, 0, set_operation_mode) },
   // set DHW temperature by sending desired temperature between 40C-75C
-  { "SetDHWTemp", 0, CMD_VALUE(42, 128) },
+  { "SetDHWTemp", CMD_REPORTED, CMD_VALUE(42, 128) },
   // set heat/cool curves on z1 and z2 using a json input
   { "SetCurves", 0, CMD_FUNCTION(set_curves) },
   // set zones to active
-  { "SetZones", 0, CMD_FUNCTION(set_zones) },
-  { "SetFloorHeatDelta", 0, CMD_VALUE(84, 128) },
-  { "SetFloorCoolDelta", 0, CMD_VALUE(94, 128) },
-  { "SetDHWHeatDelta", 0, CMD_VALUE(99, 128) },
+  { "SetZones", CMD_REPORTED, CMD_FUNCTION_AT(6, 6, set_zones) },
+  { "SetFloorHeatDelta", CMD_REPORTED, CMD_VALUE(84, 128) },
+  { "SetFloorCoolDelta", CMD_REPORTED, CMD_VALUE(94, 128) },
+  { "SetDHWHeatDelta", CMD_REPORTED, CMD_VALUE(99, 128) },
   { "SetReset", 0, CMD_TRIGGER(8, 0) },
-  { "SetHeaterDelayTime", 0, CMD_VALUE(104, 1) },
-  { "SetHeaterStartDelta", 0, CMD_VALUE(105, 128) },
-  { "SetHeaterStopDelta", 0, CMD_VALUE(106, 128) },
-  { "SetMainSchedule", 0, CMD_ONOFF(5, 6) },
-  { "SetAltExternalSensor", 0, CMD_ONOFF(20, 4) },
-  { "SetExternalPadHeater", 0, CMD_PAIR(25, 4, 2) },
-  { "SetBufferDelta", 0, CMD_VALUE(59, 128) },
-  { "SetBuffer", 0, CMD_ONOFF(24, 2) },
+  { "SetHeaterDelayTime", CMD_REPORTED, CMD_VALUE(104, 1) },
+  { "SetHeaterStartDelta", CMD_REPORTED, CMD_VALUE(105, 128) },
+  { "SetHeaterStopDelta", CMD_REPORTED, CMD_VALUE(106, 128) },
+  { "SetMainSchedule", CMD_REPORTED, CMD_ONOFF(5, 6) },
+  { "SetAltExternalSensor", CMD_REPORTED, CMD_ONOFF(20, 4) },
+  { "SetExternalPadHeater", CMD_REPORTED, CMD_PAIR(25, 4, 2) },
+  { "SetBufferDelta", CMD_REPORTED, CMD_VALUE(59, 128) },
+  { "SetBuffer", CMD_REPORTED, CMD_ONOFF(24, 2) },
   // set Outdoor Temperature to stop heating 5-35
-  { "SetHeatingOffOutdoorTemp", 0, CMD_VALUE(83, 128) },
-  { "SetExternalControl", 0, CMD_ONOFF(23, 0) },
-  { "SetExternalError", 0, CMD_ONOFF(23, 4) },
-  { "SetExternalCompressorControl", 0, CMD_ONOFF(23, 6) },
-  { "SetExternalHeatCoolControl", 0, CMD_ONOFF(23, 2) },
+  { "SetHeatingOffOutdoorTemp", CMD_REPORTED, CMD_VALUE(83, 128) },
+  { "SetExternalControl", CMD_REPORTED, CMD_ONOFF(23, 0) },
+  { "SetExternalError", CMD_REPORTED, CMD_ONOFF(23, 4) },
+  { "SetExternalCompressorControl", CMD_REPORTED, CMD_ONOFF(23, 6) },
+  { "SetExternalHeatCoolControl", CMD_REPORTED, CMD_ONOFF(23, 2) },
   // set Bivalent control mode  0 = off, 1 = on
-  { "SetBivalentControl", 0, CMD_ONOFF(26, 0) },
+  { "SetBivalentControl", CMD_REPORTED, CMD_ONOFF(26, 0) },
   // set Bivalent operation mode  0 = Alternativ, 1 = Parallel, 2 = Advanced Parallel
-  { "SetBivalentMode", 0, CMD_PAIR(26, 2, 2) },
+  { "SetBivalentMode", CMD_REPORTED, CMD_PAIR(26, 2, 2) },
   // bivalent start temp -  set from -15C to 35C 
-  { "SetBivalentStartTemp", 0, CMD_VALUE(65, 128) },
+  { "SetBivalentStartTemp", CMD_REPORTED, CMD_VALUE(65, 128) },
   // bivalent AP start temp -  set from -15C to 35C 
-  { "SetBivalentAPStartTemp", 0, CMD_VALUE(66, 128) },
+  { "SetBivalentAPStartTemp", CMD_REPORTED, CMD_VALUE(66, 128) },
   // bivalent AP stop temp -  set from -15C to 35C
-  { "SetBivalentAPStopTemp", 0, CMD_VALUE(68, 128) },
-  { "SetHeatingControl", 0, CMD_ONOFF(30, 2) },
-  { "SetSmartDHW", 0, CMD_ONOFF(24, 6) },
-  { "SetQuietModePriority", 0, CMD_ONOFF(11, 4) },
-  { "SetPumpFlowrateMode", 0, CMD_ONOFF(29, 4) },
-  { "SetDHWSensorSelection", 0, CMD_ONOFF(11, 0) },
-  { "SetDHWHeaterState", 0, CMD_ONOFF(9, 2) },
-  { "SetRoomHeaterState", 0, CMD_ONOFF(9, 0) },
-  { "SetHeaterOnOutdoorTemp", 0, CMD_VALUE(85, 128) },
-  { "SetHeatToCoolTemp", 0, CMD_CHECKED(95, 0, -127, 127, 1, 1, 128) },
-  { "SetCoolToHeatTemp", 0, CMD_CHECKED(96, 0, -127, 127, 1, 1, 128) },
+  { "SetBivalentAPStopTemp", CMD_REPORTED, CMD_VALUE(68, 128) },
+  { "SetHeatingControl", CMD_REPORTED, CMD_ONOFF(30, 2) },
+  { "SetSmartDHW", CMD_REPORTED, CMD_ONOFF(24, 6) },
+  { "SetQuietModePriority", CMD_REPORTED, CMD_ONOFF(11, 4) },
+  { "SetPumpFlowrateMode", CMD_REPORTED, CMD_ONOFF(29, 4) },
+  { "SetDHWSensorSelection", CMD_REPORTED, CMD_ONOFF(11, 0) },
+  { "SetDHWHeaterState", CMD_REPORTED, CMD_ONOFF(9, 2) },
+  { "SetRoomHeaterState", CMD_REPORTED, CMD_ONOFF(9, 0) },
+  { "SetHeaterOnOutdoorTemp", CMD_REPORTED, CMD_VALUE(85, 128) },
+  { "SetHeatToCoolTemp", CMD_REPORTED, CMD_CHECKED(95, 0, -127, 127, 1, 1, 128) },
+  { "SetCoolToHeatTemp", CMD_REPORTED, CMD_CHECKED(96, 0, -127, 127, 1, 1, 128) },
   // minutes in steps of 30
-  { "SetRoomOperationMaxTime", 0, CMD_CHECKED(97, 0, 30, 7620, 30, 30, 1) },
-  { "SetDHWHeatupMaxTime", 0, CMD_CHECKED(98, 0, 1, 254, 1, 1, 1) },
-  { "SetQuietModeSchedule", 0, CMD_CHECKED(7, 6, 0, 1, 1, 1, 1) },
+  { "SetRoomOperationMaxTime", CMD_REPORTED, CMD_CHECKED(97, 0, 30, 7620, 30, 30, 1) },
+  { "SetDHWHeatupMaxTime", CMD_REPORTED, CMD_CHECKED(98, 0, 1, 254, 1, 1, 1) },
+  { "SetQuietModeSchedule", CMD_REPORTED, CMD_CHECKED(7, 6, 0, 1, 1, 1, 1) },
 };
 
 struct optCmdStruct{

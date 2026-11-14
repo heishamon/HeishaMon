@@ -1732,6 +1732,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='opentherm' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Force load rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Warn about frequent settings changes</label><div style='display:flex;align-items:center;gap:8px'><input type='number' name='settingsChangeWarn' class='setting-input' value='' min='0' style='width:80px'><span class='setting-hint'>changes per hour sent to the heat pump before a warning is logged (0 = off)</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Listen Only</h3></div>
@@ -1858,6 +1859,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Ethernet module (W5500)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='ethernet' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Disable on boards without the ethernet module to skip the W5500 probe and leave GPIO10-15 untouched. Needs a reboot.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div></div>
     <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Warn about frequent settings changes</label><div style='display:flex;align-items:center;gap:8px'><input type='number' name='settingsChangeWarn' class='setting-input' value='' min='0' style='width:80px'><span class='setting-hint'>changes per hour sent to the heat pump before a warning is logged (0 = off)</span></div></div>
   </div></div>
   <div class='panel' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Modbus TCP</h3></div>
