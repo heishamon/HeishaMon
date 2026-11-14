@@ -1563,7 +1563,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return showFirmware(client);
             } break;
           case 150: {
-              log_message((char*)"In /firmware client write part");
               if (Update.isRunning()) {
                 if (Update.end(true)) {
                   log_message((char*)"Firmware update success");
