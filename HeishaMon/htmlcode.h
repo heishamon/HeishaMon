@@ -2489,26 +2489,88 @@ function getMD5(){
   if(sp){var md5=sp.split('.')[0];if(md5.length==32)document.getElementById('md5').value=md5;}
 }
 function reloadHome(){setTimeout(function(){window.location.href='/';},15000);}
-function uploadFile(){
-  document.getElementById('updatebutton').disabled=true;
+function setButtons(off){
+  document.getElementById('updatebutton').disabled=off;
+  document.getElementById('installbutton').disabled=off;
+}
+function sendFirmware(file,name,md5){
+  setButtons(true);
   document.getElementById('status').innerText='';
-  var file=document.getElementById('firmware').files[0];
   var fd=new FormData();
-  fd.append('firmware',file);
-  fd.append('md5',document.getElementById('md5').value);
+  fd.append('firmware',file,name);
+  fd.append('md5',md5);
   var req=new XMLHttpRequest();
   req.upload.addEventListener('progress',function(e){document.getElementById('progressBar').value=Math.round((e.loaded/e.total)*100);},false);
   req.onreadystatechange=function(){
     if(req.readyState===4){
       document.getElementById('status').innerText=req.responseText;
       if(req.responseText.includes('success'))reloadHome();
-      else document.getElementById('updatebutton').disabled=false;
+      else setButtons(false);
     }
   };
   req.open('POST','/firmware');
   req.send(fd);
 }
-</script>
+function uploadFile(){
+  var file=document.getElementById('firmware').files[0];
+  if(!file){document.getElementById('status').innerText='Select a firmware file first.';return;}
+  sendFirmware(file,file.name,document.getElementById('md5').value);
+}
+// The browser gets the release from GitHub and uploads it like a file from disk: the HeishaMon itself never
+// connects to GitHub. The README and the binaries are added to the repository together by the release.
+var fwBase='https://raw.githubusercontent.com/heishamon/HeishaMon/main/binaries/';
+var fwLatest='';
+function fwGet(path,type){
+  return fetch(fwBase+path,{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('GitHub answered '+r.status+' for '+path);
+    return type=='blob'?r.blob():r.text();
+  });
+}
+function checkLatest(){
+  var el=document.getElementById('latest');
+  fwGet('README.md','text').then(function(t){
+    var m=t.match(/latest production release is (v\d+(?:\.\d+)*)/);
+    if(!m)throw new Error('no release found');
+    fwLatest=m[1];
+    var cur=document.getElementById('sideVersion').textContent.trim();
+    if(cur==fwLatest){
+      el.innerText='This HeishaMon runs the latest release ('+fwLatest+').';
+    }else{
+      el.innerText='The latest release is '+fwLatest+', this HeishaMon runs '+cur+'.';
+      document.getElementById('installbutton').innerText='Download & install '+fwLatest;
+      document.getElementById('installbutton').style.display='';
+    }
+  }).catch(function(){
+    el.innerText='Could not look up the latest release. This browser needs internet access for that.';
+  });
+}
+function installLatest(){
+  var st=document.getElementById('status');
+  var name=fwFile+fwLatest;
+  setButtons(true);
+  st.innerText='Downloading '+fwLatest+' from GitHub...';
+  Promise.all([fwGet(fwDir+name+'.md5','text'),fwGet(fwDir+name+'.bin','blob')]).then(function(r){
+    var md5=r[0].trim().toLowerCase();
+    if(!/^[0-9a-f]{32}$/.test(md5))throw new Error('no valid MD5 checksum for '+fwLatest);
+    if(r[1].size<100000)throw new Error('the downloaded firmware is too small');
+    document.getElementById('md5').value=md5;
+    sendFirmware(r[1],name+'.bin',md5);
+    st.innerText='Uploading '+fwLatest+'...';
+  }).catch(function(e){
+    st.innerText='Download failed: '+e.message;
+    setButtons(false);
+  });
+}
+window.addEventListener('load',checkLatest);
+)===="
+#ifdef ESP32
+R"====(var fwDir='model-type-large/',fwFile='HeishaMon.ino.esp32-';
+)===="
+#else
+R"====(var fwDir='model-type-small/',fwFile='HeishaMon.ino.d1-';
+)===="
+#endif
+R"====(</script>
 <div class='firmware-container'>
   <div class='firmware-info'>
 )===="
@@ -2524,6 +2586,15 @@ R"====(    <strong>Board:</strong> HeishaMon Small (ESP8266)<br>
 )===="
 #endif
 R"====(  </div>
+  <div class='panel' style='margin-bottom:20px'>
+    <div class='panel-header'><h3>Latest Release</h3></div>
+    <div style='padding:24px'>
+      <p id='latest' style='margin:0'>Looking up the latest release...</p>
+      <div style='margin-top:20px'>
+        <button id='installbutton' class='btn btn-primary' style='display:none' onclick='installLatest()'>Download &amp; install</button>
+      </div>
+    </div>
+  </div>
   <div class='panel'>
     <div class='panel-header'><h3>Firmware Update</h3></div>
     <div style='padding:24px'>
