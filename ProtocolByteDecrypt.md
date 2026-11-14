@@ -2,7 +2,7 @@
 
 Byte numbers are decimal; example values are hexadecimal. For the documented bit-pair fields, bits 1–2 are the most significant pair (mask 0xC0), bits 3–4 use 0x30, bits 5–6 use 0x0C, and bits 7–8 use 0x03. The individual zone-activity bits in byte 117 use masks 0x02 (Z2) and 0x01 (Z1).
 
-TOP144-TOP196 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 176 (possible bypass valve) remains unexposed pending verification. Bytes 191 and 192 are published as TOP197 (rated capacity in kW) and TOP198 (Standard or T-CAP), checked against ten units whose model is known. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
+TOP144-TOP198 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 176 (possible bypass valve) remains unexposed pending verification. Bytes 191 and 192 are published as TOP197 (rated capacity in kW) and TOP198 (Standard or T-CAP), checked against ten units whose model is known. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
 
 |  Topic# | Byte# | Possible Value | Value decrypt | Value Description |
 | :---- | ---- | ---- | ----- | ----:|

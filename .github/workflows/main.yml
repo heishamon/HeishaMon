@@ -31,6 +31,9 @@ jobs:
       - name: Test command encoding
         run: python3 Tools/test_commands.py
 
+      - name: Test decoding
+        run: python3 Tools/test_decode.py
+
       - name: Set version env var
         run: echo "GIT_SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         shell: bash
