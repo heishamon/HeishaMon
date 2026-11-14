@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -52,8 +52,14 @@ jobs:
           cd HeishaMon && sed -i 's/#define HEISHAMON_VERSION .*/#define HEISHAMON_VERSION "${{ env.VERSION }}"/' version.h && cat version.h
         shell: bash
 
+      # arduino/setup-arduino-cli still targets the deprecated Node.js 20,
+      # so use the install script of arduino-cli itself.
       - name: Setup Arduino CLI
-        uses: arduino/setup-arduino-cli@v2
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        shell: bash
 
       - name: Install platform
         run: |
