@@ -100,6 +100,60 @@ CHECKED = {
 }
 REFUSED = ["", "abc", "1x", "1.0", " 1", "+1", "1 ", "-", "999999999999999"]
 
+# CMD_REPORTED commands: (readback topic, payloads). Against all 256 values of the topic's byte, such a command is
+# not sent exactly when the decoded topic equals the payload. These must be the commands flagged CMD_REPORTED.
+REPORTED = {
+    "SetHeatpump": (0, "01"),
+    "SetMaxPumpDuty": (95, ["0", "64", "254"]),
+    "SetQuietMode": (18, "0123"),
+    "SetZ1HeatRequestTemperature": (27, ["-5", "0", "35"]),
+    "SetZ1CoolRequestTemperature": (28, ["-5", "18"]),
+    "SetZ2HeatRequestTemperature": (34, ["5", "40"]),
+    "SetZ2CoolRequestTemperature": (35, ["-1", "20"]),
+    "SetSterilizationTemp": (70, ["55", "75"]),
+    "SetSterilizationMaxTime": (71, ["5", "60"]),
+    "SetOperationMode": (4, "01345"),
+    "SetDHWTemp": (9, ["40", "48", "75"]),
+    "SetZones": (94, "012"),
+    "SetFloorHeatDelta": (23, ["1", "15"]),
+    "SetFloorCoolDelta": (24, ["1", "15"]),
+    "SetDHWHeatDelta": (22, ["-12", "-2"]),
+    "SetHeaterDelayTime": (96, ["0", "30"]),
+    "SetHeaterStartDelta": (97, ["-5", "1"]),
+    "SetHeaterStopDelta": (98, ["2", "10"]),
+    "SetMainSchedule": (13, "01"),
+    "SetAltExternalSensor": (108, "01"),
+    "SetExternalPadHeater": (114, "012"),
+    "SetBufferDelta": (113, ["0", "10"]),
+    "SetBuffer": (99, "01"),
+    "SetHeatingOffOutdoorTemp": (77, ["5", "35"]),
+    "SetExternalControl": (119, "01"),
+    "SetExternalError": (121, "01"),
+    "SetExternalCompressorControl": (122, "01"),
+    "SetExternalHeatCoolControl": (120, "01"),
+    "SetBivalentControl": (129, "01"),
+    "SetBivalentMode": (130, "012"),
+    "SetBivalentStartTemp": (131, ["-15", "35"]),
+    "SetBivalentAPStartTemp": (134, ["-15", "0"]),
+    "SetBivalentAPStopTemp": (135, ["10", "35"]),
+    "SetHeatingControl": (139, "01"),
+    "SetSmartDHW": (140, "01"),
+    "SetQuietModePriority": (141, "01"),
+    "SetPumpFlowrateMode": (106, "01"),
+    "SetDHWSensorSelection": (143, "01"),
+    "SetDHWHeaterState": (58, "01"),
+    "SetRoomHeaterState": (59, "01"),
+    "SetHeaterOnOutdoorTemp": (78, ["-15", "20"]),
+    "SetHeatToCoolTemp": (79, ["-127", "21", "127"]),
+    "SetCoolToHeatTemp": (80, ["12"]),
+    "SetRoomOperationMaxTime": (158, ["30", "90", "7620"]),
+    "SetDHWHeatupMaxTime": (159, ["1", "254"]),
+    "SetQuietModeSchedule": (3, "01"),
+}
+# always sent while the topic reads back the payload: Auto and Auto + DHW are reported with another code, force DHW
+# is an action
+NOT_REPORTED = {"SetOperationMode": (4, "26"), "SetForceDHW": (2, "01")}
+
 SHIM = r"""
 #include <cassert>
 #include <cstdint>
@@ -116,7 +170,10 @@ using byte = unsigned char;
 struct String {
   std::string s;
   String(const char *c) : s(c ? c : "") {}
+  String(int n) : s(std::to_string(n)) {}
+  String(float n, int digits) { char buf[64]; snprintf(buf, sizeof(buf), "%.*f", digits, n); s = buf; }
   long toInt() const { return atol(s.c_str()); }
+  const char *c_str() const { return s.c_str(); }
 };
 std::vector<byte> sent;
 int send_count;
@@ -169,6 +226,38 @@ static void check(const char *topic, char *payload, int address, int value) {
 }
 
 int main() {
+"""
+
+# skip_settings_command() is in HeishaMon.ino; here 'reported' is the fresh main data block, nullptr = none
+SKIP = r"""
+const char *reported = nullptr;
+bool skip_settings_command(const cmdStruct *command, unsigned char *cmd, unsigned int len) {
+  return reported && heatpump_command_unchanged(command, cmd, len, reported);
+}
+"""
+
+# one payload against every value of its readback byte: compared, and sent or not through the real dispatcher
+UNCHANGED_CASE = r"""
+  {{ char topic[] = "{topic}", payload[] = "{payload}";
+    sent.clear(); send_count = 0; reported = nullptr;
+    send_heatpump_command(topic, payload, send_command, log_message, false);
+    std::vector<byte> cmd = sent;
+    char data[DATASIZE]; memset(data, 0x55, sizeof(data)); data[0] = 0x71;
+    reported = data;
+    for (int b = 0; b < 256; ++b) {{
+      data[{address}] = b;
+      bool reports = std::string({decoder}(b).c_str()) == "{payload}";
+      bool unchanged = heatpump_command_unchanged(find(topic), cmd.data(), cmd.size(), data);
+      if ({compared} ? unchanged != reports : unchanged && reports) fail(topic, payload, "wrong comparison");
+      send_count = 0;
+      send_heatpump_command(topic, payload, send_command, log_message, false);
+      if (send_count != (unchanged ? 0 : 1)) fail(topic, payload, "sent although unchanged, or not sent");
+      data[0] = 0;
+      if (heatpump_command_unchanged(find(topic), cmd.data(), cmd.size(), data)) fail(topic, payload, "no data block");
+      data[0] = 0x71;
+    }}
+    reported = nullptr;
+  }}
 """
 
 # an installer command is refused until installer commands are allowed, a null payload never crashes
@@ -282,6 +371,15 @@ def main():
         )
     ]
     header = re.sub(r"^#include.*$", "", header, flags=re.M)
+    reported = re.findall(r'^  \{ "(Set\w+)", CMD_REPORTED, ', header, re.M)
+    assert set(reported) == set(REPORTED), set(reported) ^ set(REPORTED)
+    decode_header = (ROOT / "HeishaMon/decode.h").read_text()
+    decode_source = (ROOT / "HeishaMon/decode.cpp").read_text()
+    readback = {}
+    for table in ("topicBytes", "topicFunctions"):
+        body = re.search(r"\b" + table + r"\[\].*?=\s*\{(.*?)\};", decode_header, re.S)[1]
+        readback[table] = [line.split("//")[0].strip().rstrip(",") for line in body.splitlines() if line.split("//")[0].strip()]
+    decoders = decode_source[decode_source.index("String getRawByte(") : decode_source.index("String getModel(")]
 
     checks = []
     for topic, (address, values) in RECORDED.items():
@@ -294,8 +392,16 @@ def main():
             checks.append(CASE.format(topic=topic, payload=payload, address=address, value=value))
         for payload in refused + REFUSED:
             checks.append(CASE.format(topic=topic, payload=payload, address=address, value=-1))
+    unchanged = 0
+    for table, compared in ((REPORTED, "true"), (NOT_REPORTED, "false")):
+        for topic, (readback_topic, payloads) in table.items():
+            address = readback["topicBytes"][readback_topic]
+            decoder = readback["topicFunctions"][readback_topic]
+            for payload in payloads:
+                checks.append(UNCHANGED_CASE.format(topic=topic, payload=payload, address=address, decoder=decoder, compared=compared))
+                unchanged += 1
 
-    program = SHIM + header + template + encoder + "\n".join(stubs) + dispatcher
+    program = SHIM + header + template + encoder + "\n".join(stubs) + SKIP + dispatcher + decoders
     program += MAIN + "".join(checks) + GATE + "\n}\n"
     with tempfile.TemporaryDirectory() as directory:
         cpp = Path(directory) / "test.cpp"
@@ -303,7 +409,7 @@ def main():
         cpp.write_text(program)
         subprocess.run(["g++", "-std=c++17", str(cpp), "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print(f"PASS: {len(checks)} command cases for {len(names) - 1} commands (recorded bytes, boundaries, refused payloads)")
+    print(f"PASS: {len(checks)} command cases for {len(names) - 1} commands (recorded bytes, boundaries, refused payloads, {unchanged} unchanged values)")
 
 
 if __name__ == "__main__":
