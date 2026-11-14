@@ -46,6 +46,7 @@ struct settingsStruct {
   char wifi_ssid[33] = "";
   char wifi_password[PASSWORD_LENGTH] = "";
   char wifi_hostname[40] = "HeishaMon";
+  char description[64] = "";
   char ota_password[40] = "heisha";
   char mqtt_server[65];
   char mqtt_port[6] = "1883";
