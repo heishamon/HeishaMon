@@ -679,7 +679,7 @@ static int8_t vm_value_set(struct rules_t *obj) {
         cmdStruct tmp;
         memcpy_P(&tmp, &commands[x], sizeof(tmp));
         if(stricmp((char *)&key[1], tmp.name) == 0) {
-          uint16_t len = tmp.func(payload, cmd, log_msg);
+          uint16_t len = heatpump_command(&tmp, payload, cmd, log_msg);
           log_message(log_msg);
           send_command(cmd, len);
           break;
