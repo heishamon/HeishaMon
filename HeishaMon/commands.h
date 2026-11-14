@@ -117,7 +117,7 @@ const cmdStruct commands[] PROGMEM = {
   // set max pump duty
   { "SetMaxPumpDuty", 0, CMD_VALUE(45, 1) },
   // set 0 for Off mode, set 1 for Quiet mode 1, set 2 for Quiet mode 2, set 3 for Quiet mode 3
-  { "SetQuietMode", 0, CMD_FIELD(7, 3, 0xFF, 1) },
+  { "SetQuietMode", 0, CMD_FIELD(7, 3, 0x07, 1) },
   // z1 heat request temp -  set from -5 to 5 to get same temperature shift point or set direct temp
   { "SetZ1HeatRequestTemperature", 0, CMD_VALUE(38, 128) },
   // z1 cool request temp -  set from -5 to 5 to get same temperature shift point or set direct temp

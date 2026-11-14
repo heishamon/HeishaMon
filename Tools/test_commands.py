@@ -19,7 +19,8 @@ RECORDED = {
     "SetHeatpump": (4, [1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 1]),
     "SetPump": (4, [16, 16, 32, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 32, 16, 32, 32, 16]),
     "SetMaxPumpDuty": (45, [1, 1, 2, 3, 4, 7, 252, 22, 61, 76, 128, 0, 45, 2, 22, 2, 2, 1]),
-    "SetQuietMode": (7, [8, 8, 16, 24, 32, 56, 224, 176, 232, 96, 0, 0, 104, 16, 176, 16, 16, 8]),
+    # not as recorded: the old function let a value above 6 run into the quiet mode schedule bits of the same byte
+    "SetQuietMode": (7, [8, 8, 16, 24, 32, 56, 32, 48, 40, 32, 0, 0, 40, 16, 48, 16, 16, 8]),
     "SetZ1HeatRequestTemperature": (38, [128, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, 127, 172, 129, 149, 129, 129, 128]),
     "SetZ1CoolRequestTemperature": (39, [128, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, 127, 172, 129, 149, 129, 129, 128]),
     "SetZ2HeatRequestTemperature": (40, [128, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, 127, 172, 129, 149, 129, 129, 128]),
@@ -216,7 +217,7 @@ GATE = r"""
       { "SetDHWTemp", "300", "SetDHWTemp set to 44" }, { "SetDHWTemp", "-5", "SetDHWTemp set to -5" },
       { "SetDHWTemp", "21.5", "SetDHWTemp set to 21" }, { "SetDHWTemp", "abc", "SetDHWTemp set to 0" },
       { "SetHeatpump", "1", "SetHeatpump set to 1" }, { "SetHeatpump", "2", "SetHeatpump set to 0" },
-      { "SetQuietMode", "3", "SetQuietMode set to 3" }, { "SetQuietMode", "300", "SetQuietMode set to 12" },
+      { "SetQuietMode", "3", "SetQuietMode set to 3" }, { "SetQuietMode", "300", "SetQuietMode set to 4" },
       { "SetPowerfulMode", "2", "SetPowerfulMode set to 2" }, { "SetPowerfulMode", "21", "SetPowerfulMode set to 5" },
       { "SetBivalentMode", "2", "SetBivalentMode set to 2" }, { "SetBivalentMode", "3", "SetBivalentMode set to 0" },
       { "SetForceDefrost", "1", "SetForceDefrost set to 1" }, { "SetForceDefrost", "6", "SetForceDefrost set to 0" },
