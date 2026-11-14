@@ -3,6 +3,7 @@
 #include "version.h"
 #include "htmlcode.h"
 #include "commands.h"
+#include "webcommands.h"
 #ifdef ESP32
 #include "HeishaModbusServer.h"
 #endif
@@ -1173,6 +1174,9 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
       } break;
     case 1: {
         webserver_send_content_P(client, webTabnavOpen, strlen_P(webTabnavOpen));
+        if (!heishamonSettings->listenonly) {
+          webserver_send_content_P(client, webCommandsTab, strlen_P(webCommandsTab));
+        }
         if (heishamonSettings->use_1wire) {
           webserver_send_content_P(client, webBodyRootDallasTab, strlen_P(webBodyRootDallasTab));
         }
@@ -1193,6 +1197,9 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
       } break;
     case 2: {
         webserver_send_content_P(client, webBodyRootHeatpumpValues, strlen_P(webBodyRootHeatpumpValues));
+        if (!heishamonSettings->listenonly) {
+          webserver_send_content_P(client, webCommandsPane, strlen_P(webCommandsPane));
+        }
         if (heishamonSettings->use_1wire) {
           webserver_send_content_P(client, webBodyRootDallasValues, strlen_P(webBodyRootDallasValues));
         }
