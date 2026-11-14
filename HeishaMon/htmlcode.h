@@ -1200,6 +1200,39 @@ function renderGpioTable(d){
 function toggleGpio(pin,on){
   fetch('/gpio?pin='+pin+'&value='+(on?1:0)).catch(function(){});
 }
+var hpSortCol=-1,hpSortDir=1;
+function sortHp(c){
+  if(hpSortCol===c)hpSortDir=-hpSortDir;else{hpSortCol=c;hpSortDir=1;}
+  applyHpFilter();
+}
+function hpCompare(a,b){
+  var x=a.trim(),y=b.trim(),nx=parseFloat(x),ny=parseFloat(y);
+  if(!isNaN(nx)&&!isNaN(ny)&&nx!==ny)return nx-ny;
+  return x.localeCompare(y,undefined,{numeric:true,sensitivity:'base'});
+}
+function applyHpFilter(){
+  var f=document.getElementById('hpFilter');
+  var tb=document.getElementById('heishavalues');
+  if(!f||!tb)return;
+  if(hpSortCol>=0&&tb.rows.length>1){
+    var arr=Array.prototype.slice.call(tb.rows);
+    arr.sort(function(a,b){
+      if(!a.cells[hpSortCol]||!b.cells[hpSortCol])return 0;
+      return hpSortDir*hpCompare(a.cells[hpSortCol].textContent,b.cells[hpSortCol].textContent);
+    });
+    arr.forEach(function(r){tb.appendChild(r);});
+  }
+  var ind=document.querySelectorAll('.hpsort');
+  for(var k=0;k<ind.length;k++)ind[k].textContent=(k===hpSortCol)?(hpSortDir>0?' ▲':' ▼'):'';
+  var q=f.value.trim().toLowerCase();
+  var rows=tb.rows,n=0;
+  for(var i=0;i<rows.length;i++){
+    var m=!q||rows[i].textContent.toLowerCase().indexOf(q)!==-1;
+    rows[i].hidden=!m;
+    if(m)n++;
+  }
+  document.getElementById('hpFilterCount').textContent=q?(n+' / '+rows.length):'';
+}
 async function refreshTable(){
   try{
     if(isEditing)return;
@@ -1217,6 +1250,7 @@ async function refreshTable(){
       var tb=document.getElementById('heishavalues');
       d['heatpump optional'].forEach(function(item){tb.appendChild(buildRow(item,'Topic'));});
     }
+    applyHpFilter();
     renderDallasTable(d);
     renderGpioTable(d);
     if(d&&d.s0&&Array.isArray(d.s0)){
@@ -1401,8 +1435,12 @@ static const char webBodyRootHeatpumpValues[] FLASHPROG = R"====(
 <div id='Heatpump' class='tab-pane active'>
 <div class='panel'>
   <div class='panel-header'><h3>Heatpump Values</h3><span class='panel-meta' id='hpMeta'>Live</span></div>
-  <table><thead><tr>
-    <th>Topic</th><th>Name</th><th>Value</th><th>Description</th>
+  <div style='padding:12px 16px;display:flex;justify-content:flex-end;align-items:center;gap:12px'>
+    <span id='hpFilterCount' class='panel-meta'></span>
+    <input id='hpFilter' class='setting-input' type='search' placeholder='Filter by topic, name, value or description' style='max-width:360px' oninput='applyHpFilter()'>
+  </div>
+  <table><thead><tr style='cursor:pointer;user-select:none'>
+    <th onclick='sortHp(0)'>Topic<span class='hpsort'></span></th><th onclick='sortHp(1)'>Name<span class='hpsort'></span></th><th onclick='sortHp(2)'>Value<span class='hpsort'></span></th><th onclick='sortHp(3)'>Description<span class='hpsort'></span></th>
   </tr></thead><tbody id='heishavalues'>
     <tr><td colspan='4' style='color:var(--text-muted);padding:24px;text-align:center'>Loading…</td></tr>
   </tbody></table>
