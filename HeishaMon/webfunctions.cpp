@@ -275,6 +275,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
             if (enabled) heishamonSettings->topicGroups |= (1 << g);
           }
           setTopicGroups(heishamonSettings->topicGroups);
+          setInstallerCommandsAllowed((heishamonSettings->topicGroups >> TG_INSTALLER) & 1); //installer menu commands follow the "Installer settings" topic group
 #ifdef ESP32          
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
           heishamonSettings->ethernet = ( jsonDoc[F("ethernet")] == "disabled" ) ? false : true; //default to true if not found in settings

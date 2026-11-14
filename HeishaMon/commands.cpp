@@ -208,6 +208,21 @@ unsigned int set_zones(char *msg, unsigned char *cmd, char *log_msg) {
   return sizeof(panasonicSendQuery);
 }
 
+// Extra pump, byte 31 bits 3-0: use in bits 1-0, mode in bits 3-2. 0 and 1 send use and mode together (0x5 = not used /
+// comfort, 0xA = heating / efficiency) as the Service Cloud does; 2 (DHW) sends only the use pair (0x3).
+unsigned int set_extra_pump(char *msg, unsigned char *cmd, char *log_msg) {
+  static const byte bits[] = { 0x5, 0xA, 0x3 };
+  long value = 0;
+  if (!strict_number(msg, false, value) || value < 0 || value > 2) {
+    snprintf_P(log_msg, 256, PSTR("SetExtraPump ignored: expected integer 0..2"));
+    return 0;
+  }
+  memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
+  cmd[31] = bits[value];
+  snprintf_P(log_msg, 256, PSTR("SetExtraPump set to %ld"), value);
+  return sizeof(panasonicSendQuery);
+}
+
 //start of optional pcb commands
 unsigned int set_byte_6(int val, int base, int bit, char *log_msg, const char *func) {
   unsigned char hex = (optionalPCBQuery[6] & ~(base << bit)) | (val << bit);

@@ -824,6 +824,8 @@ static const char *ZoneConfiguration[] PROGMEM = {"0", "Configuration code"};
 static const char *Steps[] PROGMEM = {"0", "Steps"};
 static const char *BivalentOperatingMode[] PROGMEM = {"3", "Auto", "SG ready", "Intelligent"};
 static const char *ExtraPumpUse[] PROGMEM = {"3", "Not used", "Heating", "DHW"};
+// TOP149 can read b11 (value 2, written by SetSGReadyMode 2); the description is looked up at [value + 1]
+static const char *SGReadyControl[] PROGMEM = {"3", "Disabled", "Enabled, capacity", "Enabled, power consumption"};
 
 static const char **opttopicDescription[] PROGMEM = {
   OffOn,          //OPT0
@@ -994,7 +996,7 @@ static const char **topicDescription[] PROGMEM = {
   ZoneConfiguration, //TOP146
   Kilowatt, //TOP147
   DHWHeaterType, //TOP148
-  DisabledEnabled, //TOP149
+  SGReadyControl, //TOP149
   DisabledEnabled, //TOP150
   DisabledEnabled, //TOP151
   Celsius, //TOP152
