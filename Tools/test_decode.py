@@ -42,6 +42,7 @@ public:
 #define _F(x) x
 #define memcpy_P memcpy
 #define sprintf_P sprintf
+#define snprintf_P snprintf
 unsigned long millis() { return 1; }
 unsigned int word(char high, char low) {
   return (static_cast<byte>(high) << 8) | static_cast<byte>(low);
