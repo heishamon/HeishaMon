@@ -28,6 +28,9 @@ jobs:
       - name: Test Modbus register map
         run: python3 tests/modbus/run_tests.py
 
+      - name: Test command encoding
+        run: python3 Tools/test_commands.py
+
       - name: Set version env var
         run: echo "GIT_SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         shell: bash

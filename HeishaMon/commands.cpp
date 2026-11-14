@@ -104,6 +104,8 @@ unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char
 
   memcpy_P(cmd, panasonicSendQuery, sizeof(panasonicSendQuery));
   cmd[command->address] = (byte)(((value / command->divisor + command->offset) & command->mask) << command->shift);
+  // log the value that is sent: a number outside the field wraps, a choice outside its range becomes 0
+  value = ((long)((cmd[command->address] >> command->shift) & command->mask) - command->offset) * command->divisor;
   if (tenths) {
     snprintf_P(log_msg, 256, PSTR("%s set to %.1f"), command->name, value / 10.0);
   } else {

@@ -210,6 +210,32 @@ GATE = r"""
     }
     assert(heatpump_command(&offset, nullptr, nullptr, (char *)memset(new char[256], 0, 256)) == 0);
   }
+  // the log shows the value that is sent, not the payload
+  { struct { const char *topic; const char *payload; const char *log; } cases[] = {
+      { "SetDHWTemp", "48", "SetDHWTemp set to 48" }, { "SetDHWTemp", "256", "SetDHWTemp set to 0" },
+      { "SetDHWTemp", "300", "SetDHWTemp set to 44" }, { "SetDHWTemp", "-5", "SetDHWTemp set to -5" },
+      { "SetDHWTemp", "21.5", "SetDHWTemp set to 21" }, { "SetDHWTemp", "abc", "SetDHWTemp set to 0" },
+      { "SetHeatpump", "1", "SetHeatpump set to 1" }, { "SetHeatpump", "2", "SetHeatpump set to 0" },
+      { "SetQuietMode", "3", "SetQuietMode set to 3" }, { "SetQuietMode", "300", "SetQuietMode set to 12" },
+      { "SetPowerfulMode", "2", "SetPowerfulMode set to 2" }, { "SetPowerfulMode", "21", "SetPowerfulMode set to 5" },
+      { "SetBivalentMode", "2", "SetBivalentMode set to 2" }, { "SetBivalentMode", "3", "SetBivalentMode set to 0" },
+      { "SetForceDefrost", "1", "SetForceDefrost set to 1" }, { "SetForceDefrost", "6", "SetForceDefrost set to 0" },
+      { "SetRoomOperationMaxTime", "7620", "SetRoomOperationMaxTime set to 7620" },
+      { "SetHeatToCoolTemp", "-127", "SetHeatToCoolTemp set to -127" },
+      { "SetQuietModeSchedule", "1", "SetQuietModeSchedule set to 1" },
+    };
+    for (auto &c : cases) {
+      byte buffer[256]; char log[256] = { 0 }; char payload[16];
+      strcpy(payload, c.payload);
+      if (heatpump_command(find(c.topic), payload, buffer, log) == 0 || strcmp(log, c.log) != 0) {
+        printf("FAIL %s '%s': log '%s', expected '%s'\n", c.topic, c.payload, log, c.log);
+        exit(1);
+      }
+    }
+    const cmdStruct offset = { "SetOffset", 0, CMD_DECIMAL(35, 4, -35, 35, 5, 5, 8) };
+    byte buffer[256]; char log[256] = { 0 }; char payload[] = "-3.5";
+    assert(heatpump_command(&offset, payload, buffer, log) != 0 && strcmp(log, "SetOffset set to -3.5") == 0);
+  }
   for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
     if (commands[i].type == CMD_FUNC) continue;
     byte buffer[256]; char log[256];
