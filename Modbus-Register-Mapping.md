@@ -64,7 +64,7 @@ extra data block, and optional PCB topics (OPT) while optional PCB emulation is 
 
 | Group | Reserved integer block (FC03, int16) | Reserved float block (FC03, float32) | Currently implemented |
 | --- | --- | --- | --- |
-| Main TOPn | 0-999 | 10000-11999 | TOP0-TOP196: integer 0-196, float 10000-10393 |
+| Main TOPn | 0-999 | 10000-11999 | TOP0-TOP198: integer 0-198, float 10000-10397 |
 | Extra XTOPn | 1000-1999 | 12000-13999 | XTOP0-XTOP5: integer 1000-1005, float 12000-12011 |
 | Optional PCB OPTn | 2000-2999 | 14000-15999 | OPT0-OPT6: integer 2000-2006, float 14000-14013 |
 | S0 inputs | 3000-3999 | 16000-17999 | Input 1: integer 3000-3005, float 16000-16011; input 2: integer 3100-3105, float 16200-16211 |

@@ -242,10 +242,12 @@ TOP193 | main/Sensor_Offset_Return | Sensor calibration offset return sensor, K 
 TOP194 | main/Defrost_Signal | Defrost signal, installer menu System setup (0=no, 1=yes; byte 28 bits 7-6)
 TOP195 | main/Sensor_Offset_DHW_Tank | Sensor calibration offset DHW tank sensor, K in steps of 0.5 (byte 36 low nibble)
 TOP196 | main/Sensor_Offset_Flow | Sensor calibration offset flow sensor, K in steps of 0.5 (byte 37 low nibble)
+TOP197 | main/Heat_Pump_Capacity | Rated heating capacity of the unit (kW)
+TOP198 | main/Heat_Pump_Type | Model type (0=Standard, 1=T-CAP)
 
 The relay states are published on change and after each MQTT (re)connect. Commands go to `gpio/relay/one` and `gpio/relay/two` (without `/state`). The extra GPIOs use the same layout: commands to `gpio/extra/N`, states (retained) on `gpio/extra/N/state`. After a reboot the outputs are restored once from their retained `/state` topics; see the README section *GPIO states and restore at boot*.
 
-The topics above are relative to the configured MQTT base topic. New topics TOP144–TOP196 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. TOP170–TOP196 were tested on M series only; may work on other series, not tested there. On a model that does not provide one of their bytes (the byte reads 0), the topic shows a value outside the range of the setting (for example -128 °C, -0.1 kW, -5 minutes or -4.0 K), like the existing topics. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
+The topics above are relative to the configured MQTT base topic. New topics TOP144-TOP198 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. TOP170–TOP196 were tested on M series only; may work on other series, not tested there. On a model that does not provide one of their bytes (the byte reads 0), the topic shows a value outside the range of the setting (for example -128 °C, -0.1 kW, -5 minutes or -4.0 K), like the existing topics. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
 
 
 
@@ -258,7 +260,7 @@ The main topics are split into groups. In Settings, under *Topic groups*, every 
 
 | Group | Settings key | Default | Topics |
 |---|---|---|---|
-| Basic (always on) | - | on | TOP0-20, 26, 38-41, 44, 92, 160-161 |
+| Basic (always on) | - | on | TOP0-20, 26, 38-41, 44, 92, 160-161, 197-198 |
 | Heating & cooling | `topics_heatcool` | on | TOP22-24, 27-33, 36, 42, 45, 56, 72-77, 79-81, 94, 124, 127, 166, 169 |
 | Zone 2 | `topics_zone2` | on | TOP34-35, 37, 43, 57, 82-89, 118, 123, 128, 165 |
 | DHW & heaters | `topics_dhw_heaters` | on | TOP25, 58-61, 68-71, 78, 90-91, 96-98, 140, 151, 158-159 |

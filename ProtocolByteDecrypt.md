@@ -2,7 +2,7 @@
 
 Byte numbers are decimal; example values are hexadecimal. For the documented bit-pair fields, bits 1–2 are the most significant pair (mask 0xC0), bits 3–4 use 0x30, bits 5–6 use 0x0C, and bits 7–8 use 0x03. The individual zone-activity bits in byte 117 use masks 0x02 (Z2) and 0x01 (Z1).
 
-TOP144–TOP196 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 176 (possible bypass valve), byte 191 (meaning of heat-pump power), and byte 192 (possible T-CAP indicator) remain unexposed pending verification. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
+TOP144-TOP196 expose the additional documented fields below; see MQTT-Topics.md for topic names and payloads. Byte 21 is published as its decimal configuration code, without inferring undocumented bit fields. Byte 176 (possible bypass valve) remains unexposed pending verification. Bytes 191 and 192 are published as TOP197 (rated capacity in kW) and TOP198 (Standard or T-CAP), checked against ten units whose model is known. The conflicting RC-2 offsets (documented byte 200 versus existing decoder byte 128) are unchanged.
 
 |  Topic# | Byte# | Possible Value | Value decrypt | Value Description |
 | :---- | ---- | ---- | ----- | ----:|
@@ -197,8 +197,8 @@ TOP144–TOP196 expose the additional documented fields below; see MQTT-Topics.m
 |  TOP91 | 188 | 01 | combine both bytes (189) 00  (188) 0001 = 1 - 1 = 0   | DHW Heater operation time in h  |
 |  TOP91 | 189 | 00 | look at 188 | DHW Heater operation time in h |
 |  TOP | 190 | 00 |   | 0 byte |
-|  TOP | 191 | 06 | Convert to DEC X-1  | Heat pump power in Kw |
-|  TOP | 192 | 01 | (hex) simple model=1, T-CAP=2  | ? Possible Heat pump indicator for T-CAP  |
+|  TOP197 | 191 | 06 | Convert to DEC X-1  | Rated heat pump capacity in kW |
+|  TOP198 | 192 | 01 | Convert to DEC X-1: 0 = standard, 1 = T-CAP  | Heat pump type (standard or T-CAP) |
 |  TOP16 | 193 | 01 | Convert to DEC (x-1) / 5   | Power Consumption for Heat in [kw]  |
 |  TOP15 | 194 | 01 | Convert to DEC (x-1) / 5   | Power Generation for Heat in [kw] |
 |  TOP38 | 195 | 01 | Convert to DEC (x-1) / 5   | Power Consumption for Cool in [kw] |
