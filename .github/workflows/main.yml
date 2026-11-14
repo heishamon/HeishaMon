@@ -97,11 +97,11 @@ jobs:
             HeishaMon/HeishaMon_*.bin
             HeishaMon/HeishaMon.ino.map
 
-      - name: Delete old nightly assets
+      # Delete the release together with its tag, so the new one gets the
+      # current commit and date instead of those of the first nightly.
+      - name: Delete old nightly release
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
-        run: |
-          gh release view nightly --json assets --jq '.assets[].name' | \
-          xargs -I{} gh release delete-asset nightly {} --yes || true
+        run: gh release delete nightly --cleanup-tag --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -111,6 +111,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: nightly
+          target_commitish: ${{ github.sha }}
           name: "Nightly build (${{ env.GIT_SHORT_SHA }})"
           body: |
             Automated nightly build from `main` branch.
