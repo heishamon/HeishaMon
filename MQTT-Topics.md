@@ -215,15 +215,60 @@ TOP166 | main/Z1_Active | Actual zone 1 activity (0=inactive, 1=active)
 TOP167 | main/Backup_Heater_Enable | Backup heater custom-menu setting (0=inactive, 1=active)
 TOP168 | main/Cooling_Enable | Cooling custom-menu setting (0=inactive, 1=active)
 TOP169 | main/Heat_Request_Temp_With_Buffer | Heating water shift/direct target including buffer delta (°C)
+TOP170 | main/Static_Pressure | Static pressure option (0=disabled, 1=enabled; installer menu item "Static pressure", byte 31 bits 5-4)
+TOP171 | main/Heating_On_Outdoor_Temp | Outdoor temperature for heating ON (°C; installer menu, byte 108)
+TOP172 | main/Heating_On_Delay | Heating ON delay time (minutes, multiples of 30; byte 109)
+TOP173 | main/DHW_Booster_Delay | Switch-on delay of the external DHW booster heater (minutes; byte 60, only meaningful with DHW tank and external heater)
+TOP174 | main/Efficiency_Stage1_Time | Heating control "efficiency" stage 1 duration (minutes, multiples of 5; byte 33 low nibble)
+TOP175 | main/Efficiency_Stage2_Time | Heating control "efficiency" stage 2 duration (minutes, multiples of 5; byte 33 high nibble)
+TOP176 | main/Efficiency_Stage3_Time | Heating control "efficiency" stage 3 duration (minutes, multiples of 5; byte 34 low nibble)
+TOP177 | main/Sensor_Offset_Remote_Th1 | Sensor calibration offset Th1 (remote), K in steps of 0.5 (byte 35 high nibble)
+TOP178 | main/Sensor_Offset_Outdoor | Sensor calibration offset outdoor sensor, K in steps of 0.5 (byte 35 low nibble)
+TOP179 | main/Anti_Stick_Mode | Anti-stick mode, actuator exercise (0=disabled, 1=enabled; byte 34 bits 7-6)
+TOP180 | main/Bivalent_Operating_Mode | Bivalent operating mode, cloud field "operating mode" (0=auto, 1=SG ready, 2=intelligent; byte 27 bits 5-4). Not the switching behaviour of TOP130
+TOP181 | main/Bivalent_External_Pump | Bivalent external pump, cloud field "external pump" (0=off, 1=on; byte 27 bits 7-6)
+TOP182 | main/Extra_Pump_Use | Extra pump use (0=not used, 1=heating, 2=DHW; byte 31 bits 1-0, derived from the observed values 0x55, 0x5A, 0x5B and 0x57)
+TOP183 | main/Extra_Pump_Mode | Extra pump mode (0=comfort, 1=efficiency; byte 31 bits 3-2, derived like TOP182). Only meaningful when TOP182 is 2 (DHW); 0 is also reported while the pump is not used
+TOP184 | main/SG_Ready_1_DHW_Power | SG ready power consumption setting 1, DHW (kW, 0.1 steps; byte 51)
+TOP185 | main/SG_Ready_1_Heat_Power | SG ready power consumption setting 1, heating (kW; byte 52)
+TOP186 | main/SG_Ready_1_Cool_Power | SG ready power consumption setting 1, cooling (kW; byte 53)
+TOP187 | main/SG_Ready_2_DHW_Power | SG ready power consumption setting 2, DHW (kW; byte 54)
+TOP188 | main/SG_Ready_2_Heat_Power | SG ready power consumption setting 2, heating (kW; byte 55)
+TOP189 | main/SG_Ready_2_Cool_Power | SG ready power consumption setting 2, cooling (kW; byte 56, label by elimination)
+TOP190 | main/SG_Ready_Stop_Power | SG ready consumption limit while the heat pump is stopped (kW; byte 57)
+TOP191 | main/SG_Ready_1_Cool_Capacity | SG ready capacity setting 1, cooling offset (°C; byte 102)
+TOP192 | main/SG_Ready_2_Cool_Capacity | SG ready capacity setting 2, cooling offset (°C; byte 103)
+TOP193 | main/Sensor_Offset_Return | Sensor calibration offset return sensor, K in steps of 0.5 (byte 36 high nibble)
+TOP194 | main/Defrost_Signal | Defrost signal, installer menu System setup (0=no, 1=yes; byte 28 bits 7-6)
+TOP195 | main/Sensor_Offset_DHW_Tank | Sensor calibration offset DHW tank sensor, K in steps of 0.5 (byte 36 low nibble)
+TOP196 | main/Sensor_Offset_Flow | Sensor calibration offset flow sensor, K in steps of 0.5 (byte 37 low nibble)
+TOP197 | main/Heat_Pump_Capacity | Rated heating capacity of the unit (kW)
+TOP198 | main/Heat_Pump_Type | Model type (0=Standard, 1=T-CAP)
 
 The relay states are published on change and after each MQTT (re)connect. Commands go to `gpio/relay/one` and `gpio/relay/two` (without `/state`). The extra GPIOs use the same layout: commands to `gpio/extra/N`, states (retained) on `gpio/extra/N/state`. After a reboot the outputs are restored once from their retained `/state` topics; see the README section *GPIO states and restore at boot*.
 
-The topics above are relative to the configured MQTT base topic. New topics TOP144–TOP169 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
+The topics above are relative to the configured MQTT base topic. New topics TOP144-TOP198 use the documented normal data block (0x10); availability depends on the heat pump model and configuration. TOP170–TOP196 were tested on M series only; may work on other series, not tested there. On a model that does not provide one of their bytes (the byte reads 0), the topic shows a value outside the range of the setting (for example -128 °C, -0.1 kW, -5 minutes or -4.0 K), like the existing topics. Two-bit status fields use -1 for an unset encoding (00). Z1_Active and Z2_Active are individual activity bits, distinct from Zones_State. Quiet/Powerful actual states are distinct from the configured level/time topics.
 
 
 
 
 All Topics related with state can have also value -1 - unknown - but only in abnormal situations.
+
+### Topic groups
+
+The main topics are split into groups. In Settings, under *Topic groups*, every group except the basic one can be switched off. A switched off topic is not published to MQTT, not sent over the websocket and left out of `/json`, but it is still decoded: rules (`@Name`), Modbus and `/json?topic=` keep working. The installer settings group is off by default. Values that were published before a group was switched off stay retained on the broker until you remove them.
+
+| Group | Settings key | Default | Topics |
+|---|---|---|---|
+| Basic (always on) | - | on | TOP0-20, 26, 38-41, 44, 92, 160-161, 197-198 |
+| Heating & cooling | `topics_heatcool` | on | TOP22-24, 27-33, 36, 42, 45, 56, 72-77, 79-81, 94, 124, 127, 166, 169 |
+| Zone 2 | `topics_zone2` | on | TOP34-35, 37, 43, 57, 82-89, 118, 123, 128, 165 |
+| DHW & heaters | `topics_dhw_heaters` | on | TOP25, 58-61, 68-71, 78, 90-91, 96-98, 140, 151, 158-159 |
+| Diagnostics | `topics_diagnostics` | on | TOP21, 49-55, 62-67, 93, 115-117, 125-126, 142 |
+| Buffer, solar & pool | `topics_buffer_solar_pool` | on | TOP46-48, 101-105, 113-114, 144, 152-153 |
+| Bivalent | `topics_bivalent` | on | TOP129-138, 164, 180-181 |
+| External control & SG ready | `topics_external_sgready` | on | TOP110, 119-122, 149-150, 154-157, 162-163, 184-192 |
+| Installer settings | `topics_installer` | off | TOP95, 99-100, 106-109, 111-112, 139, 141, 143, 145-148, 167-168, 170-179, 182-183, 193-196 |
 
 ## Extra Sensor Topics:
 Some heatpumps (K/L series and newer) send an additional "extra data block" on top of the normal data block. HeishaMon detects this automatically at boot and, if available, starts requesting and decoding it as well. These extra topics provide separate, more precise power consumption/production values (Watt) per mode, published under the `extra/` topic prefix. If your heatpump does not support the extra data block, these topics will not be published.

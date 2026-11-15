@@ -22,6 +22,30 @@ static uint8_t ntpservers = 0;
 
 void log_message(char* string);
 void log_message(const __FlashStringHelper *msg);
+extern bool doInitialWifiScan;
+extern settingsStruct heishamonSettings;
+
+// Top bar of every page; the description from the settings (if set) is shown next to the logo, HTML escaped.
+static void sendBodyStart(struct webserver_t *client) {
+  webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+  if (heishamonSettings.description[0] != '\0') {
+    char html[sizeof(heishamonSettings.description) * 6 + 32];
+    char *p = html + sprintf(html, "<span class='topbar-desc'>");
+    for (const char *c = heishamonSettings.description; *c != '\0'; c++) {
+      switch (*c) {
+        case '&': p += sprintf(p, "&amp;"); break;
+        case '<': p += sprintf(p, "&lt;"); break;
+        case '>': p += sprintf(p, "&gt;"); break;
+        case '"': p += sprintf(p, "&quot;"); break;
+        case '\'': p += sprintf(p, "&#39;"); break;
+        default: *p++ = *c;
+      }
+    }
+    p += sprintf(p, "</span>");
+    webserver_send_content(client, html, p - html);
+  }
+  webserver_send_content_P(client, webBodyStart2, strlen_P(webBodyStart2));
+}
 
 int dBmToQuality(int dBm) {
   if (dBm == 31)
@@ -33,6 +57,8 @@ int dBmToQuality(int dBm) {
   return 2 * (dBm + 100);
 }
 
+
+static String wifiScanJson; // last WiFi scan result for /wifiscan
 
 void getWifiScanResults(int numSsid) {
   if (numSsid > 0) { //found wifi networks
@@ -70,7 +96,10 @@ void getWifiScanResults(int numSsid) {
       String quality = String(dBmToQuality(WiFi.RSSI(indexes[i]))) + "%";
       wifiJsonObject[F("rssi")] = quality;
     }
-    saveJsonToFile(wifiJsonDoc,"/wifiscan.json");
+    // Kept in RAM for /wifiscan, not on flash: a scan runs up to once a
+    // minute while the settings page is open.
+    wifiScanJson = "";
+    serializeJson(wifiJsonDoc, wifiScanJson);
     WiFi.scanDelete();
   }
 }
@@ -238,6 +267,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           if ( jsonDoc[F("wifi_ssid")] ) strlcpy(heishamonSettings->wifi_ssid, jsonDoc[F("wifi_ssid")], sizeof(heishamonSettings->wifi_ssid));
           if ( jsonDoc[F("wifi_password")] ) strlcpy(heishamonSettings->wifi_password, jsonDoc[F("wifi_password")], sizeof(heishamonSettings->wifi_password));
           if ( jsonDoc[F("wifi_hostname")] ) strlcpy(heishamonSettings->wifi_hostname, jsonDoc[F("wifi_hostname")], sizeof(heishamonSettings->wifi_hostname));
+          if ( jsonDoc[F("description")] ) strlcpy(heishamonSettings->description, jsonDoc[F("description")], sizeof(heishamonSettings->description));
           if ( jsonDoc[F("ota_password")] ) strlcpy(heishamonSettings->ota_password, jsonDoc[F("ota_password")], sizeof(heishamonSettings->ota_password));
           if ( jsonDoc[F("mqtt_topic_base")] ) strlcpy(heishamonSettings->mqtt_topic_base, jsonDoc[F("mqtt_topic_base")], sizeof(heishamonSettings->mqtt_topic_base));
           if ( jsonDoc[F("mqtt_server")] ) strlcpy(heishamonSettings->mqtt_server, jsonDoc[F("mqtt_server")], sizeof(heishamonSettings->mqtt_server));
@@ -260,8 +290,18 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->logSerial1 = ( jsonDoc[F("logSerial1")] == "enabled" ) ? true : false;
           heishamonSettings->optionalPCB = ( jsonDoc[F("optionalPCB")] == "enabled" ) ? true : false;
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
+          heishamonSettings->topicGroups = (1 << TG_BASIC);
+          for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+            char key[sizeof(topicGroupKeys[0])];
+            strcpy_P(key, topicGroupKeys[g]);
+            JsonVariant v = jsonDoc[key];
+            bool enabled = v.isNull() ? ((TOPIC_GROUPS_DEFAULT >> g) & 1) : (v == "enabled"); //missing key: use the default
+            if (enabled) heishamonSettings->topicGroups |= (1 << g);
+          }
+          setTopicGroups(heishamonSettings->topicGroups);
 #ifdef ESP32          
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
+          heishamonSettings->proxyBlockWrites = ( jsonDoc[F("proxyBlockWrites")] == "enabled" ) ? true : false;
           heishamonSettings->ethernet = ( jsonDoc[F("ethernet")] == "disabled" ) ? false : true; //default to true if not found in settings
           heishamonSettings->modbus = ( jsonDoc[F("modbus")] == "enabled" ) ? true : false;
           heishamonSettings->modbusWrites = ( jsonDoc[F("modbusWrites")] == "enabled" ) ? true : false;
@@ -318,6 +358,51 @@ void loadSettings(settingsStruct *heishamonSettings) {
 
 }
 
+#if defined(ESP8266)
+// The ESP8266 does not choose the strongest access point when several have the same SSID.
+// With a mesh that can be a far away node with a bad signal, and it stays there. So scan first
+// and connect to the strongest access point (BSSID) with our SSID, like the ESP32 does with
+// WIFI_ALL_CHANNEL_SCAN. The scan blocks for about 2 seconds. The same scan also fills the
+// network list of the settings page, so the initial scan at 15 seconds after boot is skipped.
+// Also used by the retry in check_wifi(): the access point is locked by BSSID, so when that node is
+// gone the retry must look for the strongest remaining one.
+void wifiBeginStrongest(const char *ssid, const char *password) {
+  const char *pass = (password[0] == '\0') ? NULL : password;
+  int best = -1;
+  int found = 0;
+  int numSsid = WiFi.scanNetworks(false, false);
+  for (int i = 0; i < numSsid; i++) {
+    if (strcmp(WiFi.SSID(i).c_str(), ssid) == 0) {
+      found++;
+      if ((best < 0) || (WiFi.RSSI(i) > WiFi.RSSI(best))) {
+        best = i;
+      }
+    }
+  }
+  uint8_t bssid[6];
+  int32_t channel = 0;
+  if (best >= 0) {
+    memcpy(bssid, WiFi.BSSID(best), sizeof(bssid));
+    channel = WiFi.channel(best);
+    char log_msg[128];
+    snprintf_P(log_msg, sizeof(log_msg), PSTR("Wifi connecting to strongest access point %02X:%02X:%02X:%02X:%02X:%02X (channel %d, %d dBm, %d found)"),
+               bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], (int)channel, (int)WiFi.RSSI(best), found);
+    log_message(log_msg);
+  }
+  if (numSsid > 0) {
+    getWifiScanResults(numSsid); // save the list for the settings page
+    doInitialWifiScan = false;
+  }
+  WiFi.scanDelete();
+  if (best >= 0) {
+    WiFi.begin(ssid, pass, channel, bssid);
+  } else {
+    // not found in the scan (hidden SSID or out of range), let the SDK search for it
+    WiFi.begin(ssid, pass);
+  }
+}
+#endif
+
 void setupWifi(settingsStruct *heishamonSettings) {
   log_message(_F("Wifi reconnecting with new configuration..."));
 #if defined(ESP8266)
@@ -331,11 +416,7 @@ void setupWifi(settingsStruct *heishamonSettings) {
     log_message(_F("Wifi client mode..."));
     //WiFi.persistent(true); //breaks stuff
 
-    if (heishamonSettings->wifi_password[0] == '\0') {
-      WiFi.begin(heishamonSettings->wifi_ssid);
-    } else {
-      WiFi.begin(heishamonSettings->wifi_ssid, heishamonSettings->wifi_password);
-    }
+    wifiBeginStrongest(heishamonSettings->wifi_ssid, heishamonSettings->wifi_password);
   }
   else {
     if (heishamonSettings->hotspot) {
@@ -395,7 +476,7 @@ int handleFactoryReset(struct webserver_t *client) {
         webserver_send_content_P(client, refreshMeta, strlen_P(refreshMeta));
       } break;
     case 1: {
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRebootWarning, strlen_P(webBodyRebootWarning));
         webserver_send_content_P(client, menuJS, strlen_P(menuJS));
         webserver_send_content_P(client, webFooter, strlen_P(webFooter));
@@ -417,7 +498,7 @@ int handleReboot(struct webserver_t *client) {
         webserver_send_content_P(client, refreshMeta, strlen_P(refreshMeta));
       } break;
     case 1: {
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRebootWarning, strlen_P(webBodyRebootWarning));
         webserver_send_content_P(client, menuJS, strlen_P(menuJS));
         webserver_send_content_P(client, webFooter, strlen_P(webFooter));
@@ -433,6 +514,7 @@ int handleReboot(struct webserver_t *client) {
 void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   //set jsonDoc with current settings
   jsonDoc[F("wifi_hostname")] = heishamonSettings->wifi_hostname;
+  jsonDoc[F("description")] = heishamonSettings->description;
   jsonDoc[F("wifi_password")] = heishamonSettings->wifi_password;
   jsonDoc[F("wifi_ssid")] = heishamonSettings->wifi_ssid;
   jsonDoc[F("ota_password")] = heishamonSettings->ota_password;
@@ -505,12 +587,18 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("opentherm")] = "disabled";
   }
+  for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+    char key[sizeof(topicGroupKeys[0])];
+    strcpy_P(key, topicGroupKeys[g]);
+    jsonDoc[key] = ((heishamonSettings->topicGroups >> g) & 1) ? "enabled" : "disabled";
+  }
 #ifdef ESP32  
   if (heishamonSettings->proxy) {
     jsonDoc[F("proxy")] = "enabled";
   } else {
     jsonDoc[F("proxy")] = "disabled";
   }
+  jsonDoc[F("proxyBlockWrites")] = heishamonSettings->proxyBlockWrites ? "enabled" : "disabled";
   if (heishamonSettings->ethernet) {
     jsonDoc[F("ethernet")] = "enabled";
   } else {
@@ -670,9 +758,15 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("logSerial1")] = String("disabled");
   jsonDoc[F("optionalPCB")] = String("disabled");
   jsonDoc[F("opentherm")] = String("disabled");
+  for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+    char key[sizeof(topicGroupKeys[0])];
+    strcpy_P(key, topicGroupKeys[g]);
+    jsonDoc[key] = String("disabled"); //unchecked checkboxes are not posted
+  }
 
 #ifdef ESP32  
   jsonDoc[F("proxy")] = String("disabled");
+  jsonDoc[F("proxyBlockWrites")] = String("disabled");
   jsonDoc[F("ethernet")] = String("disabled");
   jsonDoc[F("modbus")] = String("disabled");
   jsonDoc[F("modbusWrites")] = String("disabled");
@@ -688,6 +782,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   while (tmp) {
     if (strcmp(tmp->name.c_str(), "wifi_hostname") == 0) {
       jsonDoc[F("wifi_hostname")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "description") == 0) {
+      jsonDoc[F("description")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_topic_base") == 0) {
       jsonDoc[F("mqtt_topic_base")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_server") == 0) {
@@ -727,6 +823,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
 #ifdef ESP32      
     } else if (strcmp(tmp->name.c_str(), "proxy") == 0) {
       jsonDoc[F("proxy")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "proxyBlockWrites") == 0) {
+      jsonDoc[F("proxyBlockWrites")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "ethernet") == 0) {
       jsonDoc[F("ethernet")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "modbus") == 0) {
@@ -774,6 +872,13 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("s0_2_minpulsewidth")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "s0_2_maxpulsewidth") == 0) {
       jsonDoc[F("s0_2_maxpulsewidth")] = tmp->value;
+    } else if (strncmp(tmp->name.c_str(), "topics_", 7) == 0) {
+      for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
+        if (strcmp_P(tmp->name.c_str(), topicGroupKeys[g]) == 0) {
+          jsonDoc[tmp->name] = tmp->value;
+          break;
+        }
+      }
     } else {
       // Handle gpio_N_mode keys dynamically
       for (int i = 0; i < NUMGPIO_USER; i++) {
@@ -888,7 +993,7 @@ int settingsNewPassword(struct webserver_t *client, settingsStruct *heishamonSet
         webserver_send(client, 200, (char *)"text/html", 0);
         webserver_send_content_P(client, webHeader, strlen_P(webHeader));
         webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
       } break;
     case 1: {
         webserver_send_content_P(client, webBodySettingsResetPasswordWarning, strlen_P(webBodySettingsResetPasswordWarning));
@@ -910,7 +1015,7 @@ int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonS
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else if (client->content == 2) {
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));
     webserver_send_content_P(client, webBodySettingsNewWifiWarning, strlen_P(webBodySettingsNewWifiWarning));
@@ -969,7 +1074,7 @@ int handleSettings(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else if (client->content == 1) {
     webserver_send_content_P(client, settingsForm1, strlen_P(settingsForm1));
     webserver_send_content_P(client, tzDataOptions, strlen_P(tzDataOptions));
@@ -1029,22 +1134,8 @@ int handleWifiScan(struct webserver_t *client) {
 #endif
   if (client->content == 0) {
     webserver_send(client, 200, (char *)"application/json", 0);
-    if (LittleFS.begin()) {
-      File scanfile = LittleFS.open("/wifiscan.json", "r");
-      if (scanfile) {
-        size_t size = scanfile.size();
-        if (size > 0 ) {
-          // Allocate a buffer to store contents of the file.
-          std::unique_ptr<char[]> buf(new char[size]);
-          scanfile.readBytes(buf.get(), size);
-          webserver_send_content(client, buf.get(), size);
-          scanfile.close();
-        } else {
-          webserver_send_content_P(client, PSTR("[]"), 2);
-        }
-      } else {
-        webserver_send_content_P(client, PSTR("[]"), 2);
-      }
+    if (wifiScanJson.length() > 0) {
+      webserver_send_content(client, (char *)wifiScanJson.c_str(), wifiScanJson.length());
     } else {
       webserver_send_content_P(client, PSTR("[]"), 2);
     }
@@ -1083,7 +1174,7 @@ int handleModbus(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
     webserver_send_content_P(client, webModbusStart, strlen_P(webModbusStart));
   } else {
     String row;
@@ -1109,7 +1200,7 @@ int handleRoot(struct webserver_t *client, float readpercentage, int mqttReconne
         webserver_send(client, 200, (char *)"text/html", 0);
         webserver_send_content_P(client, webHeader, strlen_P(webHeader));
         webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-        webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+        sendBodyStart(client);
         webserver_send_content_P(client, webBodyRoot1, strlen_P(webBodyRoot1));
       } break;
     case 1: {
@@ -1388,15 +1479,24 @@ int handleJsonOutput(struct webserver_t *client, char* actData, char* actDataExt
     webserver_send(client, 200, (char *)"application/json", 0);
     webserver_send_content_P(client, PSTR("{\"heatpump\":["), 13);
   } else if ((client->content - 1) < NUMBER_OF_TOPICS) {
-    uint8_t maxTopics =  client->content + 4; //limit the amount of topic sent per webloop
-    for (uint8_t topic = client->content - 1; topic < NUMBER_OF_TOPICS && topic < maxTopics ; topic++) {
-      if (topic > 0) {
+    // send at most 5 topics per webloop. Skip switched off topics here: a webloop that sends nothing ends
+    // the response, so stop at the next enabled topic (or the end of the list), never after a disabled one.
+    uint8_t sent = 0;
+    uint8_t topic = client->content - 1;
+    for (; topic < NUMBER_OF_TOPICS; topic++) {
+      if (!topicEnabled(topic)) {
+        continue;
+      }
+      if (sent == 5) {
+        break;
+      }
+      if (topic > 0) { // TOP0 is always enabled, so it is always the first one
         webserver_send_content_P(client, PSTR(","), 1);
       }
       sendJsonHeatpumpTopic(client, actData, topic);
-      client->content++;
+      sent++;
     }
-    client->content--; // The webserver also increases by 1
+    client->content = topic; // The webserver also increases by 1
   } else if ((client->content - NUMBER_OF_TOPICS - 1) < extraTopics) {
     if (client->content == NUMBER_OF_TOPICS + 1) {
       webserver_send_content_P(client, PSTR("],\"heatpump extra\":["), 20);
@@ -1452,7 +1552,7 @@ int showRules(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
     webserver_send_content_P(client, showRulesPage1, strlen_P(showRulesPage1));
     if (LittleFS.begin()) {
       client->userdata = new fs::File(LittleFS.open("/rules.txt", "r"));
@@ -1534,7 +1634,7 @@ int showFirmware(struct webserver_t *client) {
     webserver_send(client, 200, (char *)"text/html", 0);
     webserver_send_content_P(client, webHeader, strlen_P(webHeader));
     webserver_send_content_P(client, webCSS, strlen_P(webCSS));
-    webserver_send_content_P(client, webBodyStart, strlen_P(webBodyStart));
+    sendBodyStart(client);
   } else  if (client->content == 1) {
     webserver_send_content_P(client, showFirmwarePage, strlen_P(showFirmwarePage));
     webserver_send_content_P(client, menuJS, strlen_P(menuJS));

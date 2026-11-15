@@ -246,11 +246,7 @@ void check_wifi() {
       }
       if ((wifistatus == WL_DISCONNECTED) && (WiFi.softAPgetStationNum() == 0)) {
         log_message(_F("Retrying configured WiFi, ..."));
-        if (heishamonSettings.wifi_password[0] == '\0') {
-          WiFi.begin(heishamonSettings.wifi_ssid);
-        } else {
-          WiFi.begin(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);
-        }
+        wifiBeginStrongest(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);  // scan again, the old node may be gone
       } else {
         log_message(_F("Reconnecting to WiFi failed. Waiting a few seconds before trying again."));
         WiFi.disconnect(true);
@@ -750,9 +746,13 @@ void readProxy()
       }      
       log_message(_F("PROXY Checksum and header received ok!"));
       if ((proxydata[0]==0x71 or proxydata[0]==0xF1) and proxydata_length == (PANASONICQUERYSIZE+1)) { //this is a query from cztaw on proxy port
-        if (proxydata[0]==0xf1) {  //this is a write query, just pass this message forward as new command
-          log_message(_F("PROXY received write query, copy message forward to heatpump"));
-          send_command((byte*)proxydata,proxydata_length-1); //strip CRC, will be calculated again in send_command
+        if (proxydata[0]==0xf1) {  //this is a write query, pass this message forward as new command unless writes are blocked
+          if (heishamonSettings.proxyBlockWrites) {
+            log_message(_F("PROXY received write query, blocked by settings"));
+          } else {
+            log_message(_F("PROXY received write query, copy message forward to heatpump"));
+            send_command((byte*)proxydata,proxydata_length-1); //strip CRC, will be calculated again in send_command
+          }
           //then just reply with the current settings, for read and write it is the same as the write is only acknowledged in the next read
           //so we just run to the next if statement
         }
@@ -775,6 +775,10 @@ void readProxy()
       } else if (proxydata[0]==0x31) {
         log_message(_F("PROXY received startup message, forwarding to heatpump!"));
         send_command((byte *)proxydata, proxydata_length-1); //strip CRC from end as send_command wil recalculate it
+        proxydata_length = 0;
+        return;
+      } else if (proxydata[0]==0xF1 && heishamonSettings.proxyBlockWrites) {
+        log_message(_F("PROXY received unknown write message, blocked by settings"));
         proxydata_length = 0;
         return;
       } else {
@@ -999,6 +1003,10 @@ void serialTXTask(void *pvParameters) {
 }
 bool send_command(byte* command, int length) {
   if (length <= 0) return false;
+  if (length > (int)sizeof(cmdbuffer[0].data)) {
+    log_message(_F("Command length out of range. Not sending this command."));
+    return false;
+  }
   if ( heishamonSettings.listenonly ) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
@@ -1014,6 +1022,10 @@ bool send_command(byte* command, int length) {
 
 bool send_command(byte* command, int length) {
   if (length <= 0) return false;
+  if (length > (int)sizeof(cmdbuffer[0].data)) {
+    log_message(_F("Command length out of range. Not sending this command."));
+    return false;
+  }
   if ( heishamonSettings.listenonly ) {
     log_message(_F("Not sending this command. Heishamon in listen only mode!"));
     return false;
@@ -1312,7 +1324,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                 cmdStruct tmp;
                 memcpy_P(&tmp, &commands[x], sizeof(tmp));
                 if (strcmp((char *)args->name, tmp.name) == 0) {
-                  len = tmp.func(cpy, cmd, log_msg);
+                  len = heatpump_command(&tmp, cpy, cmd, log_msg);
                   if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
                     loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
                     ESP.restart();
@@ -1559,7 +1571,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return showFirmware(client);
             } break;
           case 150: {
-              log_message((char*)"In /firmware client write part");
               if (Update.isRunning()) {
                 if (Update.end(true)) {
                   log_message((char*)"Firmware update success");

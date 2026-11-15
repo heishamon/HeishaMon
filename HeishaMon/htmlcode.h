@@ -95,6 +95,11 @@ body{
   text-decoration:none;
 }
 .topbar-logo span{color:var(--text-secondary);font-weight:400}
+.topbar-desc{
+  color:var(--text-secondary);font-size:14px;
+  padding-left:16px;border-left:1px solid var(--border);
+  max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .hamburger{
   background:none;border:none;
   color:var(--text-secondary);
@@ -392,6 +397,7 @@ input:disabled + .theme-slider-compact {
 .setting-input[type=password]{letter-spacing:2px}
 select.setting-input{appearance:auto}
 .setting-hint{font-size:11px;color:var(--text-muted);margin-left:8px}
+.setting-desc{grid-column:-2/-1;font-size:11px;color:var(--text-muted);margin-top:-10px;line-height:1.5}
 .setting-row .checkbox-wrap{display:flex;align-items:center;gap:8px}
 .checkbox-wrap input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer}
 .radio-group{display:flex;gap:16px;flex-wrap:wrap}
@@ -766,6 +772,10 @@ R"====(  </nav>
   <div class='topbar-left'>
     <button class='hamburger' onclick='toggleMenu()'>&#9776;</button>
     <a class='topbar-logo' href='/'>Heisha<span>Mon</span></a>
+)====";
+
+// second half, the optional description is injected between the two parts
+static const char webBodyStart2[] FLASHPROG = R"====(
   </div>
   <div class='topbar-right'></div>
 </header>
@@ -1526,6 +1536,24 @@ function updateGPIORowVisibility(){
     row.style.display=loOn?'':'none';
   });
 }
+function openSettingsTab(name){
+  document.querySelectorAll('#settings_form .panel').forEach(function(p){
+    p.style.display=p.getAttribute('data-tab')==name?'':'none';
+  });
+  document.querySelectorAll('#settings_tabs button').forEach(function(b){
+    b.classList.toggle('active',b.getAttribute('data-tab')==name);
+  });
+  try{history.replaceState(null,'','#'+name);}catch(e){}
+}
+(function(){
+  // open the tab from the address, and the tab of a field the browser refuses on save
+  var name=location.hash.substring(1);
+  openSettingsTab(document.querySelector("#settings_tabs button[data-tab='"+name+"']")?name:'basic');
+  document.querySelector('#settings_form form').addEventListener('invalid',function(e){
+    var p=e.target.closest('.panel');
+    if(p)openSettingsTab(p.getAttribute('data-tab'));
+  },true);
+})();
 function changeMinWatt(port){
   var ppkwh=document.getElementById('s0_ppkwh_'+port).value;
   var interval=document.getElementById('s0_interval_'+port).value;
@@ -1572,13 +1600,26 @@ static const char settingsForm1[] FLASHPROG = R"====(
   <div class='spinner'></div> Loading settings…
 </div>
 <div id='settings_form' style='display:none'>
+  <nav class='tabnav' id='settings_tabs' style='padding:0 0 14px;background:none'>
+    <button type='button' data-tab='basic' onclick="openSettingsTab('basic')">Basic</button>
+    <button type='button' data-tab='heatpump' onclick="openSettingsTab('heatpump')">Heat pump</button>
+    <button type='button' data-tab='io' onclick="openSettingsTab('io')">Sensors &amp; GPIO</button>
+    <button type='button' data-tab='advanced' onclick="openSettingsTab('advanced')">Advanced</button>
+    <button type='button' data-tab='system' onclick="openSettingsTab('system')">System</button>
+  </nav>
   <form accept-charset='UTF-8' action='/savesettings' method='POST'>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='basic' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Network</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
       <label class='setting-label'>Hostname</label>
       <input type='text' name='wifi_hostname' maxlength='39' class='setting-input' value=''>
+      <div class='setting-desc'>Name of this HeishaMon on the network.</div>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>Description</label>
+      <input type='text' name='description' maxlength='63' class='setting-input' value=''>
+      <div class='setting-desc'>Free text shown in the web interface, for example where this HeishaMon is installed.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>WiFi SSID</label>
@@ -1588,19 +1629,17 @@ static const char settingsForm1[] FLASHPROG = R"====(
           <option hidden selected value=''>Select SSID</option>
         </select>
       </div>
+      <div class='setting-desc'>Type the name of your WiFi network or pick it from the list of networks found.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>WiFi Password</label>
       <input type='password' name='wifi_password' maxlength='64' class='setting-input' value=''>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
-  <div class='panel-header'><h3>Update Authentication</h3></div>
+  <div class='panel' data-tab='system' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Arduino OTA password</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'>
-      <label class='setting-label'>Update Username</label>
-      <span style='font-size:12.5px;color:var(--text-muted)'>admin</span>
-    </div>
+    <div class='setting-row'><span class='setting-hint'>Only for firmware updates over the network from the Arduino IDE or arduino-cli (ArduinoOTA). The firmware update on the web interface doesn't use it; like the rest of the web interface that has no password.</span></div>
     <div class='setting-row'>
       <label class='setting-label'>Current Password</label>
       <div style='display:flex;align-items:center;gap:10px'>
@@ -1611,26 +1650,31 @@ static const char settingsForm1[] FLASHPROG = R"====(
     <div class='setting-row'>
       <label class='setting-label'>New Password</label>
       <input type='password' name='new_ota_password' maxlength='39' class='setting-input' value=''>
+      <div class='setting-desc'>Fill in the current password as well to change it.</div>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='basic' style='margin-bottom:16px'>
   <div class='panel-header'><h3>MQTT</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
       <label class='setting-label'>Topic Base</label>
       <input type='text' name='mqtt_topic_base' maxlength='127' class='setting-input' value=''>
+      <div class='setting-desc'>First part of every MQTT topic, default panasonic_heat_pump. Give each HeishaMon its own.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Server</label>
       <input type='text' name='mqtt_server' maxlength='64' class='setting-input' value=''>
+      <div class='setting-desc'>IP address or hostname of the MQTT broker.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Port</label>
       <input type='number' name='mqtt_port' maxlength='5' class='setting-input' value=''>
+      <div class='setting-desc'>Default 1883, with TLS usually 8883.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Username</label>
       <input type='text' name='mqtt_username' maxlength='64' class='setting-input' value=''>
+      <div class='setting-desc'>Username and password are only needed when the broker asks for a login.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Password</label>
@@ -1642,9 +1686,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
   R"====(
 <div class='setting-row'>
   <label class='setting-label'>Use TLS (port 8883)</label>
-  <div class='checkbox-wrap'>
-    <input type='checkbox' id='mqtt_tls_enabled' name='mqtt_tls_enabled' value='enabled'>
-  </div>
+  <div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' id='mqtt_tls_enabled' name='mqtt_tls_enabled' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Encrypted connection to the broker, checked with the root CA certificate below.</span></div>
 </div>
 
 <div class='setting-row'>
@@ -1656,7 +1698,8 @@ static const char settingsForm1[] FLASHPROG = R"====(
     </div>
     <div id='ca_file_name' style='margin-top:4px;font-size:11px;color:var(--text-muted)'>No file selected</div>
   </div>
-</div>
+  <div class='setting-desc'>The root CA that signed the certificate of the broker, as a PEM file.</div>
+    </div>
 
 <div class='setting-row'>
   <label class='setting-label'>CA Certificate Actions</label>
@@ -1671,12 +1714,13 @@ static const char settingsForm1[] FLASHPROG = R"====(
 
 R"====(
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='system' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Time</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
       <label class='setting-label'>NTP Servers</label>
       <input type='text' name='ntp_servers' maxlength='253' class='setting-input' value='' placeholder='Comma separated'>
+      <div class='setting-desc'>Where the time comes from, default pool.ntp.org.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Timezone</label>
@@ -1688,9 +1732,10 @@ R"====(
 #ifdef ESP8266
 static const char settingsForm2[] FLASHPROG = R"====(
       </select>
+      <div class='setting-desc'>Local time is used by the rules (%hour, %minute) and in the log.</div>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='heatpump' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Polling</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
@@ -1699,6 +1744,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='waitTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds (min 5)</span>
       </div>
+      <div class='setting-desc'>How often the heat pump is asked for its data. Default 5.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>MQTT retransmit interval</label>
@@ -1706,29 +1752,51 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='updateAllTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds</span>
       </div>
+      <div class='setting-desc'>A value is published as soon as it changes. This is how often all values are sent again, also the unchanged ones. Default 300. A low value does not give faster updates, it only floods the broker and your home automation.</div>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
-  <div class='panel-header'><h3>Behavior</h3></div>
+  <div class='panel' data-tab='heatpump' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Heat pump connection</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>WiFi hotspot when disconnected</label><div class='checkbox-wrap'><input type='checkbox' name='hotspot' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug log to serial1 (GPIO2)</label><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='opentherm' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>HeishaMon acts as the optional PCB (CZ-NS4P), for commands such as SG ready and demand control. Don't enable with a real optional PCB installed.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='opentherm' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Reads an OpenTherm thermostat connected to HeishaMon, for use in the rules and on MQTT.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='listenonly' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>For a HeishaMon wired parallel to a CZ-TAW1: it only listens and never sends, so commands don't work.</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Topic groups</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Switched off groups are not published to MQTT or shown on the main page. Rules and Modbus still see all values. The basic topics are always published.</span></div>
+    <div class='setting-row'><label class='setting-label'>Heating &amp; cooling</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_heatcool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>zone 1, curves, setpoints</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Zone 2</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_zone2' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>DHW &amp; heaters</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_dhw_heaters' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>heater states, sterilization, delays</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Diagnostics</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_diagnostics' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>refrigerant circuit, fans, pressures</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Buffer, solar &amp; pool</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_buffer_solar_pool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also dry concrete</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Bivalent</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_bivalent' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>External control &amp; SG ready</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_external_sgready' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also demand control, optional PCB</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Installer settings</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_installer' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>static installer menu settings</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Network options</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>WiFi hotspot when disconnected</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='hotspot' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>When the WiFi can't be reached HeishaMon opens the open hotspot HeishaMon-Setup. Disable to never open it.</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='system' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Debug</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Publishes the debug log on the MQTT topic log from boot on.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Adds every datagram as hex to the log. Only for protocol debugging, it is a lot of data.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Debug log to serial1 (GPIO2)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Writes the log to GPIO2 (serial1, send only).</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Rules</h3></div>
+  <div class='settings-grid'>
     <div class='setting-row'><label class='setting-label'>Force load rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
-  <div class='panel-header'><h3>Listen Only</h3></div>
-  <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div class='checkbox-wrap'><input type='checkbox' onclick='updateGPIORowVisibility()' name='listenonly' value='enabled'></div></div>
-  </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>1-Wire DS18B20</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Use 1-Wire DS18B20</label><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideDallasTable(this)' name='use_1wire' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Use 1-Wire DS18B20</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideDallasTable(this)' name='use_1wire' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Reads DS18B20 temperature sensors on the 1-Wire port.</span></div></div>
   </div>
   <div id='dallassettings' style='display:none'>
   <div class='settings-grid'>
@@ -1738,6 +1806,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='waitDallasTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds (min 5)</span>
       </div>
+      <div class='setting-desc'>How often the sensors are read. Default 5.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>1-Wire MQTT retransmit</label>
@@ -1745,6 +1814,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='updataAllDallasTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds</span>
       </div>
+      <div class='setting-desc'>How often all temperatures are sent again, also the unchanged ones. Default 300.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Temperature resolution</label>
@@ -1754,31 +1824,33 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <label><input type='radio' id='11-bit' name='dallasResolution' value='11'> 11-bit</label>
         <label><input type='radio' id='12-bit' name='dallasResolution' value='12'> 12-bit</label>
       </div>
+      <div class='setting-desc'>12-bit is the most precise (0.06&deg;C) and the slowest to read, 9-bit the fastest (0.5&deg;C). Default 12-bit.</div>
     </div>
   </div></div>
   </div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>S0 kWh Metering</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Use S0 kWh metering</label><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideS0Table(this)' name='use_s0' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Use S0 kWh metering</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideS0Table(this)' name='use_s0' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Counts the pulses of up to two kWh meters with an S0 output.</span></div></div>
   </div>
   <div id='s0settings' style='display:none'>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Port 1 imp/kWh</label><input type='number' id='s0_ppkwh_1' onchange='changeMinWatt(1)' name='s0_1_ppkwh' class='setting-input' value=''></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_1' onchange='changeMinWatt(1)' name='s0_1_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_1' name='s0_1_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_1' name='s0_1_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_1'>—</span> W</span></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 imp/kWh</label><input type='number' id='s0_ppkwh_2' onchange='changeMinWatt(2)' name='s0_2_ppkwh' class='setting-input' value=''></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_2' onchange='changeMinWatt(2)' name='s0_2_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_2' name='s0_2_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_2' name='s0_2_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 imp/kWh</label><input type='number' id='s0_ppkwh_1' onchange='changeMinWatt(1)' name='s0_1_ppkwh' class='setting-input' value=''><div class='setting-desc'>Pulses per kWh, printed on the meter.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_1' onchange='changeMinWatt(1)' name='s0_1_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div><div class='setting-desc'>Below the standby threshold the power is only reported once per this interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_1' name='s0_1_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Shorter pulses are ignored as noise.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_1' name='s0_1_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Longer pulses are ignored.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_1'>—</span> W</span><div class='setting-desc'>The lowest power that still gives a pulse within the standby interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 imp/kWh</label><input type='number' id='s0_ppkwh_2' onchange='changeMinWatt(2)' name='s0_2_ppkwh' class='setting-input' value=''><div class='setting-desc'>Pulses per kWh, printed on the meter.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_2' onchange='changeMinWatt(2)' name='s0_2_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div><div class='setting-desc'>Below the standby threshold the power is only reported once per this interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_2' name='s0_2_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Shorter pulses are ignored as noise.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_2' name='s0_2_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Longer pulses are ignored.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span><div class='setting-desc'>The lowest power that still gives a pulse within the standby interval.</div></div>
   </div></div>
   </div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Extra GPIO</h3></div>
   <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Inputs are published on MQTT and can be read in the rules, outputs are switched from MQTT or the rules.</span></div>
     <div class='setting-row gpio-row ot-conflict-gpio'><label class='setting-label'>GPIO 1 (pin 1)</label><select name='gpio_1_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
     <div class='setting-row gpio-row ot-conflict-gpio'><label class='setting-label'>GPIO 2 (pin 3)</label><select name='gpio_2_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
     <div class='setting-row gpio-row'><label class='setting-label'>GPIO 3 (pin 16)</label><select name='gpio_3_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
@@ -1801,7 +1873,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
       </select>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='heatpump' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Polling</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
@@ -1810,6 +1882,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='waitTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds (min 5)</span>
       </div>
+      <div class='setting-desc'>How often the heat pump is asked for its data. Default 5.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>MQTT retransmit interval</label>
@@ -1817,37 +1890,60 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='updateAllTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds</span>
       </div>
+      <div class='setting-desc'>A value is published as soon as it changes. This is how often all values are sent again, also the unchanged ones. Default 300. A low value does not give faster updates, it only floods the broker and your home automation.</div>
     </div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
-  <div class='panel-header'><h3>Behavior</h3></div>
+  <div class='panel' data-tab='heatpump' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Heat pump connection</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>WiFi hotspot when disconnected</label><div class='checkbox-wrap'><input type='checkbox' name='hotspot' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Debug log USB</label><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div></div>
-    <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Emulate optional PCB</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='optionalPCB' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>HeishaMon acts as the optional PCB (CZ-NS4P), for commands such as SG ready and demand control. Don't enable with a real optional PCB installed.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Enable Opentherm processing</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='opentherm' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Reads an OpenTherm thermostat connected to HeishaMon, for use in the rules and on MQTT.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Enable CZ-TAW1 proxy port</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='proxy' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>The port for a CZ-TAW1 behind HeishaMon, so the Panasonic cloud keeps working.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Block settings changes from CZ-TAW1</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='proxyBlockWrites' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>The CZ-TAW1 (Panasonic cloud) can still read the heat pump, but its commands are not passed on.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='listenonly' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>For a HeishaMon wired parallel to a CZ-TAW1: it only listens and never sends, so commands don't work.</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Topic groups</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Switched off groups are not published to MQTT or shown on the main page. Rules and Modbus still see all values. The basic topics are always published.</span></div>
+    <div class='setting-row'><label class='setting-label'>Heating &amp; cooling</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_heatcool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>zone 1, curves, setpoints</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Zone 2</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_zone2' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>DHW &amp; heaters</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_dhw_heaters' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>heater states, sterilization, delays</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Diagnostics</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_diagnostics' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>refrigerant circuit, fans, pressures</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Buffer, solar &amp; pool</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_buffer_solar_pool' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also dry concrete</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Bivalent</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_bivalent' value='enabled'></div></div></div>
+    <div class='setting-row'><label class='setting-label'>External control &amp; SG ready</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_external_sgready' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>also demand control, optional PCB</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Installer settings</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='topics_installer' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>static installer menu settings</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Network options</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>WiFi hotspot when disconnected</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='hotspot' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>When the WiFi can't be reached HeishaMon opens the open hotspot HeishaMon-Setup. Disable to never open it.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Ethernet module (W5500)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='ethernet' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Disable on boards without the ethernet module to skip the W5500 probe and leave GPIO10-15 untouched. Needs a reboot.</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div></div>
+  </div></div>
+  <div class='panel' data-tab='system' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Debug</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Publishes the debug log on the MQTT topic log from boot on.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Adds every datagram as hex to the log. Only for protocol debugging, it is a lot of data.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Debug log USB</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Writes the log to the USB serial port.</span></div></div>
+  </div></div>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Rules</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Force rules on boot</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='force_rules' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Rules load normally, but skip after crashes to prevent boot loops. Enable to override.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Publish rule executions to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='rules_mqtt_events' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Debug aid: one rules/executed event per rule run.</span></div></div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Modbus TCP</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'><label class='setting-label'>Enable Modbus TCP server (port 502)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbus' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>No authentication, so only enable on a trusted network.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Allow Modbus writes</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='modbusWrites' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Lets Modbus clients send heat pump commands (including SetReset) and switch the relays.</span></div></div>
   </div></div>
-  <div class='panel' style='margin-bottom:16px'>
-  <div class='panel-header'><h3>Listen Only</h3></div>
-  <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Listen only (parallel CZ-TAW1)</label><div class='checkbox-wrap'><input type='checkbox' name='listenonly' value='enabled'></div></div>
-  </div></div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>1-Wire DS18B20</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Use 1-Wire DS18B20</label><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideDallasTable(this)' name='use_1wire' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Use 1-Wire DS18B20</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideDallasTable(this)' name='use_1wire' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Reads DS18B20 temperature sensors on the 1-Wire port.</span></div></div>
   </div>
   <div id='dallassettings' style='display:none'>
   <div class='settings-grid'>
@@ -1857,6 +1953,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='waitDallasTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds (min 5)</span>
       </div>
+      <div class='setting-desc'>How often the sensors are read. Default 5.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>1-Wire MQTT retransmit</label>
@@ -1864,6 +1961,7 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <input type='number' name='updataAllDallasTime' class='setting-input' value='' style='width:80px'>
         <span class='setting-hint'>seconds</span>
       </div>
+      <div class='setting-desc'>How often all temperatures are sent again, also the unchanged ones. Default 300.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Temperature resolution</label>
@@ -1873,31 +1971,33 @@ static const char settingsForm2[] FLASHPROG = R"====(
         <label><input type='radio' id='11-bit' name='dallasResolution' value='11'> 11-bit</label>
         <label><input type='radio' id='12-bit' name='dallasResolution' value='12'> 12-bit</label>
       </div>
+      <div class='setting-desc'>12-bit is the most precise (0.06&deg;C) and the slowest to read, 9-bit the fastest (0.5&deg;C). Default 12-bit.</div>
     </div>
   </div></div>
   </div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>S0 kWh Metering</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Use S0 kWh metering</label><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideS0Table(this)' name='use_s0' value='enabled'></div></div>
+    <div class='setting-row'><label class='setting-label'>Use S0 kWh metering</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' onclick='ShowHideS0Table(this)' name='use_s0' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Counts the pulses of up to two kWh meters with an S0 output.</span></div></div>
   </div>
   <div id='s0settings' style='display:none'>
   <div class='settings-grid'>
-    <div class='setting-row'><label class='setting-label'>Port 1 imp/kWh</label><input type='number' id='s0_ppkwh_1' onchange='changeMinWatt(1)' name='s0_1_ppkwh' class='setting-input' value=''></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_1' onchange='changeMinWatt(1)' name='s0_1_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_1' name='s0_1_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_1' name='s0_1_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 1 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_1'>—</span> W</span></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 imp/kWh</label><input type='number' id='s0_ppkwh_2' onchange='changeMinWatt(2)' name='s0_2_ppkwh' class='setting-input' value=''></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_2' onchange='changeMinWatt(2)' name='s0_2_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_2' name='s0_2_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_2' name='s0_2_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div></div>
-    <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 imp/kWh</label><input type='number' id='s0_ppkwh_1' onchange='changeMinWatt(1)' name='s0_1_ppkwh' class='setting-input' value=''><div class='setting-desc'>Pulses per kWh, printed on the meter.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_1' onchange='changeMinWatt(1)' name='s0_1_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div><div class='setting-desc'>Below the standby threshold the power is only reported once per this interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_1' name='s0_1_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Shorter pulses are ignored as noise.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_1' name='s0_1_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Longer pulses are ignored.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 1 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_1'>—</span> W</span><div class='setting-desc'>The lowest power that still gives a pulse within the standby interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 imp/kWh</label><input type='number' id='s0_ppkwh_2' onchange='changeMinWatt(2)' name='s0_2_ppkwh' class='setting-input' value=''><div class='setting-desc'>Pulses per kWh, printed on the meter.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 standby interval</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_interval_2' onchange='changeMinWatt(2)' name='s0_2_interval' class='setting-input' value='' style='width:80px'><span class='setting-hint'>seconds</span></div><div class='setting-desc'>Below the standby threshold the power is only reported once per this interval.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 min pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_minpulsewidth_2' name='s0_2_minpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Shorter pulses are ignored as noise.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 max pulse width</label><div style='display:flex;align-items:center;gap:8px'><input type='number' id='s0_maxpulsewidth_2' name='s0_2_maxpulsewidth' class='setting-input' value='' style='width:80px'><span class='setting-hint'>ms</span></div><div class='setting-desc'>Longer pulses are ignored.</div></div>
+    <div class='setting-row'><label class='setting-label'>Port 2 standby threshold</label><span style='font-size:12px;color:var(--text-muted)'><span id='s0_minwatt_2'>—</span> W</span><div class='setting-desc'>The lowest power that still gives a pulse within the standby interval.</div></div>
   </div></div>
   </div>
-  <div class='panel' style='margin-bottom:16px'>
+  <div class='panel' data-tab='io' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Extra GPIO</h3></div>
   <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>Inputs are published on MQTT and can be read in the rules, outputs and the relays are switched from MQTT, the rules or Modbus.</span></div>
     <div class='setting-row'><label class='setting-label'>Relay 1 (pin 21)</label><select class='setting-input' disabled><option value='2' selected>Output</option></select></div>
     <div class='setting-row'><label class='setting-label'>Relay 2 (pin 47)</label><select class='setting-input' disabled><option value='2' selected>Output</option></select></div>
     <div class='setting-row'><label class='setting-label'>GPIO 1 (pin 33)</label><select name='gpio_1_mode' class='setting-input'><option value='0'>Input (pull-up)</option><option value='1'>Input</option><option value='2'>Output</option></select></div>
@@ -2463,26 +2563,88 @@ function getMD5(){
   if(sp){var md5=sp.split('.')[0];if(md5.length==32)document.getElementById('md5').value=md5;}
 }
 function reloadHome(){setTimeout(function(){window.location.href='/';},15000);}
-function uploadFile(){
-  document.getElementById('updatebutton').disabled=true;
+function setButtons(off){
+  document.getElementById('updatebutton').disabled=off;
+  document.getElementById('installbutton').disabled=off;
+}
+function sendFirmware(file,name,md5){
+  setButtons(true);
   document.getElementById('status').innerText='';
-  var file=document.getElementById('firmware').files[0];
   var fd=new FormData();
-  fd.append('firmware',file);
-  fd.append('md5',document.getElementById('md5').value);
+  fd.append('firmware',file,name);
+  fd.append('md5',md5);
   var req=new XMLHttpRequest();
   req.upload.addEventListener('progress',function(e){document.getElementById('progressBar').value=Math.round((e.loaded/e.total)*100);},false);
   req.onreadystatechange=function(){
     if(req.readyState===4){
       document.getElementById('status').innerText=req.responseText;
       if(req.responseText.includes('success'))reloadHome();
-      else document.getElementById('updatebutton').disabled=false;
+      else setButtons(false);
     }
   };
   req.open('POST','/firmware');
   req.send(fd);
 }
-</script>
+function uploadFile(){
+  var file=document.getElementById('firmware').files[0];
+  if(!file){document.getElementById('status').innerText='Select a firmware file first.';return;}
+  sendFirmware(file,file.name,document.getElementById('md5').value);
+}
+// The browser gets the release from GitHub and uploads it like a file from disk: the HeishaMon itself never
+// connects to GitHub. The README and the binaries are added to the repository together by the release.
+var fwBase='https://raw.githubusercontent.com/heishamon/HeishaMon/main/binaries/';
+var fwLatest='';
+function fwGet(path,type){
+  return fetch(fwBase+path,{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('GitHub answered '+r.status+' for '+path);
+    return type=='blob'?r.blob():r.text();
+  });
+}
+function checkLatest(){
+  var el=document.getElementById('latest');
+  fwGet('README.md','text').then(function(t){
+    var m=t.match(/latest production release is (v\d+(?:\.\d+)*)/);
+    if(!m)throw new Error('no release found');
+    fwLatest=m[1];
+    var cur=document.getElementById('sideVersion').textContent.trim();
+    if(cur==fwLatest){
+      el.innerText='This HeishaMon runs the latest release ('+fwLatest+').';
+    }else{
+      el.innerText='The latest release is '+fwLatest+', this HeishaMon runs '+cur+'.';
+      document.getElementById('installbutton').innerText='Download & install '+fwLatest;
+      document.getElementById('installbutton').style.display='';
+    }
+  }).catch(function(){
+    el.innerText='Could not look up the latest release. This browser needs internet access for that.';
+  });
+}
+function installLatest(){
+  var st=document.getElementById('status');
+  var name=fwFile+fwLatest;
+  setButtons(true);
+  st.innerText='Downloading '+fwLatest+' from GitHub...';
+  Promise.all([fwGet(fwDir+name+'.md5','text'),fwGet(fwDir+name+'.bin','blob')]).then(function(r){
+    var md5=r[0].trim().toLowerCase();
+    if(!/^[0-9a-f]{32}$/.test(md5))throw new Error('no valid MD5 checksum for '+fwLatest);
+    if(r[1].size<100000)throw new Error('the downloaded firmware is too small');
+    document.getElementById('md5').value=md5;
+    sendFirmware(r[1],name+'.bin',md5);
+    st.innerText='Uploading '+fwLatest+'...';
+  }).catch(function(e){
+    st.innerText='Download failed: '+e.message;
+    setButtons(false);
+  });
+}
+window.addEventListener('load',checkLatest);
+)===="
+#ifdef ESP32
+R"====(var fwDir='model-type-large/',fwFile='HeishaMon.ino.esp32-';
+)===="
+#else
+R"====(var fwDir='model-type-small/',fwFile='HeishaMon.ino.d1-';
+)===="
+#endif
+R"====(</script>
 <div class='firmware-container'>
   <div class='firmware-info'>
 )===="
@@ -2498,6 +2660,15 @@ R"====(    <strong>Board:</strong> HeishaMon Small (ESP8266)<br>
 )===="
 #endif
 R"====(  </div>
+  <div class='panel' style='margin-bottom:20px'>
+    <div class='panel-header'><h3>Latest Release</h3></div>
+    <div style='padding:24px'>
+      <p id='latest' style='margin:0'>Looking up the latest release...</p>
+      <div style='margin-top:20px'>
+        <button id='installbutton' class='btn btn-primary' style='display:none' onclick='installLatest()'>Download &amp; install</button>
+      </div>
+    </div>
+  </div>
   <div class='panel'>
     <div class='panel-header'><h3>Firmware Update</h3></div>
     <div style='padding:24px'>

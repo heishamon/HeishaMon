@@ -37,10 +37,12 @@ public:
   bool operator!=(const String& rhs) const { return value != rhs.value; }
 };
 #define PROGMEM
+#define pgm_read_byte(p) (*(const unsigned char *)(p))
 #define PSTR(x) x
 #define _F(x) x
 #define memcpy_P memcpy
 #define sprintf_P sprintf
+#define snprintf_P snprintf
 unsigned long millis() { return 1; }
 unsigned int word(char high, char low) {
   return (static_cast<byte>(high) << 8) | static_cast<byte>(low);
@@ -91,6 +93,63 @@ CASES = [
     (167, 120, 0x29, "1"),
     (168, 120, 0x19, "1"),
     (169, 152, 0x7B, "-5"),
+    (170, 31, 0x6A, "1"),
+    (170, 31, 0x5A, "0"),
+    (171, 108, 0x8F, "15"),
+    (172, 109, 0x03, "60"),
+    (173, 60, 0x5B, "90"),
+    (174, 33, 0x76, "25"),
+    (175, 33, 0x76, "30"),
+    (175, 33, 0x85, "35"),
+    (176, 34, 0xA7, "30"),
+    (176, 34, 0x64, "15"),
+    (177, 35, 0xA6, "1.0"),
+    (177, 35, 0x46, "-2.0"),
+    (178, 35, 0xA6, "-1.0"),
+    (178, 35, 0x89, "0.5"),
+    (179, 34, 0xA7, "1"),
+    (179, 34, 0x67, "0"),
+    (180, 27, 0x55, "0"),
+    (180, 27, 0x65, "1"),
+    (180, 27, 0x75, "2"),
+    (180, 27, 0x95, "0"),
+    (181, 27, 0x55, "0"),
+    (181, 27, 0x95, "1"),
+    (181, 27, 0x65, "0"),
+    (182, 31, 0x55, "0"),
+    (182, 31, 0x5A, "1"),
+    (182, 31, 0x5B, "2"),
+    (182, 31, 0x57, "2"),
+    (183, 31, 0x5A, "1"),
+    (183, 31, 0x5B, "1"),
+    (183, 31, 0x57, "0"),
+    (183, 31, 0x55, "0"),
+    (184, 51, 0x2B, "4.2"),
+    (184, 51, 0x06, "0.5"),
+    (185, 52, 0x65, "10.0"),
+    (186, 53, 0x29, "4.0"),
+    (187, 54, 0x2A, "4.1"),
+    (188, 55, 0x2B, "4.2"),
+    (189, 56, 0x29, "4.0"),
+    (190, 57, 0x2C, "4.3"),
+    (191, 102, 0x7D, "-3"),
+    (191, 102, 0x80, "0"),
+    (192, 103, 0x7A, "-6"),
+    (192, 103, 0x71, "-15"),
+    (193, 36, 0x48, "-2.0"),
+    (193, 36, 0xA8, "1.0"),
+    (194, 28, 0x95, "1"),
+    (194, 28, 0x55, "0"),
+    (195, 36, 0x89, "0.5"),
+    (195, 36, 0x48, "0.0"),
+    (195, 36, 0x82, "-3.0"),
+    (196, 37, 0x89, "0.5"),
+    (196, 37, 0x88, "0.0"),
+    (196, 37, 0x6E, "3.0"),
+    (197, 191, 0x08, "7"),
+    (197, 191, 0x0D, "12"),
+    (198, 192, 0x01, "0"),
+    (198, 192, 0x02, "1"),
 ]
 
 
@@ -141,6 +200,8 @@ def main():
   assert(getHeaterCapacity(0).toInt() == -1);
   assert(getHeaterCapacity(4).toInt() == 3);
   assert(getHeaterCapacity(8).toInt() == 6);
+  assert(std::string(getIntMinus1Div10(0).c_str()) == "-0.1");
+  assert(std::string(getIntMinus1Div10(101).c_str()) == "10.0");
   assert(getIntMinus1Times30(0).toInt() == -30);
   assert(getIntMinus1Times30(255).toInt() == 7620);
   for (int n = 0; n < 4; ++n) {
@@ -153,7 +214,30 @@ def main():
   assert(getBit7and8(0).toInt() == -1);
 """
     )
-    header = re.sub(r"^#include.*$", "", header, flags=re.M)
+    groups = re.search(r"topicGroup\[\]\s*PROGMEM\s*=\s*\{(.*?)\};", header, re.S)[1]
+    groups = re.findall(r"\bTG_[A-Z0-9_]+", groups)
+    assert len(groups) == count
+    basic = groups.count("TG_BASIC")
+    installer = groups.count("TG_INSTALLER")
+    checks.append(
+        f"""
+  // topic groups: the default leaves out the installer settings, basic can't be switched off
+  setTopicGroups(TOPIC_GROUPS_DEFAULT);
+  assert(topicEnabled(0) && !topicEnabled(170) && !topicEnabled(NUMBER_OF_TOPICS));
+  resetlastalldatatime(); client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == NUMBER_OF_TOPICS - {installer});
+  setTopicGroups(0);
+  resetlastalldatatime(); client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == {basic});
+  setTopicGroups(TOPIC_GROUPS_DEFAULT); // enabling a group publishes it at the next read
+  client.messages.clear();
+  decode_heatpump_data(data, previous, client, log_message, base, 60);
+  assert(client.messages.size() == NUMBER_OF_TOPICS - {installer});
+"""
+    )
+    header = re.sub(r"^#(include|pragma once).*$", "", header, flags=re.M)
     source = re.sub(r"^#include.*$", "", source, flags=re.M)
     program = (
         SHIM
@@ -163,6 +247,7 @@ def main():
 int main() {
   char data[DATASIZE], previous[DATASIZE] = {}, base[] = "test";
   PubSubClient client;
+  setTopicGroups(TOPIC_GROUPS_ALL);
 """
         + "".join(checks)
         + "\n}\n"

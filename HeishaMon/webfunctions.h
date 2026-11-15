@@ -17,6 +17,7 @@
 #include "s0.h"
 #include "HeishaOT.h"
 #include "gpio.h"
+#include "decode.h"
 
 #define HEATPUMP_VALUE_LEN    16
 
@@ -45,6 +46,7 @@ struct settingsStruct {
   char wifi_ssid[33] = "";
   char wifi_password[PASSWORD_LENGTH] = "";
   char wifi_hostname[40] = "HeishaMon";
+  char description[64] = "";
   char ota_password[40] = "heisha";
   char mqtt_server[65];
   char mqtt_port[6] = "1883";
@@ -67,8 +69,10 @@ struct settingsStruct {
   bool logSerial1 = true; //log to serial1 (gpio2) from start
   bool opentherm = false; //opentherm enable flag
   bool hotspot = true; //enable wifi hotspot when wifi is not connected
+  uint16_t topicGroups = TOPIC_GROUPS_DEFAULT; //bit per topic group (decode.h), a cleared bit stops publishing those topics
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
+  bool proxyBlockWrites = false; //don't pass settings changes from the proxy port to the heat pump
   bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)
   bool modbus = false; //modbus tcp server enable flag
   bool modbusWrites = false; //allow modbus clients to write commands and relays
@@ -87,6 +91,9 @@ void setupConditionals();
 int getFreeMemory(void);
 char *getUptime(void);
 void setupWifi(settingsStruct *heishamonSettings);
+#if defined(ESP8266)
+void wifiBeginStrongest(const char *ssid, const char *password);
+#endif
 int getWifiQuality(void);
 int getFreeMemory(void);
 void ntpReload(settingsStruct *heishamonSettings);

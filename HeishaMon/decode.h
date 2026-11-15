@@ -1,3 +1,4 @@
+#pragma once
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 
@@ -32,8 +33,13 @@ String getIntMinus1(byte input);
 String getIntMinus128(byte input);
 String getIntMinus1Div5(byte input);
 String getIntMinus1Div50(byte input);
+String getIntMinus1Div10(byte input);
 String getIntMinus1Times10(byte input);
 String getIntMinus1Times50(byte input);
+String getLowNibbleMinus1Times5(byte input);
+String getHighNibbleMinus1Times5(byte input);
+String getLowNibbleOffset(byte input);
+String getHighNibbleOffset(byte input);
 String getValvePID(byte input);
 String getOpMode(byte input);
 String getPower(byte input);
@@ -47,10 +53,88 @@ static const char _unknown[] PROGMEM = "unknown";
 
 
 
-#define NUMBER_OF_TOPICS 170 //last topic number + 1
+#define NUMBER_OF_TOPICS 199 //last topic number + 1
 #define NUMBER_OF_TOPICS_EXTRA 6 //last topic number + 1
 #define NUMBER_OF_OPT_TOPICS 7 //last topic number + 1
 #define MAX_TOPIC_LEN 42 // max length + 1
+
+// Topic groups. Each main topic belongs to one group; all groups except TG_BASIC can be switched off in the
+// settings. A switched off topic is still decoded (rules, Modbus and /json?topic= keep working), it is only
+// not published to MQTT, the websocket and the full /json list.
+enum topicGroups_t : byte {
+  TG_BASIC,
+  TG_HEATCOOL,
+  TG_ZONE2,
+  TG_DHW_HEATERS,
+  TG_DIAGNOSTICS,
+  TG_BUFFER_SOLAR_POOL,
+  TG_BIVALENT,
+  TG_EXTERNAL_SGREADY,
+  TG_INSTALLER,
+  NUMBER_OF_TOPIC_GROUPS
+};
+#define TOPIC_GROUPS_ALL ((uint16_t)((1 << NUMBER_OF_TOPIC_GROUPS) - 1))
+#define TOPIC_GROUPS_DEFAULT ((uint16_t)(TOPIC_GROUPS_ALL & ~(1 << TG_INSTALLER)))
+
+// settings key of each group, TG_BASIC has none because it can't be switched off
+static const char topicGroupKeys[NUMBER_OF_TOPIC_GROUPS][28] PROGMEM = {
+  "",
+  "topics_heatcool",
+  "topics_zone2",
+  "topics_dhw_heaters",
+  "topics_diagnostics",
+  "topics_buffer_solar_pool",
+  "topics_bivalent",
+  "topics_external_sgready",
+  "topics_installer",
+};
+
+static const byte topicGroup[] PROGMEM = {
+  TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, // TOP0-4
+  TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, // TOP5-9
+  TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, // TOP10-14
+  TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, TG_BASIC, // TOP15-19
+  TG_BASIC, TG_DIAGNOSTICS, TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, // TOP20-24
+  TG_DHW_HEATERS, TG_BASIC, TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, // TOP25-29
+  TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, TG_ZONE2, // TOP30-34
+  TG_ZONE2, TG_HEATCOOL, TG_ZONE2, TG_BASIC, TG_BASIC, // TOP35-39
+  TG_BASIC, TG_BASIC, TG_HEATCOOL, TG_ZONE2, TG_BASIC, // TOP40-44
+  TG_HEATCOOL, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, TG_DIAGNOSTICS, // TOP45-49
+  TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, // TOP50-54
+  TG_DIAGNOSTICS, TG_HEATCOOL, TG_ZONE2, TG_DHW_HEATERS, TG_DHW_HEATERS, // TOP55-59
+  TG_DHW_HEATERS, TG_DHW_HEATERS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, // TOP60-64
+  TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DHW_HEATERS, TG_DHW_HEATERS, // TOP65-69
+  TG_DHW_HEATERS, TG_DHW_HEATERS, TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, // TOP70-74
+  TG_HEATCOOL, TG_HEATCOOL, TG_HEATCOOL, TG_DHW_HEATERS, TG_HEATCOOL, // TOP75-79
+  TG_HEATCOOL, TG_HEATCOOL, TG_ZONE2, TG_ZONE2, TG_ZONE2, // TOP80-84
+  TG_ZONE2, TG_ZONE2, TG_ZONE2, TG_ZONE2, TG_ZONE2, // TOP85-89
+  TG_DHW_HEATERS, TG_DHW_HEATERS, TG_BASIC, TG_DIAGNOSTICS, TG_HEATCOOL, // TOP90-94
+  TG_INSTALLER, TG_DHW_HEATERS, TG_DHW_HEATERS, TG_DHW_HEATERS, TG_INSTALLER, // TOP95-99
+  TG_INSTALLER, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, // TOP100-104
+  TG_BUFFER_SOLAR_POOL, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, // TOP105-109
+  TG_EXTERNAL_SGREADY, TG_INSTALLER, TG_INSTALLER, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, // TOP110-114
+  TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_ZONE2, TG_EXTERNAL_SGREADY, // TOP115-119
+  TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_ZONE2, TG_HEATCOOL, // TOP120-124
+  TG_DIAGNOSTICS, TG_DIAGNOSTICS, TG_HEATCOOL, TG_ZONE2, TG_BIVALENT, // TOP125-129
+  TG_BIVALENT, TG_BIVALENT, TG_BIVALENT, TG_BIVALENT, TG_BIVALENT, // TOP130-134
+  TG_BIVALENT, TG_BIVALENT, TG_BIVALENT, TG_BIVALENT, TG_INSTALLER, // TOP135-139
+  TG_DHW_HEATERS, TG_INSTALLER, TG_DIAGNOSTICS, TG_INSTALLER, TG_BUFFER_SOLAR_POOL, // TOP140-144
+  TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_EXTERNAL_SGREADY, // TOP145-149
+  TG_EXTERNAL_SGREADY, TG_DHW_HEATERS, TG_BUFFER_SOLAR_POOL, TG_BUFFER_SOLAR_POOL, TG_EXTERNAL_SGREADY, // TOP150-154
+  TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_DHW_HEATERS, TG_DHW_HEATERS, // TOP155-159
+  TG_BASIC, TG_BASIC, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_BIVALENT, // TOP160-164
+  TG_ZONE2, TG_HEATCOOL, TG_INSTALLER, TG_INSTALLER, TG_HEATCOOL, // TOP165-169
+  TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, // TOP170-174
+  TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, TG_INSTALLER, // TOP175-179
+  TG_BIVALENT, TG_BIVALENT, TG_INSTALLER, TG_INSTALLER, TG_EXTERNAL_SGREADY, // TOP180-184
+  TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, // TOP185-189
+  TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_EXTERNAL_SGREADY, TG_INSTALLER, TG_INSTALLER, // TOP190-194
+  TG_INSTALLER, TG_INSTALLER, TG_BASIC, TG_BASIC, // TOP195-198
+};
+static_assert(sizeof(topicGroup) == NUMBER_OF_TOPICS, "every main topic needs a group in topicGroup[]");
+
+void setTopicGroups(uint16_t groups);
+bool topicEnabled(unsigned int Topic_Number);
 
 static const char optTopics[][20] PROGMEM = {
   "Z1_Water_Pump", // OPT0
@@ -251,6 +335,35 @@ static const char topics[][MAX_TOPIC_LEN] PROGMEM = {
   "Backup_Heater_Enable", //TOP167
   "Cooling_Enable", //TOP168
   "Heat_Request_Temp_With_Buffer", //TOP169
+  "Static_Pressure", //TOP170
+  "Heating_On_Outdoor_Temp", //TOP171
+  "Heating_On_Delay", //TOP172
+  "DHW_Booster_Delay", //TOP173
+  "Efficiency_Stage1_Time", //TOP174
+  "Efficiency_Stage2_Time", //TOP175
+  "Efficiency_Stage3_Time", //TOP176
+  "Sensor_Offset_Remote_Th1", //TOP177
+  "Sensor_Offset_Outdoor", //TOP178
+  "Anti_Stick_Mode", //TOP179
+  "Bivalent_Operating_Mode", //TOP180
+  "Bivalent_External_Pump", //TOP181
+  "Extra_Pump_Use", //TOP182
+  "Extra_Pump_Mode", //TOP183
+  "SG_Ready_1_DHW_Power", //TOP184
+  "SG_Ready_1_Heat_Power", //TOP185
+  "SG_Ready_1_Cool_Power", //TOP186
+  "SG_Ready_2_DHW_Power", //TOP187
+  "SG_Ready_2_Heat_Power", //TOP188
+  "SG_Ready_2_Cool_Power", //TOP189
+  "SG_Ready_Stop_Power", //TOP190
+  "SG_Ready_1_Cool_Capacity", //TOP191
+  "SG_Ready_2_Cool_Capacity", //TOP192
+  "Sensor_Offset_Return", //TOP193
+  "Defrost_Signal", //TOP194
+  "Sensor_Offset_DHW_Tank", //TOP195
+  "Sensor_Offset_Flow", //TOP196
+  "Heat_Pump_Capacity", //TOP197
+  "Heat_Pump_Type", //TOP198
 };
 
 static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit unsigned humber) as there aren't more then 255 bytes (actually only 203 bytes) to decode
@@ -424,6 +537,35 @@ static const byte topicBytes[] PROGMEM = { //can store the index as byte (8-bit 
   120, //TOP167
   120, //TOP168
   152, //TOP169
+  31, //TOP170
+  108, //TOP171
+  109, //TOP172
+  60, //TOP173
+  33, //TOP174
+  33, //TOP175
+  34, //TOP176
+  35, //TOP177
+  35, //TOP178
+  34, //TOP179
+  27, //TOP180
+  27, //TOP181
+  31, //TOP182
+  31, //TOP183
+  51, //TOP184
+  52, //TOP185
+  53, //TOP186
+  54, //TOP187
+  55, //TOP188
+  56, //TOP189
+  57, //TOP190
+  102, //TOP191
+  103, //TOP192
+  36, //TOP193
+  28, //TOP194
+  36, //TOP195
+  37, //TOP196
+  191, //TOP197
+  192, //TOP198
 };
 
 
@@ -609,24 +751,54 @@ static const topicFP topicFunctions[] PROGMEM = {
   getBit3and4, //TOP167
   getBit5and6, //TOP168
   getIntMinus128, //TOP169
+  getBit3and4, //TOP170
+  getIntMinus128, //TOP171
+  getIntMinus1Times30, //TOP172
+  getIntMinus1, //TOP173
+  getLowNibbleMinus1Times5, //TOP174
+  getHighNibbleMinus1Times5, //TOP175
+  getLowNibbleMinus1Times5, //TOP176
+  getHighNibbleOffset, //TOP177
+  getLowNibbleOffset, //TOP178
+  getBit1and2, //TOP179
+  getBit3and4, //TOP180
+  getBit1and2, //TOP181
+  getBit7and8, //TOP182
+  getBit5and6, //TOP183
+  getIntMinus1Div10, //TOP184
+  getIntMinus1Div10, //TOP185
+  getIntMinus1Div10, //TOP186
+  getIntMinus1Div10, //TOP187
+  getIntMinus1Div10, //TOP188
+  getIntMinus1Div10, //TOP189
+  getIntMinus1Div10, //TOP190
+  getIntMinus128, //TOP191
+  getIntMinus128, //TOP192
+  getHighNibbleOffset, //TOP193
+  getBit1and2, //TOP194
+  getLowNibbleOffset, //TOP195
+  getLowNibbleOffset, //TOP196
+  getIntMinus1, //TOP197
+  getIntMinus1, //TOP198
 };
 
 static const char *DisabledEnabled[] PROGMEM = {"2", "Disabled", "Enabled"};
-static const char *BlockedFree[] PROGMEM = {"2", "Blocked", "Free"};
+static const char *NotInstalledInstalled[] PROGMEM = {"2", "Not installed", "Installed"};
+static const char *BlockedFree[] PROGMEM = {"2", "Blocked", "Allowed"};
 static const char *OffOn[] PROGMEM = {"2", "Off", "On"};
 static const char *InactiveActive[] PROGMEM = {"2", "Inactive", "Active"};
 static const char *PumpFlowRateMode[] PROGMEM = {"2", "DeltaT", "Max flow"};
 static const char *HolidayState[] PROGMEM = {"3", "Off", "Scheduled", "Active"};
-static const char *OpModeDesc[] PROGMEM = {"9", "Heat", "Cool", "Auto(heat)", "DHW", "Heat+DHW", "Cool+DHW", "Auto(heat)+DHW", "Auto(cool)", "Auto(cool)+DHW"};
-static const char *Powerfulmode[] PROGMEM = {"4", "Off", "30min", "60min", "90min"};
-static const char *Quietmode[] PROGMEM = {"4", "Off", "Level 1", "Level 2", "Level 3"};
+static const char *OpModeDesc[] PROGMEM = {"9", "Heat", "Cool", "Auto (heat)", "DHW", "Heat+DHW", "Cool+DHW", "Auto (heat)+DHW", "Auto (cool)", "Auto (cool)+DHW"};
+static const char *Powerfulmode[] PROGMEM = {"4", "Off", "30 min", "60 min", "90 min"};
+static const char *Quietmode[] PROGMEM = {"4", "Off", "Level 1 (quiet)", "Level 2 (quieter)", "Level 3 (quietest)"};
 static const char *Valve[] PROGMEM = {"2", "Room", "DHW"};
 static const char *Valve2[] PROGMEM = {"2", "Cool", "Heat"};
 static const char *MixingValve[] PROGMEM = {"4", "Off", "Decrease","Increase","Invalid"};
 static const char *LitersPerMin[] PROGMEM = {"0", "l/min"};
 static const char *RotationsPerMin[] PROGMEM = {"0", "r/min"};
 static const char *Bar[] PROGMEM = {"0", "Bar"};
-static const char *Pressure[] PROGMEM = {"0", "Kgf/cm2"};
+static const char *Pressure[] PROGMEM = {"0", "kgf/cm2"};
 static const char *Celsius[] PROGMEM = {"0", "°C"};
 static const char *Kelvin[] PROGMEM = {"0", "K"};
 static const char *Hertz[] PROGMEM = {"0", "Hz"};
@@ -637,7 +809,7 @@ static const char *ErrorState[] PROGMEM = {"0", "Error"};
 static const char *Ampere[] PROGMEM = {"0", "Ampere"};
 static const char *Minutes[] PROGMEM = {"0", "Minutes"};
 static const char *Duty[] PROGMEM = {"0", "Duty"};
-static const char *ZonesState[] PROGMEM = {"3", "Zone1 active", "Zone2 active", "Zone1 and zone2 active"};
+static const char *ZonesState[] PROGMEM = {"3", "Zone 1 active", "Zone 2 active", "Zone 1 and zone 2 active"};
 static const char *HeatCoolModeDesc[] PROGMEM = {"2", "Comp. Curve", "Direct"};
 static const char *SolarModeDesc[] PROGMEM = {"3", "Disabled", "Buffer", "DHW"};
 static const char *ZonesSensorType[] PROGMEM = {"4", "Water Temperature", "External Thermostat", "Internal Thermostat", "Thermistor"};
@@ -655,8 +827,11 @@ static const char *DHWHeaterType[] PROGMEM = {"2", "Internal", "External"};
 static const char *Kilowatt[] PROGMEM = {"0", "kW"};
 static const char *HeatCoolSwitch[] PROGMEM = {"2", "Heat", "Cool"};
 static const char *ClosedOpen[] PROGMEM = {"2", "Closed", "Open"};
+static const char *HeatPumpType[] PROGMEM = {"2", "Standard", "T-CAP"};
 static const char *ZoneConfiguration[] PROGMEM = {"0", "Configuration code"};
 static const char *Steps[] PROGMEM = {"0", "Steps"};
+static const char *BivalentOperatingMode[] PROGMEM = {"3", "Auto", "SG ready", "Intelligent"};
+static const char *ExtraPumpUse[] PROGMEM = {"3", "Not used", "Heating", "DHW"};
 
 static const char **opttopicDescription[] PROGMEM = {
   OffOn,          //OPT0
@@ -680,7 +855,7 @@ static const char **xtopicDescription[] PROGMEM = {
 static const char **topicDescription[] PROGMEM = {
   OffOn,           //TOP0
   LitersPerMin,    //TOP1
-  DisabledEnabled, //TOP2
+  OffOn, //TOP2
   DisabledEnabled, //TOP3
   OpModeDesc,      //TOP4
   Celsius,         //TOP5
@@ -704,7 +879,7 @@ static const char **topicDescription[] PROGMEM = {
   Kelvin,          //TOP23
   Kelvin,          //TOP24
   Kelvin,          //TOP25
-  DisabledEnabled, //TOP26
+  InactiveActive, //TOP26
   Celsius,         //TOP27
   Celsius,         //TOP28
   Celsius,         //TOP29
@@ -777,8 +952,8 @@ static const char **topicDescription[] PROGMEM = {
   Minutes,         //TOP96
   Kelvin,          //TOP97
   Kelvin,          //TOP98
-  DisabledEnabled, //TOP99
-  DisabledEnabled, //TOP100
+  NotInstalledInstalled, //TOP99
+  NotInstalledInstalled, //TOP100
   SolarModeDesc,   //TOP101
   Kelvin,          //TOP102
   Kelvin,          //TOP103
@@ -848,4 +1023,33 @@ static const char **topicDescription[] PROGMEM = {
   InactiveActive, //TOP167
   InactiveActive, //TOP168
   Celsius, //TOP169
+  DisabledEnabled, //TOP170
+  Celsius, //TOP171
+  Minutes, //TOP172
+  Minutes, //TOP173
+  Minutes, //TOP174
+  Minutes, //TOP175
+  Minutes, //TOP176
+  Kelvin, //TOP177
+  Kelvin, //TOP178
+  DisabledEnabled, //TOP179
+  BivalentOperatingMode, //TOP180
+  OffOn, //TOP181
+  ExtraPumpUse, //TOP182
+  HeatingControl, //TOP183
+  Kilowatt, //TOP184
+  Kilowatt, //TOP185
+  Kilowatt, //TOP186
+  Kilowatt, //TOP187
+  Kilowatt, //TOP188
+  Kilowatt, //TOP189
+  Kilowatt, //TOP190
+  Celsius, //TOP191
+  Celsius, //TOP192
+  Kelvin, //TOP193
+  DisabledEnabled, //TOP194
+  Kelvin, //TOP195
+  Kelvin, //TOP196
+  Kilowatt, //TOP197
+  HeatPumpType, //TOP198
 };

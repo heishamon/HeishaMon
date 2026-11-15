@@ -477,7 +477,7 @@ bool dequeueWrite(WriteRequest &request) {
   return true;
 }
 
-// The main set_* functions only build a command buffer from the payload (no side effects), so they
+// heatpump_command() only builds a command buffer from the payload (no side effects), so it
 // can run here to reject a value the command would refuse (length 0) before it is acknowledged.
 // Optional PCB setters change the shared optionalPCBQuery directly, so those are only checked in loop().
 bool mainCommandAccepts(const char *name, const char *payload) {
@@ -490,7 +490,7 @@ bool mainCommandAccepts(const char *name, const char *payload) {
       char value[16];
       strncpy(value, payload, sizeof(value) - 1);
       value[sizeof(value) - 1] = '\0';
-      return command.func(value, cmd, logMsg) > 0;
+      return heatpump_command(&command, value, cmd, logMsg) > 0;
     }
   }
   return false;
