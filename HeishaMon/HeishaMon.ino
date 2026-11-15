@@ -746,9 +746,13 @@ void readProxy()
       }      
       log_message(_F("PROXY Checksum and header received ok!"));
       if ((proxydata[0]==0x71 or proxydata[0]==0xF1) and proxydata_length == (PANASONICQUERYSIZE+1)) { //this is a query from cztaw on proxy port
-        if (proxydata[0]==0xf1) {  //this is a write query, just pass this message forward as new command
-          log_message(_F("PROXY received write query, copy message forward to heatpump"));
-          send_command((byte*)proxydata,proxydata_length-1); //strip CRC, will be calculated again in send_command
+        if (proxydata[0]==0xf1) {  //this is a write query, pass this message forward as new command unless writes are blocked
+          if (heishamonSettings.proxyBlockWrites) {
+            log_message(_F("PROXY received write query, blocked by settings"));
+          } else {
+            log_message(_F("PROXY received write query, copy message forward to heatpump"));
+            send_command((byte*)proxydata,proxydata_length-1); //strip CRC, will be calculated again in send_command
+          }
           //then just reply with the current settings, for read and write it is the same as the write is only acknowledged in the next read
           //so we just run to the next if statement
         }
@@ -771,6 +775,10 @@ void readProxy()
       } else if (proxydata[0]==0x31) {
         log_message(_F("PROXY received startup message, forwarding to heatpump!"));
         send_command((byte *)proxydata, proxydata_length-1); //strip CRC from end as send_command wil recalculate it
+        proxydata_length = 0;
+        return;
+      } else if (proxydata[0]==0xF1 && heishamonSettings.proxyBlockWrites) {
+        log_message(_F("PROXY received unknown write message, blocked by settings"));
         proxydata_length = 0;
         return;
       } else {
