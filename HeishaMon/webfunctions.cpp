@@ -301,6 +301,7 @@ void loadSettings(settingsStruct *heishamonSettings) {
           setTopicGroups(heishamonSettings->topicGroups);
 #ifdef ESP32          
           heishamonSettings->proxy = ( jsonDoc[F("proxy")] == "enabled" ) ? true : false;
+          heishamonSettings->proxyBlockWrites = ( jsonDoc[F("proxyBlockWrites")] == "enabled" ) ? true : false;
           heishamonSettings->ethernet = ( jsonDoc[F("ethernet")] == "disabled" ) ? false : true; //default to true if not found in settings
           heishamonSettings->modbus = ( jsonDoc[F("modbus")] == "enabled" ) ? true : false;
           heishamonSettings->modbusWrites = ( jsonDoc[F("modbusWrites")] == "enabled" ) ? true : false;
@@ -597,6 +598,7 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   } else {
     jsonDoc[F("proxy")] = "disabled";
   }
+  jsonDoc[F("proxyBlockWrites")] = heishamonSettings->proxyBlockWrites ? "enabled" : "disabled";
   if (heishamonSettings->ethernet) {
     jsonDoc[F("ethernet")] = "enabled";
   } else {
@@ -764,6 +766,7 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
 
 #ifdef ESP32  
   jsonDoc[F("proxy")] = String("disabled");
+  jsonDoc[F("proxyBlockWrites")] = String("disabled");
   jsonDoc[F("ethernet")] = String("disabled");
   jsonDoc[F("modbus")] = String("disabled");
   jsonDoc[F("modbusWrites")] = String("disabled");
@@ -820,6 +823,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
 #ifdef ESP32      
     } else if (strcmp(tmp->name.c_str(), "proxy") == 0) {
       jsonDoc[F("proxy")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "proxyBlockWrites") == 0) {
+      jsonDoc[F("proxyBlockWrites")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "ethernet") == 0) {
       jsonDoc[F("ethernet")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "modbus") == 0) {

@@ -72,6 +72,7 @@ struct settingsStruct {
   uint16_t topicGroups = TOPIC_GROUPS_DEFAULT; //bit per topic group (decode.h), a cleared bit stops publishing those topics
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
+  bool proxyBlockWrites = false; //don't pass settings changes from the proxy port to the heat pump
   bool ethernet = true; //probe for W5500 ethernet module at boot (disable on boards without it)
   bool modbus = false; //modbus tcp server enable flag
   bool modbusWrites = false; //allow modbus clients to write commands and relays
