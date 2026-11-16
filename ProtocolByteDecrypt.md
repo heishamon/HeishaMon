@@ -834,6 +834,8 @@ Operation Setup --> Installer
 
 MQTT setters for the examples below: `SetHeatToCoolTemp` writes byte 95 as temperature + 128; `SetCoolToHeatTemp` writes byte 96 with the same encoding; `SetRoomOperationMaxTime` writes byte 97 as minutes / 30 + 1; `SetDHWHeatupMaxTime` writes byte 98 as minutes + 1. `SetQuietModeSchedule` writes byte 7 as 0x40 (off) or 0x80 (on), leaving the quiet-level and powerful-mode fields unset. Byte offsets include the four header bytes. See MQTT-Topics.md for validation and supported wire ranges.
 
+SET56–SET112 write the byte and bit positions of the matching topics in the table above (tested on M series only; may work on other series, not tested there). Settings in a byte of their own send only that byte. Settings that share a byte send only their own bit pair or nibble and leave the rest of the byte 0, which the heat pump treats as "no change". See MQTT-Topics.md for the commands and their ranges.
+
 Water temperature for heating on Compensationio Curve
 
 `f1 6c 01 10 00 00 00 00 00 00 00 00 00 00 00 00
