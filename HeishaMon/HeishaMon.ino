@@ -115,6 +115,7 @@ QueueHandle_t logQueue = NULL;
 
 // store actual data
 char actData[DATASIZE] = { '\0' };
+uint8_t mainBlocksSinceChange = 0; // main data blocks since the last command was sent, see heatpump_command_reported()
 char actDataExtra[DATASIZE] = { '\0' };
 char actOptData[OPTDATASIZE]  = { '\0' };
 
@@ -839,6 +840,7 @@ bool readSerial()
       if (data_length == DATASIZE)  {  //receive a full data block
         if  (data[3] == 0x10) { //decode the normal data block
           decode_heatpump_data(data, actData, mqtt_client, log_message, heishamonSettings.mqtt_topic_base, heishamonSettings.updateAllTime);
+          if (mainBlocksSinceChange < 255) mainBlocksSinceChange++;
           if ( (!extraDataBlockAvailable) && ((actData[0] == 0x71) && (actData[0xc7] >= 3)) ) { //do we have valid header and byte 0xc7 is more or equal 3 then assume K&L and more series
             log_message(_F("Extra data available on this heatpump"));
             extraDataBlockAvailable = true; //request for extra data next run
@@ -1325,6 +1327,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                 memcpy_P(&tmp, &commands[x], sizeof(tmp));
                 if (strcmp((char *)args->name, tmp.name) == 0) {
                   len = heatpump_command(&tmp, cpy, cmd, log_msg);
+                  if (len > 0 && heatpump_command_reported(&tmp, cmd, log_msg)) len = 0;
                   if ((client->userdata = realloc(client->userdata, strlen((char *)client->userdata) + strlen(log_msg) + 2)) == NULL) {
                     loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
                     ESP.restart();
