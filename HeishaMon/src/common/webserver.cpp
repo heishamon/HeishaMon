@@ -74,6 +74,7 @@ struct webserver_client_t clients[WEBSERVER_MAX_CLIENTS];
 static tcp_pcb *async_server = NULL;
 static WiFiServer sync_server(0);
 #endif
+static uint8_t webserver_busy = 0; // set while webserver_loop() runs
 static uint8_t *rbuffer = NULL;
 
 /*
@@ -2212,13 +2213,102 @@ static void send_websocket_handshake(struct webserver_t *client, const char *key
   }
 }
 
+/*
+ * A websocket message waits in the send list until webserver_loop() sends it, one packet
+ * for each pass. A burst of messages (all topics changing at once) is queued in a single
+ * pass, and on the ESP8266 that used up the heap. So there a client that already has
+ * WEBSOCKET_MAX_QUEUE nodes waiting (two for each message) is first sent what it has, and
+ * only misses the new message when that doesn't make room in time.
+ */
+#ifndef WEBSOCKET_FLUSH_TIMEOUT
+  #define WEBSOCKET_FLUSH_TIMEOUT 250 // ms to wait for a slow client before a message is dropped
+#endif
+#ifndef WEBSOCKET_FLUSH_HOLDOFF
+  #define WEBSOCKET_FLUSH_HOLDOFF 2000 // ms without waiting again after a client was too slow
+#endif
+#ifndef WEBSOCKET_FLUSH_SIZE
+  #define WEBSOCKET_FLUSH_SIZE 256 // bytes for each send, small because this runs deep in the stack
+#endif
+#ifndef WEBSOCKET_MAX_QUEUE
+  #if defined(ESP8266)
+    #define WEBSOCKET_MAX_QUEUE 40
+  #else
+    #define WEBSOCKET_MAX_QUEUE 0 // no limit, the ESP32 has the memory for a full burst
+  #endif
+#endif
+
+static uint8_t websocket_queue_full(struct webserver_t *client) {
+#if WEBSERVER_MAX_SENDLIST == 0 && WEBSOCKET_MAX_QUEUE > 0
+  uint16_t nr = 0;
+  struct sendlist_t *tmp = client->sendlist;
+  while(tmp != NULL) {
+    if(++nr >= WEBSOCKET_MAX_QUEUE) {
+      return 1;
+    }
+    tmp = tmp->next;
+  }
+#endif
+  return 0;
+}
+
+/*
+ * Send the waiting messages of one websocket client, like the sending step of
+ * webserver_loop() does, until there is room again. Returns 0 when there is room.
+ * Not while the webserver is busy with a request itself (an upload for example).
+ */
+static uint8_t websocket_make_room(struct webserver_t *client) {
+  if(websocket_queue_full(client) == 0) {
+    return 0;
+  }
+#if defined(ESP8266) && WEBSERVER_MAX_SENDLIST == 0
+  /*
+   * A client that didn't take its messages in time is not waited for again for
+   * a while, or a burst of messages would wait the timeout for each of them.
+   */
+  static unsigned long gaveup = 0;
+  static uint8_t hasgivenup = 0;
+  if(hasgivenup == 1 && (unsigned long)(millis() - gaveup) >= WEBSOCKET_FLUSH_HOLDOFF) {
+    hasgivenup = 0;
+  }
+  if(webserver_busy == 0 && hasgivenup == 0 && client->async == 0) {
+    uint32_t start = millis();
+    while(websocket_queue_full(client) == 1 && client->step == WEBSERVER_CLIENT_SENDING) {
+      if((unsigned long)(millis() - start) >= WEBSOCKET_FLUSH_TIMEOUT) {
+        hasgivenup = 1;
+        gaveup = millis();
+        break;
+      }
+      /*
+       * Only send what the TCP stack takes right now, so the write
+       * itself never waits and the timeout above is the real limit.
+       */
+      if(client->client->availableForWrite() < WEBSOCKET_FLUSH_SIZE) {
+        yield();
+        continue;
+      }
+      client->totallen = WEBSOCKET_FLUSH_SIZE;
+      if(webserver_process_send(client) <= 0) {
+        break;
+      }
+    }
+  }
+#endif
+  return websocket_queue_full(client);
+}
+
 void websocket_write_P(struct webserver_t *client, PGM_P data, uint16_t data_len) {
+  if(websocket_make_room(client)) {
+    return;
+  }
   websocket_send_header(client, WEBSOCKET_OPCODE_TEXT, data_len);
   webserver_send_content_P(client, data, data_len);
   client->step = WEBSERVER_CLIENT_SENDING;
 }
 
 void websocket_write(struct webserver_t *client, char *data, uint16_t data_len) {
+  if(websocket_make_room(client)) {
+    return;
+  }
   websocket_send_header(client, WEBSOCKET_OPCODE_TEXT, data_len);
   webserver_send_content(client, (char *)data, data_len);
   client->step = WEBSERVER_CLIENT_SENDING;
@@ -2586,6 +2676,8 @@ void webserver_loop(void) {
   uint16_t size = 0;
   uint8_t i = 0;
 
+  webserver_busy = 1;
+
   for(i=0;i<WEBSERVER_MAX_CLIENTS;i++) {
     /*
      * size (and the shared rbuffer it indexes into) must be reset for every
@@ -2739,6 +2831,7 @@ void webserver_loop(void) {
     }
   }
 #endif
+  webserver_busy = 0;
 }
 
 int8_t webserver_start(int port, webserver_cb_t *callback, uint8_t async) {
