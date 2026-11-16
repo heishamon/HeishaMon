@@ -367,6 +367,8 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
 
   if ((lastalldatatime == 0) || ((unsigned long)(millis() - lastalldatatime) > (1000 * updateAllTime))) {
     updateTime = true;
+    // one log line instead of one for each topic: with the web page open that many lines at once use up the memory on the ESP8266
+    log_message(_F("Retransmitting all heatpump topics"));
     lastalldatatime = millis();
   }
   for (unsigned int Topic_Number = 0 ; Topic_Number < NUMBER_OF_TOPICS ; Topic_Number++) {
@@ -380,8 +382,10 @@ void decode_heatpump_data(char* data, char* actData, PubSubClient &mqtt_client, 
     if ((updateTime || updateTopic[Topic_Number]) && topicEnabled(Topic_Number)) {
       char log_msg[256];
       char mqtt_topic[256];
-      sprintf_P(log_msg, PSTR("received TOP%d %s: %s"), Topic_Number, topics[Topic_Number], Topic_Value.c_str());
-      log_message(log_msg);
+      if (updateTopic[Topic_Number]) { // an unchanged topic is only retransmitted, not logged
+        sprintf_P(log_msg, PSTR("received TOP%d %s: %s"), Topic_Number, topics[Topic_Number], Topic_Value.c_str());
+        log_message(log_msg);
+      }
       sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_values, topics[Topic_Number]);
       mqtt_client.publish(mqtt_topic, Topic_Value.c_str(), MQTT_RETAIN_VALUES);
     }
@@ -415,6 +419,7 @@ void decode_heatpump_data_extra(char* data, char* actDataExtra, PubSubClient &mq
 
   if ((lastallextradatatime == 0) || ((unsigned long)(millis() - lastallextradatatime) > (1000 * updateAllTime))) {
     updateTime = true;
+    log_message(_F("Retransmitting all extra heatpump topics"));
     lastallextradatatime = millis();
   }
   for (unsigned int Topic_Number = 0 ; Topic_Number < NUMBER_OF_TOPICS_EXTRA ; Topic_Number++) {
@@ -428,8 +433,10 @@ void decode_heatpump_data_extra(char* data, char* actDataExtra, PubSubClient &mq
     if (updateTime || updateTopic[Topic_Number]) {
       char log_msg[256];
       char mqtt_topic[256];
-      sprintf_P(log_msg, PSTR("received XTOP%d %s: %s"), Topic_Number, xtopics[Topic_Number], Topic_Value.c_str());
-      log_message(log_msg);
+      if (updateTopic[Topic_Number]) {
+        sprintf_P(log_msg, PSTR("received XTOP%d %s: %s"), Topic_Number, xtopics[Topic_Number], Topic_Value.c_str());
+        log_message(log_msg);
+      }
       sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_xvalues, xtopics[Topic_Number]);
       mqtt_client.publish(mqtt_topic, Topic_Value.c_str(), MQTT_RETAIN_VALUES);
     }
@@ -457,6 +464,7 @@ void decode_optional_heatpump_data(char* data, char* actOptData, PubSubClient & 
 
   if ((lastalloptdatatime == 0) || ((unsigned long)(millis() - lastalloptdatatime) > (1000 * updateAllTime))) {
     updateTime = true;
+    log_message(_F("Retransmitting all optional PCB topics"));
     lastalloptdatatime = millis();
   }
   for (unsigned int Topic_Number = 0 ; Topic_Number < NUMBER_OF_OPT_TOPICS ; Topic_Number++) {
@@ -470,8 +478,10 @@ void decode_optional_heatpump_data(char* data, char* actOptData, PubSubClient & 
     if (updateTime || updateTopic[Topic_Number]) {
       char log_msg[256];
       char mqtt_topic[256];
-      sprintf_P(log_msg, PSTR("received OPT%d %s: %s"), Topic_Number, optTopics[Topic_Number], Topic_Value.c_str());
-      log_message(log_msg);
+      if (updateTopic[Topic_Number]) {
+        sprintf_P(log_msg, PSTR("received OPT%d %s: %s"), Topic_Number, optTopics[Topic_Number], Topic_Value.c_str());
+        log_message(log_msg);
+      }
       sprintf_P(mqtt_topic, PSTR("%s/%s/%s"), mqtt_topic_base, mqtt_topic_pcbvalues, optTopics[Topic_Number]);
       mqtt_client.publish(mqtt_topic, Topic_Value.c_str(), MQTT_RETAIN_VALUES);
 
