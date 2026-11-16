@@ -76,7 +76,7 @@ All floats are IEEE 754 float32, unscaled.
 
 | Other group | Reserved block | Access | Implemented |
 | --- | --- | --- | --- |
-| Heat-pump commands | 5000-5999 | FC06 / FC16, int16 | 5000-5098 and 5100-5110; 5015 is reserved for JSON-only SetCurves and rejects writes |
+| Heat-pump commands | 5000-5999 | FC06 / FC16, int16 | 5000-5098 and 5100-5112; 5015 is reserved for JSON-only SetCurves and rejects writes |
 | Optional PCB commands | 6000-6999 | FC06 / FC16, int16 | 6000-6013 |
 | System commands | 7000-7999 | FC06 / FC16, int16 | 7000 = SetReset |
 | Float32 commands | 20000-29999 | FC16, float32 (2 registers) | 20000 + 2 * (command address - 5000): heat pump 20000-21999, optional PCB 22000-23999, system 24000-25999 |
@@ -312,6 +312,8 @@ is `MAIN_COMMANDS` in `HeishaMon/ModbusRegisterMap.h`. IDs 1-1000 map to
 | 5108 | `SetSGReadyCoolPower2` |
 | 5109 | `SetSGReadyStopPower` |
 | 5110 | `SetDemandControlEnable` |
+| 5111 | `SetZ2SensorSettings` |
+| 5112 | `SetZonesInstalled` |
 
 ## Optional PCB commands
 

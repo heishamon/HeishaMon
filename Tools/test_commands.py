@@ -116,6 +116,8 @@ RECORDED = {
     "SetSGReadyCoolCapacity2": (103, [None, 128, 129, 130, 131, 134, 123, 149, 188, 203, 255, None, None, None, None, None, None, None]),
     "SetSensorOffsetReturn": (36, [None, 128, 160, 192, 224, None, None, None, None, None, None, None, None, 160, None, None, None, None]),
     "SetZ1SensorSettings": (22, [None, 1, 2, 3, 4, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetZ2SensorSettings": (22, [None, 16, 32, 48, 64, None, None, None, None, None, None, None, None, None, None, None, None, None]),
+    "SetZonesInstalled": (21, [None, None, 1, 2, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
     "SetDefrostSignal": (28, [None, 64, 128, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]),
     "SetSensorOffsetDhwTank": (36, [None, 8, 10, 12, 14, None, None, None, None, None, None, None, None, 10, None, None, None, None]),
     "SetSensorOffsetFlow": (37, [None, 8, 10, 12, 14, None, None, None, None, None, None, None, None, 10, None, None, None, None]),
@@ -165,6 +167,8 @@ CHECKED = {
     "SetExtraPumpMode": (31, [("0", 0x04), ("1", 0x08)], ["2", "-1"]),
     "SetSolarMode": (24, [("0", 0x10), ("1", 0x20), ("2", 0x30)], ["3", "-1"]),
     "SetZ1SensorSettings": (22, [("0", 1), ("3", 4)], ["4", "-1"]),
+    "SetZ2SensorSettings": (22, [("0", 0x10), ("1", 0x20), ("2", 0x30), ("3", 0x40)], ["4", "-1"]),
+    "SetZonesInstalled": (21, [("1", 0x01), ("2", 0x02)], ["0", "3", "-1"]),
 }
 DECIMAL = {"SetSensorOffsetRemoteTh1", "SetSensorOffsetFlow", "SetSGReadyHeatPower2"}
 REFUSED = ["", "abc", "1x", "1.0", " 1", "+1", "1 ", "-", "999999999999999"]
@@ -263,7 +267,7 @@ GATE = r"""
       assert(heatpump_command(&commands[i], payload, buffer, log) == 0);
       for (byte b : buffer) assert(b == 0xa5);
     }
-    assert(flagged == 56);
+    assert(flagged == 58);
   }
   // payloads with one decimal: a sensor offset in a high nibble (0.5 K steps) and a whole byte in 0.1 steps
   { const cmdStruct offset = { "SetOffset", 0, CMD_DECIMAL(35, 4, -35, 35, 5, 5, 8) };
