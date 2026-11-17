@@ -137,6 +137,9 @@ CASE = r"""
 """
 
 MAIN = r"""
+char actData[DATASIZE];
+uint8_t mainBlocksSinceChange;
+
 static const cmdStruct *find(const char *topic) {
   for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++)
     if (strcmp(commands[i].name, topic) == 0) return &commands[i];
@@ -236,6 +239,29 @@ GATE = r"""
     const cmdStruct offset = { "SetOffset", 0, CMD_DECIMAL(35, 4, -35, 35, 5, 5, 8) };
     byte buffer[256]; char log[256] = { 0 }; char payload[] = "-3.5";
     assert(heatpump_command(&offset, payload, buffer, log) != 0 && strcmp(log, "SetOffset set to -3.5") == 0);
+  }
+  // a whole byte the heat pump already reports is not sent, from the second main data block after a changed value
+  { auto sends = [](const char *name, const char *value) {
+      char topic[32], payload[16]; strcpy(topic, name); strcpy(payload, value);
+      send_count = 0; send_heatpump_command(topic, payload, send_command, log_message, false); return send_count; };
+    memset(actData, 0, sizeof(actData)); actData[42] = (char)176; mainBlocksSinceChange = 2;  // DHW 48, no data block
+    assert(sends("SetDHWTemp", "48") == 1 && mainBlocksSinceChange == 0);
+    actData[0] = 0x71;
+    mainBlocksSinceChange = 1;
+    assert(sends("SetDHWTemp", "48") == 1 && mainBlocksSinceChange == 0);  // too soon after the last command, and it counts as one
+    mainBlocksSinceChange = 2;
+    assert(sends("SetDHWTemp", "48") == 0);
+    assert(sends("SetDHWTemp", "49") == 1 && sends("SetDHWTemp", "48") == 1);  // 49 isn't reported yet
+    mainBlocksSinceChange = 2;
+    byte buffer[256]; char log[256]; char payload[] = "48";
+    heatpump_command(find("SetDHWTemp"), payload, buffer, log);
+    assert(heatpump_command_reported(find("SetDHWTemp"), buffer, log));
+    assert(strcmp(log, "SetDHWTemp set to 48: not sent, the heat pump already reports this value") == 0);
+    actData[4] = 0x02; actData[6] = 18; actData[7] = 0x80;  // bit fields and function rows are always sent
+    assert(sends("SetHeatpump", "1") == 1 && sends("SetOperationMode", "0") == 1);
+    mainBlocksSinceChange = 2;
+    assert(sends("SetQuietModeSchedule", "1") == 1);
+    actData[0] = 0;
   }
   for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
     if (commands[i].type == CMD_FUNC) continue;

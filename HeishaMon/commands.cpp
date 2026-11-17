@@ -114,6 +114,23 @@ unsigned int heatpump_command(const cmdStruct *command, char *msg, unsigned char
   return sizeof(panasonicSendQuery);
 }
 
+extern char actData[DATASIZE];
+extern uint8_t mainBlocksSinceChange;  // main data blocks received since the last command was sent
+
+// Only whole-byte settings are compared, for them the row says exactly what the heat pump reports. Bit fields share
+// their byte with actions and with bits that aren't reported, and function rows have no single field: always sent.
+// So is everything until two main data blocks arrived after the last command that was sent, the first may show the old value.
+bool heatpump_command_reported(const cmdStruct *command, const unsigned char *cmd, char *log_msg) {
+  if (command->type != CMD_FUNC && command->mask == 0xFF && command->shift == 0 && (byte)actData[0] == 0x71 &&
+      (byte)actData[command->address] == cmd[command->address] && mainBlocksSinceChange >= 2) {
+    const size_t used = strlen(log_msg);
+    snprintf_P(log_msg + used, 256 - used, PSTR(": not sent, the heat pump already reports this value"));
+    return true;
+  }
+  mainBlocksSinceChange = 0;  // this command is sent
+  return false;
+}
+
 // The commands below can't be described by a row of settings in commands[].
 
 unsigned int set_operation_mode(char *msg, unsigned char *cmd, char *log_msg) {
@@ -366,6 +383,7 @@ void send_heatpump_command(char* topic, char *msg, bool (*send_command)(byte*, i
     memcpy_P(&tmp, &commands[i], sizeof(tmp));
     if (strcmp(topic, tmp.name) == 0) {
       len = heatpump_command(&tmp, msg, cmd, log_msg);
+      if (len > 0 && heatpump_command_reported(&tmp, cmd, log_msg)) len = 0;
       log_message(log_msg);
       if (len > 0) send_command(cmd, len);
     }
