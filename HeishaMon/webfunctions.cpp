@@ -270,6 +270,8 @@ void loadSettings(settingsStruct *heishamonSettings) {
           if ( jsonDoc[F("description")] ) strlcpy(heishamonSettings->description, jsonDoc[F("description")], sizeof(heishamonSettings->description));
           if ( jsonDoc[F("ota_password")] ) strlcpy(heishamonSettings->ota_password, jsonDoc[F("ota_password")], sizeof(heishamonSettings->ota_password));
           if ( jsonDoc[F("mqtt_topic_base")] ) strlcpy(heishamonSettings->mqtt_topic_base, jsonDoc[F("mqtt_topic_base")], sizeof(heishamonSettings->mqtt_topic_base));
+          if ( jsonDoc[F("listenRawMqttTopicBase")] ) strlcpy(heishamonSettings->listenRawMqttTopicBase, jsonDoc[F("listenRawMqttTopicBase")], sizeof(heishamonSettings->listenRawMqttTopicBase));
+          if (heishamonSettings->listenRawMqttTopicBase[0] == '\0') strcpy(heishamonSettings->listenRawMqttTopicBase, "panasonic_heat_pump");
           if ( jsonDoc[F("mqtt_server")] ) strlcpy(heishamonSettings->mqtt_server, jsonDoc[F("mqtt_server")], sizeof(heishamonSettings->mqtt_server));
           if ( jsonDoc[F("mqtt_port")] ) strlcpy(heishamonSettings->mqtt_port, jsonDoc[F("mqtt_port")], sizeof(heishamonSettings->mqtt_port));
           if ( jsonDoc[F("mqtt_username")] ) strlcpy(heishamonSettings->mqtt_username, jsonDoc[F("mqtt_username")], sizeof(heishamonSettings->mqtt_username));
@@ -288,6 +290,9 @@ void loadSettings(settingsStruct *heishamonSettings) {
           heishamonSettings->logMqtt = ( jsonDoc[F("logMqtt")] == "enabled" ) ? true : false;
           heishamonSettings->logHexdump = ( jsonDoc[F("logHexdump")] == "enabled" ) ? true : false;
           heishamonSettings->logSerial1 = ( jsonDoc[F("logSerial1")] == "enabled" ) ? true : false;
+          heishamonSettings->publishRawData = ( jsonDoc[F("publishRawData")] == "enabled" ) ? true : false;
+          heishamonSettings->listenRawData = ( jsonDoc[F("listenRawData")] == "enabled" ) ? true : false;
+          if (heishamonSettings->publishRawData && heishamonSettings->listenRawData) heishamonSettings->listenRawData = false;
           heishamonSettings->optionalPCB = ( jsonDoc[F("optionalPCB")] == "enabled" ) ? true : false;
           heishamonSettings->opentherm = ( jsonDoc[F("opentherm")] == "enabled" ) ? true : false;
           heishamonSettings->topicGroups = (1 << TG_BASIC);
@@ -519,6 +524,7 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
   jsonDoc[F("wifi_ssid")] = heishamonSettings->wifi_ssid;
   jsonDoc[F("ota_password")] = heishamonSettings->ota_password;
   jsonDoc[F("mqtt_topic_base")] = heishamonSettings->mqtt_topic_base;
+  jsonDoc[F("listenRawMqttTopicBase")] = heishamonSettings->listenRawMqttTopicBase;
   jsonDoc[F("mqtt_server")] = heishamonSettings->mqtt_server;
   jsonDoc[F("mqtt_port")] = heishamonSettings->mqtt_port;
   jsonDoc[F("mqtt_username")] = heishamonSettings->mqtt_username;
@@ -576,6 +582,16 @@ void settingsToJson(JsonDocument &jsonDoc, settingsStruct *heishamonSettings) {
     jsonDoc[F("logSerial1")] = "enabled";
   } else {
     jsonDoc[F("logSerial1")] = "disabled";
+  }
+  if (heishamonSettings->publishRawData) {
+    jsonDoc[F("publishRawData")] = "enabled";
+  } else {
+    jsonDoc[F("publishRawData")] = "disabled";
+  }
+  if (heishamonSettings->listenRawData) {
+    jsonDoc[F("listenRawData")] = "enabled";
+  } else {
+    jsonDoc[F("listenRawData")] = "disabled";
   }
   if (heishamonSettings->optionalPCB) {
     jsonDoc[F("optionalPCB")] = "enabled";
@@ -756,6 +772,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
   jsonDoc[F("logMqtt")] = String("disabled");
   jsonDoc[F("logHexdump")] = String("disabled");
   jsonDoc[F("logSerial1")] = String("disabled");
+  jsonDoc[F("publishRawData")] = String("disabled");
+  jsonDoc[F("listenRawData")] = String("disabled");
   jsonDoc[F("optionalPCB")] = String("disabled");
   jsonDoc[F("opentherm")] = String("disabled");
   for (int g = 1; g < NUMBER_OF_TOPIC_GROUPS; g++) {
@@ -786,6 +804,8 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("description")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_topic_base") == 0) {
       jsonDoc[F("mqtt_topic_base")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "listenRawMqttTopicBase") == 0) {
+      jsonDoc[F("listenRawMqttTopicBase")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_server") == 0) {
       jsonDoc[F("mqtt_server")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "mqtt_port") == 0) {
@@ -816,6 +836,10 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       jsonDoc[F("logHexdump")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "logSerial1") == 0) {
       jsonDoc[F("logSerial1")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "publishRawData") == 0) {
+      jsonDoc[F("publishRawData")] = tmp->value;
+    } else if (strcmp(tmp->name.c_str(), "listenRawData") == 0) {
+      jsonDoc[F("listenRawData")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "optionalPCB") == 0) {
       jsonDoc[F("optionalPCB")] = tmp->value;
     } else if (strcmp(tmp->name.c_str(), "opentherm") == 0) {
@@ -891,6 +915,10 @@ int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings) 
       }
     }
     tmp = tmp->next;
+  }
+
+  if (jsonDoc[F("publishRawData")] == "enabled" && jsonDoc[F("listenRawData")] == "enabled") {
+    jsonDoc[F("listenRawData")] = String("disabled");
   }
 
   if (new_ota_password != NULL && strlen(new_ota_password) > 0 && current_ota_password != NULL && strlen(current_ota_password) > 0) {

@@ -53,6 +53,7 @@ struct settingsStruct {
   char mqtt_username[65];
   char mqtt_password[PASSWORD_LENGTH];
   char mqtt_topic_base[128] = "panasonic_heat_pump";
+  char listenRawMqttTopicBase[128] = "panasonic_heat_pump";
   char ntp_servers[254] = "pool.ntp.org";
 #ifdef TLS_SUPPORT
   bool mqtt_tls_enabled = false;
@@ -67,6 +68,8 @@ struct settingsStruct {
   bool logMqtt = false; //log to mqtt from start
   bool logHexdump = false; //log hexdump from start
   bool logSerial1 = true; //log to serial1 (gpio2) from start
+  bool publishRawData = false; //publish raw heatpump mqtt debug data
+  bool listenRawData = false; //listen to raw heatpump mqtt debug data from another HeishaMon
   bool opentherm = false; //opentherm enable flag
   bool hotspot = true; //enable wifi hotspot when wifi is not connected
   uint16_t topicGroups = TOPIC_GROUPS_DEFAULT; //bit per topic group (decode.h), a cleared bit stops publishing those topics
