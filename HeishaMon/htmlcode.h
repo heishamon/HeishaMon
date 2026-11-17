@@ -1514,6 +1514,21 @@ function ShowHideDallasTable(cb){
 function ShowHideS0Table(cb){
   document.getElementById('s0settings').style.display=cb.checked?'block':'none';
 }
+function syncRawDataSettings(changed){
+  var publish=document.getElementsByName('publishRawData')[0];
+  var listen=document.getElementsByName('listenRawData')[0];
+  if(!publish||!listen)return;
+  if(changed=='publish'&&publish.checked)listen.checked=false;
+  if(changed=='listen'&&listen.checked)publish.checked=false;
+  if(!changed&&publish.checked&&listen.checked)listen.checked=false;
+  updateRawListenTopicRow();
+}
+function updateRawListenTopicRow(){
+  var listen=document.getElementsByName('listenRawData')[0];
+  var row=document.getElementById('raw_listen_topic_row');
+  if(!listen||!row)return;
+  row.style.display=listen.checked?'':'none';
+}
 function updateGPIORowVisibility(){
   // On ESP8266, two hardware facts make some Extra GPIO settings unusable:
   // - Opentherm hardwires pins 1 and 3 (GPIO 1/GPIO 2) for its own TX/RX while it's enabled.
@@ -1786,6 +1801,13 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Publishes the debug log on the MQTT topic log from boot on.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Adds every datagram as hex to the log. Only for protocol debugging, it is a lot of data.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Debug log to serial1 (GPIO2)</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Writes the log to GPIO2 (serial1, send only).</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled' onchange="syncRawDataSettings('publish')"></div><span class='setting-hint' style='display:block;margin-top:4px'>For a production HeishaMon connected to a heatpump.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen to raw heatpump data from MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='listenRawData' value='enabled' onchange="syncRawDataSettings('listen')"></div><span class='setting-hint' style='display:block;margin-top:4px'>For a test HeishaMon fed by another device. Cannot be combined with publishing.</span></div></div>
+    <div class='setting-row' id='raw_listen_topic_row' style='display:none'>
+      <label class='setting-label'>Other HeishaMon MQTT topic base</label>
+      <input type='text' name='listenRawMqttTopicBase' maxlength='127' class='setting-input' value=''>
+      <div class='setting-desc'>MQTT topic base of the HeishaMon that publishes raw data (subscribes to &lt;base&gt;/raw/data and &lt;base&gt;/raw/dataextra). Default panasonic_heat_pump.</div>
+    </div>
   </div></div>
   <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Rules</h3></div>
@@ -1927,6 +1949,13 @@ static const char settingsForm2[] FLASHPROG = R"====(
     <div class='setting-row'><label class='setting-label'>Debug log to MQTT from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logMqtt' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Publishes the debug log on the MQTT topic log from boot on.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Debug hexdump from start</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logHexdump' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Adds every datagram as hex to the log. Only for protocol debugging, it is a lot of data.</span></div></div>
     <div class='setting-row'><label class='setting-label'>Debug log USB</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='logSerial1' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Writes the log to the USB serial port.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Publish raw heatpump data to MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='publishRawData' value='enabled' onchange="syncRawDataSettings('publish')"></div><span class='setting-hint' style='display:block;margin-top:4px'>For a production HeishaMon connected to a heatpump.</span></div></div>
+    <div class='setting-row'><label class='setting-label'>Listen to raw heatpump data from MQTT</label><div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' name='listenRawData' value='enabled' onchange="syncRawDataSettings('listen')"></div><span class='setting-hint' style='display:block;margin-top:4px'>For a test HeishaMon fed by another device. Cannot be combined with publishing.</span></div></div>
+    <div class='setting-row' id='raw_listen_topic_row' style='display:none'>
+      <label class='setting-label'>Other HeishaMon MQTT topic base</label>
+      <input type='text' name='listenRawMqttTopicBase' maxlength='127' class='setting-input' value=''>
+      <div class='setting-desc'>MQTT topic base of the HeishaMon that publishes raw data (subscribes to &lt;base&gt;/raw/data and &lt;base&gt;/raw/dataextra). Default panasonic_heat_pump.</div>
+    </div>
   </div></div>
   <div class='panel' data-tab='advanced' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Rules</h3></div>
@@ -2049,6 +2078,8 @@ R"====(
           if(el[0].type.indexOf('select')>-1){var ch=el[0].childNodes;for(var x=0;x<ch.length;x++){if(ch[x].value==j[k])ch[x].selected=true;}}
         }
       }
+      syncRawDataSettings();
+      updateRawListenTopicRow();
       if(typeof updateGPIORowVisibility==='function')updateGPIORowVisibility();
       document.getElementById('loading_settings').style.display='none';
       document.getElementById('settings_form').style.display='block';
