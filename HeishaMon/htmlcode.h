@@ -397,6 +397,7 @@ input:disabled + .theme-slider-compact {
 .setting-input[type=password]{letter-spacing:2px}
 select.setting-input{appearance:auto}
 .setting-hint{font-size:11px;color:var(--text-muted);margin-left:8px}
+.setting-row > .setting-hint:only-child{grid-column:1/-1;margin-left:0;line-height:1.5}
 .setting-desc{grid-column:-2/-1;font-size:11px;color:var(--text-muted);margin-top:-10px;line-height:1.5}
 .setting-row .checkbox-wrap{display:flex;align-items:center;gap:8px}
 .checkbox-wrap input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer}
@@ -1644,7 +1645,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
       <label class='setting-label'>Current Password</label>
       <div style='display:flex;align-items:center;gap:10px'>
         <input type='password' name='current_ota_password' maxlength='39' class='setting-input' value=''>
-        <span class='setting-hint'>default: "heisha"</span>
+        <span class='setting-hint' style='white-space:nowrap'>default: "heisha"</span>
       </div>
     </div>
     <div class='setting-row'>
