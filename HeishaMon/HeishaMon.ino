@@ -1176,7 +1176,10 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
         const bool trustedMayPass = strcmp_P((char *)dat, PSTR("/json")) == 0 || strcmp_P((char *)dat, PSTR("/command")) == 0 ||
                                     strcmp_P((char *)dat, PSTR("/gpio")) == 0 || strcmp_P((char *)dat, PSTR("/reboot")) == 0 ||
                                     (isPost && strcmp_P((char *)dat, PSTR("/firmware")) == 0);
-        if (!webAuthAllowed(remote, trustedMayPass, &heishamonSettings)) {
+        // background requests of an open page do not count as activity (see webAuthAllowed)
+        const bool activity = !(strcmp_P((char *)dat, PSTR("/json")) == 0 || strcmp_P((char *)dat, PSTR("/ws")) == 0 ||
+                                strcmp_P((char *)dat, PSTR("/session")) == 0 || strcmp_P((char *)dat, PSTR("/wifiscan")) == 0);
+        if (!webAuthAllowed(remote, trustedMayPass, activity, &heishamonSettings)) {
           if (strcmp_P((char *)dat, PSTR("/ws")) == 0) return -1; // live log
           const bool page = !isPost && (strcmp_P((char *)dat, PSTR("/")) == 0 || strcmp_P((char *)dat, PSTR("/settings")) == 0 ||
                                         strcmp_P((char *)dat, PSTR("/rules")) == 0 || strcmp_P((char *)dat, PSTR("/firmware")) == 0 ||
@@ -1184,7 +1187,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           client->route = page ? 210 : 211; // pages go to the login page, everything else gets 403
           return 0;
         }
-        if (strcmp_P((char *)dat, PSTR("/secure")) == 0) {
+        if (strcmp_P((char *)dat, PSTR("/alive")) == 0 || strcmp_P((char *)dat, PSTR("/session")) == 0) {
+          client->route = 229; // the page reports user input (/alive) or asks whether the session still holds (/session)
+        } else if (strcmp_P((char *)dat, PSTR("/secure")) == 0) {
           client->route = isPost ? 221 : 220; // page "Secure this device"
         } else if (strcmp_P((char *)dat, PSTR("/")) == 0) {
           client->route = 1;
@@ -1606,6 +1611,13 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               if (client->content == 0) {
                 webserver_send(client, 403, (char *)"text/plain", 14);
                 webserver_send_content_P(client, PSTR("Login required"), 14);
+              }
+              return 0;
+            } break;
+          case 229: {
+              if (client->content == 0) {
+                webserver_send(client, 200, (char *)"text/plain", 2);
+                webserver_send_content_P(client, PSTR("OK"), 2);
               }
               return 0;
             } break;

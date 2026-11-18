@@ -44,11 +44,11 @@ int main() {
   const uint32_t a = ip("192.168.1.20"), b = ip("192.168.1.21"), ha = ip("192.168.1.10");
 
   // login off: everybody is allowed
-  assert(webAuthAllowed(a, true, &s) && webAuthAllowed(0, true, &s));
+  assert(webAuthAllowed(a, true, true, &s) && webAuthAllowed(0, true, true, &s));
 
   // login on: nobody without a session
   s.webLogin = true; strcpy(s.webPassword, "secret-1");
-  assert(!webAuthAllowed(a, true, &s) && !webAuthAllowed(b, true, &s) && !webAuthAllowed(0, true, &s));
+  assert(!webAuthAllowed(a, true, true, &s) && !webAuthAllowed(b, true, true, &s) && !webAuthAllowed(0, true, true, &s));
 
   // wrong, empty, too short, too long passwords
   assert(!webAuthLogin(a, "secret-2", 8, &s));
@@ -56,7 +56,7 @@ int main() {
   assert(!webAuthLogin(a, NULL, 0, &s));
   assert(!webAuthLogin(a, "secret-1x", 9, &s));
   assert(!webAuthLogin(a, "secret-1", 7, &s));
-  assert(!webAuthAllowed(a, true, &s));
+  assert(!webAuthAllowed(a, true, true, &s));
 
   // five wrong passwords lock the login for a minute, also for the right password
   assert(!webAuthLogin(a, "secret-1", 8, &s));
@@ -66,16 +66,24 @@ int main() {
   assert(webAuthLogin(a, "secret-1", 8, &s));
 
   // the session belongs to that address only, and a request keeps it alive
-  assert(webAuthAllowed(a, true, &s) && !webAuthAllowed(b, true, &s));
-  fake_millis += 1799999; assert(webAuthAllowed(a, true, &s));
-  fake_millis += 1799999; assert(webAuthAllowed(a, true, &s));
-  fake_millis += 1800000; assert(!webAuthAllowed(a, true, &s));   // idle for 30 minutes: ended
-  assert(!webAuthAllowed(a, true, &s));
+  assert(webAuthAllowed(a, true, true, &s) && !webAuthAllowed(b, true, true, &s));
+  fake_millis += 1799999; assert(webAuthAllowed(a, true, true, &s));
+  fake_millis += 1799999; assert(webAuthAllowed(a, true, true, &s));
+  fake_millis += 1800000; assert(!webAuthAllowed(a, true, true, &s));   // idle for 30 minutes: ended
+  assert(!webAuthAllowed(a, true, true, &s));
+
+  // background requests (activity false) do not keep the session alive
+  assert(webAuthLogin(a, "secret-1", 8, &s));
+  fake_millis += 1799999; assert(webAuthAllowed(a, true, false, &s));   // still within 30 minutes
+  fake_millis += 1;       assert(!webAuthAllowed(a, true, false, &s));  // 30 minutes without activity: ended
+  assert(webAuthLogin(a, "secret-1", 8, &s));
+  fake_millis += 1000000; assert(webAuthAllowed(a, true, true, &s));    // activity renews
+  fake_millis += 1000000; assert(webAuthAllowed(a, true, false, &s));
 
   // logout
-  assert(webAuthLogin(a, "secret-1", 8, &s) && webAuthAllowed(a, true, &s));
+  assert(webAuthLogin(a, "secret-1", 8, &s) && webAuthAllowed(a, true, true, &s));
   webAuthLogout(a);
-  assert(!webAuthAllowed(a, true, &s));
+  assert(!webAuthAllowed(a, true, true, &s));
 
   // an empty password never logs in
   s.webPassword[0] = 0;
@@ -85,21 +93,21 @@ int main() {
 
   // trusted addresses need no login; others still do
   strcpy(s.webTrusted, "192.168.1.10, 192.168.1.11,bad, 300.1.1.1");
-  assert(webAuthAllowed(ha, true, &s) && webAuthAllowed(ip("192.168.1.11"), true, &s));
-  assert(!webAuthAllowed(a, true, &s) && !webAuthAllowed(ip("192.168.1.1"), true, &s) && !webAuthAllowed(0, true, &s));
+  assert(webAuthAllowed(ha, true, true, &s) && webAuthAllowed(ip("192.168.1.11"), true, true, &s));
+  assert(!webAuthAllowed(a, true, true, &s) && !webAuthAllowed(ip("192.168.1.1"), true, true, &s) && !webAuthAllowed(0, true, true, &s));
   // ... but only for requests that an address without login may make
-  assert(!webAuthAllowed(ha, false, &s));
-  assert(webAuthLogin(ha, "secret-1", 8, &s) && webAuthAllowed(ha, false, &s));   // with a session it may
+  assert(!webAuthAllowed(ha, false, true, &s));
+  assert(webAuthLogin(ha, "secret-1", 8, &s) && webAuthAllowed(ha, false, true, &s));   // with a session it may
   webAuthLogout(ha);
   s.webTrusted[0] = 0;
-  assert(!webAuthAllowed(ha, true, &s));
+  assert(!webAuthAllowed(ha, true, true, &s));
 
   // more logins than session slots: the session that was idle longest is replaced
   for (int i = 0; i < 4; i++) { assert(webAuthLogin(100 + i, "secret-1", 8, &s)); fake_millis += 10; }
-  assert(webAuthAllowed(100, true, &s));              // 100 was used just now, 101 is the oldest
+  assert(webAuthAllowed(100, true, true, &s));              // 100 was used just now, 101 is the oldest
   assert(webAuthLogin(200, "secret-1", 8, &s));
-  assert(webAuthAllowed(200, true, &s) && webAuthAllowed(100, true, &s) && !webAuthAllowed(101, true, &s));
-  assert(webAuthAllowed(102, true, &s) && webAuthAllowed(103, true, &s));
+  assert(webAuthAllowed(200, true, true, &s) && webAuthAllowed(100, true, true, &s) && !webAuthAllowed(101, true, true, &s));
+  assert(webAuthAllowed(102, true, true, &s) && webAuthAllowed(103, true, true, &s));
 
   // the current web password, asked for again before a change; same lock as the login
   fake_millis += 60000;
@@ -114,7 +122,7 @@ int main() {
   fake_millis = 0xFFFFFF00u;
   assert(webAuthLogin(a, "secret-1", 8, &s));
   fake_millis += 0x200;
-  assert(webAuthAllowed(a, true, &s));
+  assert(webAuthAllowed(a, true, true, &s));
   return 0;
 }
 """
@@ -133,15 +141,18 @@ def main():
     # the check runs before any route action, and the routes that stay open are the login itself
     ino = (ROOT / "HeishaMon/HeishaMon.ino").read_text()
     uri = ino[ino.index("case WEBSERVER_CLIENT_REQUEST_URI:") : ino.index("case WEBSERVER_CLIENT_ARGS:")]
-    assert uri.index("webAuthAllowed(remote, trustedMayPass, &heishamonSettings)") < uri.index('"/togglelog"')
-    assert uri.index("webAuthAllowed(remote, trustedMayPass, &heishamonSettings)") < uri.rindex('PSTR("/command")')  # the route branch, not the list above the check
-    assert uri.index("webAuthAllowed(remote, trustedMayPass, &heishamonSettings)") < uri.index("} else if (client->route == 110)")
-    assert uri.index("webAuthAllowed(remote, trustedMayPass, &heishamonSettings)") < uri.index('if (strcmp_P((char *)dat, PSTR("/secure")) == 0) {')
+    assert uri.index("webAuthAllowed(remote, trustedMayPass, activity, &heishamonSettings)") < uri.index('"/togglelog"')
+    assert uri.index("webAuthAllowed(remote, trustedMayPass, activity, &heishamonSettings)") < uri.rindex('PSTR("/command")')  # the route branch, not the list above the check
+    assert uri.index("webAuthAllowed(remote, trustedMayPass, activity, &heishamonSettings)") < uri.index("} else if (client->route == 110)")
+    assert uri.index("webAuthAllowed(remote, trustedMayPass, activity, &heishamonSettings)") < uri.index('if (strcmp_P((char *)dat, PSTR("/secure")) == 0) {')
     assert uri.count("webAuthAllowed(") == 1
     # addresses without login: only data, commands, reboot and the firmware upload (POST)
-    allowed = uri[uri.index('const bool trustedMayPass') : uri.index('if (!webAuthAllowed(')]
+    allowed = uri[uri.index('const bool trustedMayPass') : uri.index('const bool activity')]
     assert sorted(re.findall(r'PSTR\("(/[a-z]+)"\)', allowed)) == ['/command', '/firmware', '/gpio', '/json', '/reboot']
     assert '(isPost && strcmp_P((char *)dat, PSTR("/firmware")) == 0)' in allowed  # the upload, not the page
+    # background requests that do not keep a session alive
+    background = uri[uri.index('const bool activity') : uri.index('if (!webAuthAllowed(')]
+    assert sorted(re.findall(r'PSTR\("(/[a-z]+)"\)', background)) == ['/json', '/session', '/wifiscan', '/ws']
     print("PASS: web login logic (sessions, lock, trusted addresses) and position of the check")
 
 

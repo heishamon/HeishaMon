@@ -123,7 +123,7 @@ int handleSettings(struct webserver_t *client);
 int handleLogin(struct webserver_t *client, bool failed);
 int handleSecure(struct webserver_t *client, uint8_t failed);
 uint8_t saveWebLogin(struct webserver_t *client, uint32_t ip, settingsStruct *heishamonSettings);
-bool webAuthAllowed(uint32_t ip, bool trustedMayPass, settingsStruct *heishamonSettings);
+bool webAuthAllowed(uint32_t ip, bool trustedMayPass, bool activity, settingsStruct *heishamonSettings);
 bool webAuthLogin(uint32_t ip, const char *password, size_t length, settingsStruct *heishamonSettings);
 bool webPasswordMatches(const char *password, settingsStruct *heishamonSettings);
 void webAuthLogout(uint32_t ip);

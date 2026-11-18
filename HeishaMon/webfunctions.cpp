@@ -525,7 +525,10 @@ static bool webAuthTrusted(uint32_t ip, settingsStruct *heishamonSettings) {
 
 // trustedMayPass: the request is one that an address without login may make (read data, send commands,
 // reboot, upload firmware). Settings and rules always need a session.
-bool webAuthAllowed(uint32_t ip, bool trustedMayPass, settingsStruct *heishamonSettings) {
+// activity: the request comes from somebody using the page (a page, an action, or /alive which the page
+// sends on mouse, key or touch input). Background requests of an open page (/json, the live log, /session)
+// do not keep the session alive, so a tab that is left open still ends after WEB_SESSION_MS.
+bool webAuthAllowed(uint32_t ip, bool trustedMayPass, bool activity, settingsStruct *heishamonSettings) {
   if (!heishamonSettings->webLogin) return true;
   if (trustedMayPass && webAuthTrusted(ip, heishamonSettings)) return true;
   for (uint8_t i = 0; i < WEB_SESSIONS; i++) {
@@ -534,7 +537,7 @@ bool webAuthAllowed(uint32_t ip, bool trustedMayPass, settingsStruct *heishamonS
       webSessions[i].used = false;
       return false;
     }
-    webSessions[i].seen = millis();
+    if (activity) webSessions[i].seen = millis();
     return true;
   }
   return false;

@@ -798,6 +798,19 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 // the cookie only says "this browser logged in", to show the log out link; the login itself does not use it
 if(document.cookie.indexOf('hmlogin=1')>-1){var lo=document.getElementById('menuLogout');if(lo)lo.style.display='';}
+// with the login on, only real input keeps the session alive: report it at most once a minute, and go to the
+// login page once the session has ended (the page itself keeps polling in the background, which does not count)
+if(document.cookie.indexOf('hmlogin=1')>-1){
+  var lastAlive=Date.now();
+  ['mousemove','mousedown','keydown','touchstart','scroll'].forEach(function(ev){
+    window.addEventListener(ev,function(){
+      if(Date.now()-lastAlive>60000){lastAlive=Date.now();fetch('/alive',{cache:'no-store'}).catch(function(){});}
+    },{passive:true});
+  });
+  setInterval(function(){
+    fetch('/session',{cache:'no-store'}).then(function(r){if(r.status===403)window.location.href='/login';}).catch(function(){});
+  },60000);
+}
 function toggleMenu(){
   var m=document.getElementById('sideMenu');
   var o=document.getElementById('menuOverlay');
