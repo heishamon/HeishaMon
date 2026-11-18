@@ -766,6 +766,7 @@ R"====(    <a href="/modbus"><span class="nav-icon" aria-hidden="true">&#9432;</
 R"====(  </nav>
   <div class='sidemenu-footer'>
     <a href='https://github.com/heishamon/HeishaMon' target='_blank'>GitHub</a>
+    <a href='/logout' id='menuLogout' style='display:none;margin-left:12px'>Log out</a>
   </div>
 </aside>
 <header class='topbar'>
@@ -795,6 +796,8 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 });
+// the cookie only says "this browser logged in", to show the log out link; the login itself does not use it
+if(document.cookie.indexOf('hmlogin=1')>-1){var lo=document.getElementById('menuLogout');if(lo)lo.style.display='';}
 function toggleMenu(){
   var m=document.getElementById('sideMenu');
   var o=document.getElementById('menuOverlay');
@@ -1352,6 +1355,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // We build the nav + status bar in one block, then the tab panes.
 
 // Status bar for root page
+static const char webBodyRootLoginOff[] FLASHPROG = R"====(
+<div class='firmware-warning' style='margin:0 0 14px'>
+  <strong>Web login is off.</strong> Every device in your network can control this HeishaMon, change its settings and flash firmware. <a href='/secure'>Set a web password</a>
+</div>
+)====";
+
 static const char webBodyRoot1[] FLASHPROG = R"====(
 <div class='main-content'>
 <div class='statusbar' id='statusBar'>
@@ -1607,7 +1616,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
     <button type='button' data-tab='advanced' onclick="openSettingsTab('advanced')">Advanced</button>
     <button type='button' data-tab='system' onclick="openSettingsTab('system')">System</button>
   </nav>
-  <form accept-charset='UTF-8' action='/savesettings' method='POST'>
+  <form accept-charset='UTF-8' action='/savesettings' method='POST' onsubmit="if(this.new_web_password.value!=this.repeat_web_password.value){openSettingsTab('system');alert('The two web passwords are not the same.');return false;}return true;">
   <div class='panel' data-tab='basic' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Network</h3></div>
   <div class='settings-grid'>
@@ -1651,6 +1660,35 @@ static const char settingsForm1[] FLASHPROG = R"====(
       <label class='setting-label'>New Password</label>
       <input type='password' name='new_ota_password' maxlength='39' class='setting-input' value=''>
       <div class='setting-desc'>Fill in the current password as well to change it.</div>
+    </div>
+  </div></div>
+  <div class='panel' data-tab='system' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Web login</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><span class='setting-hint'>With the login on, the web interface and the HTTP interface (commands, JSON, settings, rules, firmware upload, live log) ask for the web password. It is not the Arduino OTA password above.</span></div>
+    <div class='setting-row'>
+      <label class='setting-label'>Require login</label>
+      <div class='checkbox-wrap'><input type='checkbox' name='web_login' value='enabled' onchange='webLoginFields()'></div>
+      <div class='setting-desc'>Switching it off removes the web password; switching it on again asks for a new one.</div>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>Current web password</label>
+      <input type='password' name='current_web_password' maxlength='39' class='setting-input' value='' autocomplete='current-password'>
+      <div class='setting-desc'>Needed to change the web password or to switch the login off.</div>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>New web password</label>
+      <input type='password' name='new_web_password' maxlength='39' class='setting-input' value='' autocomplete='new-password' oninput='webLoginFields()'>
+      <div class='setting-desc'>Needed when the login is switched on. Later leave it empty to keep the current one.</div>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>Repeat web password</label>
+      <input type='password' name='repeat_web_password' maxlength='39' class='setting-input' value='' autocomplete='new-password'>
+    </div>
+    <div class='setting-row'>
+      <label class='setting-label'>Addresses without login</label>
+      <input type='text' name='web_trusted' maxlength='63' class='setting-input' value='' placeholder='192.168.1.10, 192.168.1.11'>
+      <div class='setting-desc'>IPv4 addresses, separated by commas, that may read data, send commands, reboot and upload firmware without a login (/json, /command, /gpio, /reboot, firmware upload). For devices that call HeishaMon themselves, for example Home Assistant. Settings and rules always need the login.</div>
     </div>
   </div></div>
   <div class='panel' data-tab='basic' style='margin-bottom:16px'>
@@ -2053,11 +2091,32 @@ R"====(
       document.getElementById('loading_settings').style.display='none';
       document.getElementById('settings_form').style.display='block';
       changeMinWatt(1);changeMinWatt(2);
+      webLoginFields(j.web_password_set);
     }
   };
   req.open('GET','/getsettings',true);
   req.send();
 };
+// the web password fields are only usable while "Require login" is ticked, and required when no password is stored yet
+var webPasswordSet=false;
+function webLoginFields(isSet){
+  if(isSet!==undefined)webPasswordSet=!!isSet;
+  var f=document.getElementsByName('web_login')[0].form;
+  var on=f.web_login.checked,nw=f.new_web_password,cur=f.current_web_password;
+  [nw,f.repeat_web_password].forEach(function(e){
+    e.disabled=!on;
+    e.required=on&&!webPasswordSet;
+    e.style.opacity=on?'':'0.45';
+    e.style.borderColor=(on&&!webPasswordSet)?'var(--accent)':'';
+    if(!on)e.value='';
+  });
+  // the current password is asked for when an existing one is changed or the login is switched off
+  var need=webPasswordSet&&(!on||nw.value!='');
+  cur.disabled=!webPasswordSet;
+  cur.required=need;
+  cur.style.opacity=webPasswordSet?'':'0.45';
+  cur.style.borderColor=need?'var(--accent)':'';
+}
 getSettings();
 </script>
 )====";
@@ -2710,6 +2769,49 @@ static const char webBodyFactoryResetWarning[] FLASHPROG = R"====(
 </div>
 )====";
 
+static const char webBodySecure1[] FLASHPROG = R"====(
+</head>
+<body>
+<div class='msg-box'>
+  <h2>Secure this device</h2>
+  <p>Without a login every device in your network can open this web interface, send commands to the heat pump and upload firmware.<br><br>
+  Set a web password here to switch the login on. Nothing changes until you save.</p>
+)====";
+
+static const char webBodySecureFailed[] FLASHPROG = R"====(
+  <p style='color:var(--red)'>Not saved: enter the same web password twice.</p>
+)====";
+
+static const char webBodySecure2[] FLASHPROG = R"====(
+  <form method='POST' action='/secure' onsubmit="if(this.new_web_password.value==''||this.new_web_password.value!=this.repeat_web_password.value){alert('Enter the same web password twice.');return false;}return true;">
+    <p><input type='password' name='new_web_password' maxlength='39' class='setting-input' placeholder='Web password' autocomplete='new-password' autofocus></p>
+    <p><input type='password' name='repeat_web_password' maxlength='39' class='setting-input' placeholder='Repeat web password' autocomplete='new-password'></p>
+    <p><input type='text' name='web_trusted' maxlength='63' class='setting-input' placeholder='Addresses without login (optional)'></p>
+    <p style='font-size:12.5px;color:var(--text-muted)'>Devices that have to read data, send commands, reboot HeishaMon or upload firmware without a login, for example Home Assistant, go into the address list (IPv4, comma separated). Settings and rules always need the login. You can change the list later in the settings.</p>
+    <p><button type='submit' class='btn btn-primary'>Save and switch on login</button> &nbsp; <a href='/settings'>Skip</a></p>
+  </form>
+</div>
+)====";
+
+static const char webBodyLogin1[] FLASHPROG = R"====(
+</head>
+<body>
+<div class='msg-box'>
+  <h2>HeishaMon</h2>
+)====";
+
+static const char webBodyLoginFailed[] FLASHPROG = R"====(
+  <p style='color:var(--red)'>Wrong password, or too many attempts (wait a minute).</p>
+)====";
+
+static const char webBodyLogin2[] FLASHPROG = R"====(
+  <form method='POST' action='/login'>
+    <p><input type='password' name='password' maxlength='39' class='setting-input' placeholder='Web password' autofocus></p>
+    <p><button type='submit' class='btn btn-primary'>Log in</button></p>
+  </form>
+</div>
+)====";
+
 static const char webBodyRebootWarning[] FLASHPROG = R"====(
 <div class='msg-box'>
   <h2>Rebooting…</h2>
@@ -2731,6 +2833,14 @@ static const char webBodySettingsResetPasswordWarning[] FLASHPROG = R"====(
   <h2>Wrong Password</h2>
   <p>The current password you entered is incorrect.<br><br>
   Perform a factory reset to restore the default password: <strong style='color:var(--text-primary)'>heisha</strong></p>
+</div>
+)====";
+
+static const char webBodySettingsWrongWebPassword[] FLASHPROG = R"====(
+<div class='msg-box warning'>
+  <h2>Wrong web password</h2>
+  <p>The current web password you entered is incorrect, so the web login was not changed.<br><br>
+  The other settings were saved.</p>
 </div>
 )====";
 

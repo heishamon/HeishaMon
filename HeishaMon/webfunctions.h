@@ -70,6 +70,9 @@ struct settingsStruct {
   bool opentherm = false; //opentherm enable flag
   bool hotspot = true; //enable wifi hotspot when wifi is not connected
   uint16_t topicGroups = TOPIC_GROUPS_DEFAULT; //bit per topic group (decode.h), a cleared bit stops publishing those topics
+  bool webLogin = false; //web interface and HTTP API need a login (web password)
+  char webPassword[40] = ""; //password for that login; separate from the update password
+  char webTrusted[64] = ""; //comma separated IPv4 addresses that need no login (for example Home Assistant)
 #ifdef ESP32
   bool proxy = true; //cztaw proxy port enable flag
   bool proxyBlockWrites = false; //don't pass settings changes from the proxy port to the heat pump
@@ -117,6 +120,13 @@ int getSettingsJson(struct webserver_t *client, settingsStruct *heishamonSetting
 int handleModbus(struct webserver_t *client);
 #endif
 int handleSettings(struct webserver_t *client);
+int handleLogin(struct webserver_t *client, bool failed);
+int handleSecure(struct webserver_t *client, uint8_t failed);
+uint8_t saveWebLogin(struct webserver_t *client, uint32_t ip, settingsStruct *heishamonSettings);
+bool webAuthAllowed(uint32_t ip, bool trustedMayPass, settingsStruct *heishamonSettings);
+bool webAuthLogin(uint32_t ip, const char *password, size_t length, settingsStruct *heishamonSettings);
+bool webPasswordMatches(const char *password, settingsStruct *heishamonSettings);
+void webAuthLogout(uint32_t ip);
 int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsNewPassword(struct webserver_t *client, settingsStruct *heishamonSettings);
