@@ -1669,7 +1669,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
     <div class='setting-row'>
       <label class='setting-label'>Port</label>
       <input type='number' name='mqtt_port' maxlength='5' class='setting-input' value=''>
-      <div class='setting-desc'>Default 1883, with TLS usually 8883.</div>
+      <div class='setting-desc'>Default 1883, with TLS usually 8883. Ticking "Use TLS" switches between the two; any other port is left as it is.</div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Username</label>
@@ -1686,7 +1686,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
   R"====(
 <div class='setting-row'>
   <label class='setting-label'>Use TLS (port 8883)</label>
-  <div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' id='mqtt_tls_enabled' name='mqtt_tls_enabled' value='enabled'></div><span class='setting-hint' style='display:block;margin-top:4px'>Encrypted connection to the broker, checked with the root CA certificate below.</span></div>
+  <div style='display:flex;align-items:center;gap:10px'><div class='checkbox-wrap'><input type='checkbox' id='mqtt_tls_enabled' name='mqtt_tls_enabled' value='enabled' onchange="var p=this.form.mqtt_port;if(this.checked&&(p.value=='1883'||p.value==''))p.value='8883';if(!this.checked&&p.value=='8883')p.value='1883';"></div><span class='setting-hint' style='display:block;margin-top:4px'>Encrypted connection to the broker, checked with the root CA certificate below.</span></div>
 </div>
 
 <div class='setting-row'>
