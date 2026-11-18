@@ -357,6 +357,17 @@ input:disabled + .theme-slider-compact {
 .offset-edit:focus{outline:none;border-color:var(--border-focus);box-shadow:0 0 0 2px var(--accent-glow)}
 .tab-pane{display:none}
 .tab-pane.active{display:block}
+/* start page centered like the settings page; the console keeps the full width */
+#statusBar,nav.tabnav:not(#settings_tabs),.tab-pane:not(#Console){max-width:780px;margin-left:auto;margin-right:auto}
+/* heat pump values as two lines per topic: name and value, below topic and description */
+#Heatpump thead{display:none}
+#heishavalues tr{display:grid;grid-template-columns:1fr auto;column-gap:10px;row-gap:2px;padding:8px 16px;border-bottom:1px solid rgba(42,48,64,.4)}
+#heishavalues td{padding:0;border:0;font-size:13px}
+#heishavalues td:nth-child(1){grid-column:1;grid-row:2;font-size:10.5px;color:var(--text-muted)}
+#heishavalues td:nth-child(2){grid-column:1;grid-row:1}
+#heishavalues td:nth-child(3){grid-column:2;grid-row:1;text-align:right;font-weight:600}
+#heishavalues td:nth-child(4){grid-column:2;grid-row:2;text-align:right;font-size:10.5px;color:var(--text-muted)}
+#heishavalues td[colspan]{grid-column:1/-1;grid-row:1}
 .settings-grid{
   display:grid;
   gap:0;
@@ -523,6 +534,10 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;tran
 @media(max-width:600px){
   .setting-row{grid-template-columns:1fr;gap:4px}
   .setting-label{text-align:left}
+  /* settings with a checkbox: label and checkbox on one line, the hint below */
+  .setting-row:has(.checkbox-wrap){grid-template-columns:1fr auto;row-gap:2px}
+  .setting-row:has(.checkbox-wrap)>div{display:contents!important}
+  .setting-row:has(.checkbox-wrap) .setting-hint{grid-column:1/-1;margin:0!important}
   .tabnav{padding:10px 12px 0;gap:2px}
   .tabnav button{padding:9px 14px;font-size:13px}
   .main-content{padding:16px 12px 32px}
