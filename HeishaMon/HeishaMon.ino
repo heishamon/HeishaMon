@@ -1150,6 +1150,9 @@ void setupOTA() {
 
 
 
+static bool firmwarePasswordOk = false; // the running firmware upload sent the right update password
+extern bool firmwareRefused;
+
 int8_t webserver_cb(struct webserver_t *client, void *dat) {
   
 
@@ -1269,6 +1272,8 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                 return -1;
               } else {
                 client->route = 150;
+                firmwarePasswordOk = false;
+                firmwareRefused = false;
               }
             } else {
               loggingSerial.println(PSTR("New firmware update client, while previous isn't finished yet! Assume broken connection, abort!"));
@@ -1438,8 +1443,17 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                     log_message(_F("Failed to set expected update file MD5!"));
                     Update.end(false);
                   }
+                } else if (strcmp((char *)args->name, "password") == 0) {
+                  // with the login on, the update password has to come before the firmware
+                  if (heishamonSettings.webLogin) {
+                    firmwarePasswordOk = webUpdatePassword((char *)args->value, args->value == NULL ? 0 : args->len, &heishamonSettings);
+                  }
                 } else if (strcmp((char *)args->name, "firmware") == 0) {
-                  if (Update.write((uint8_t *)args->value, args->len) != args->len) {
+                  if (heishamonSettings.webLogin && !firmwarePasswordOk) {
+                    log_message(_F("Firmware upload refused: update password missing or wrong"));
+                    firmwareRefused = true;
+                    Update.end(false);
+                  } else if (Update.write((uint8_t *)args->value, args->len) != args->len) {
                     Update.printError(loggingSerial);
                     Update.end(false);
                   } else {
@@ -1651,6 +1665,9 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return showFirmware(client);
             } break;
           case 150: {
+              if (firmwareRefused) {
+                return showFirmwareFail(client);
+              }
               if (Update.isRunning()) {
                 if (Update.end(true)) {
                   log_message((char*)"Firmware update success");

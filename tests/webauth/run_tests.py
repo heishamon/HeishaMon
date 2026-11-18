@@ -31,6 +31,7 @@ struct IPAddress {
   operator uint32_t() const { return value; }
 };
 struct settingsStruct {
+  char ota_password[40] = "heisha";
   char webPassword[40] = "";
   bool webLogin = false;
   char webTrusted[64] = "";
@@ -109,6 +110,18 @@ int main() {
   assert(!webPasswordMatches("secret-1", &s));                              // locked, also for the right one
   fake_millis += 60000;
   assert(webPasswordMatches("secret-1", &s));
+
+  // firmware upload: the update password, with the same lock as the login
+  fake_millis += 60000;
+  strcpy(s.ota_password, "update-1");
+  assert(webUpdatePassword("update-1", 8, &s));
+  assert(!webUpdatePassword("secret-1", 8, &s));       // the web password is not the update password
+  assert(!webUpdatePassword("", 0, &s) && !webUpdatePassword(NULL, 0, &s) && !webUpdatePassword("update-1x", 9, &s));
+  assert(!webUpdatePassword("x", 1, &s) && !webUpdatePassword("y", 1, &s));   // five wrong in a row
+  assert(!webUpdatePassword("update-1", 8, &s));       // locked, also for the right one
+  assert(!webAuthLogin(a, "secret-1", 8, &s));         // and for the login
+  fake_millis += 60000;
+  assert(webUpdatePassword("update-1", 8, &s));
 
   // millis() wraps: a session survives the wrap
   fake_millis = 0xFFFFFF00u;

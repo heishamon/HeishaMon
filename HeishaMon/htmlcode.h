@@ -2630,6 +2630,7 @@ function sendFirmware(file,name,md5){
   setButtons(true);
   document.getElementById('status').innerText='';
   var fd=new FormData();
+  fd.append('password',document.getElementById('fwpassword').value); // has to come before the firmware
   fd.append('firmware',file,name);
   fd.append('md5',md5);
   var req=new XMLHttpRequest();
@@ -2737,6 +2738,10 @@ R"====(  </div>
       <div style='margin-top:20px'>
         <label style='font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px'>MD5 Checksum</label>
         <input type='text' id='md5' name='md5' value='' size='32' minlength='32' maxlength='32' class='setting-input' placeholder='Auto-detected from filename'>
+      </div>
+      <div style='margin-top:20px'>
+        <label style='font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px'>Update password</label>
+        <input type='password' id='fwpassword' maxlength='39' class='setting-input' autocomplete='off' placeholder='Only needed while the web login is on'>
       </div>
       <div class='firmware-warning'>
         <strong>Warning:</strong> Leaving the MD5 checksum empty disables integrity verification, which could brick your HeishaMon. A TTL cable will be required to recover in that case.

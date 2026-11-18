@@ -564,6 +564,23 @@ bool webPasswordMatches(const char *password, settingsStruct *heishamonSettings)
   return true;
 }
 
+// Firmware upload with the login on: the update password has to come with the upload, whoever sends it.
+// Wrong passwords count for the same lock as wrong logins.
+bool webUpdatePassword(const char *password, size_t length, settingsStruct *heishamonSettings) {
+  if (webLoginFails >= WEB_LOGIN_FAILS) {
+    if ((unsigned long)(millis() - webLoginLastFail) < WEB_LOGIN_LOCK_MS) return false;
+    webLoginFails = 0;
+  }
+  const size_t expected = strlen(heishamonSettings->ota_password);
+  if (password == NULL || expected == 0 || !webAuthEqual(password, length, heishamonSettings->ota_password, expected)) {
+    webLoginFails++;
+    webLoginLastFail = millis();
+    return false;
+  }
+  webLoginFails = 0;
+  return true;
+}
+
 bool webAuthLogin(uint32_t ip, const char *password, size_t length, settingsStruct *heishamonSettings) {
   if (webLoginFails >= WEB_LOGIN_FAILS) {
     if ((unsigned long)(millis() - webLoginLastFail) < WEB_LOGIN_LOCK_MS) return false; // too many wrong passwords: wait
@@ -1968,11 +1985,14 @@ static void printUpdateError(char **out, uint8_t size) {
 #endif
 
 
+bool firmwareRefused = false; // the last firmware upload came without the right update password
+
 int showFirmwareFail(struct webserver_t *client) {
   if (client->content == 0) {
     char str[255] = { '\0' }, *p = str;
     printUpdateError(&p, sizeof(str));
 
+    if (firmwareRefused) strlcpy(str, "Update password missing or wrong.", sizeof(str));
     webserver_send(client, 200, (char *)"text/html", strlen_P(firmwareFailResponse) + strlen(str));
     webserver_send_content_P(client, firmwareFailResponse, strlen_P(firmwareFailResponse));
     webserver_send_content(client, str, strlen(str));
