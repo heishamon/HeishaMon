@@ -211,6 +211,7 @@ void setupETH() {
 */
 #if defined(ESP8266)
 void check_wifi() {
+  wifiRetryLoop(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);
   int wifistatus = WiFi.status();
   if ((wifistatus != WL_CONNECTED) && (WiFi.localIP())) {
     // special case where it seems that we are not connect but we do have working IP (causing the -1% wifi signal), do a reset.
@@ -246,7 +247,7 @@ void check_wifi() {
       }
       if ((wifistatus == WL_DISCONNECTED) && (WiFi.softAPgetStationNum() == 0)) {
         log_message(_F("Retrying configured WiFi, ..."));
-        wifiBeginStrongest(heishamonSettings.wifi_ssid, heishamonSettings.wifi_password);  // scan again, the old node may be gone
+        wifiRetryStrongest();  // scan again in the background, the old node may be gone; wifiRetryLoop() connects
       } else {
         log_message(_F("Reconnecting to WiFi failed. Waiting a few seconds before trying again."));
         WiFi.disconnect(true);

@@ -93,6 +93,8 @@ char *getUptime(void);
 void setupWifi(settingsStruct *heishamonSettings);
 #if defined(ESP8266)
 void wifiBeginStrongest(const char *ssid, const char *password);
+void wifiRetryStrongest();
+void wifiRetryLoop(const char *ssid, const char *password);
 #endif
 int getWifiQuality(void);
 int getFreeMemory(void);

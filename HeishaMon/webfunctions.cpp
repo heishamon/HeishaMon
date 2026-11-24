@@ -60,8 +60,14 @@ int dBmToQuality(int dBm) {
 
 static String wifiScanJson; // last WiFi scan result for /wifiscan
 
+// The list for the settings page stays in RAM, so keep it small: only the strongest networks,
+// and no more scan entries on the stack than fit comfortably on the ESP8266.
+#define WIFI_SCAN_MAX_ENTRIES 64 // scan entries looked at
+#define WIFI_SCAN_MAX_LIST 20    // networks in the list
+
 void getWifiScanResults(int numSsid) {
   if (numSsid > 0) { //found wifi networks
+    if (numSsid > WIFI_SCAN_MAX_ENTRIES) numSsid = WIFI_SCAN_MAX_ENTRIES;
     int indexes[numSsid];
     for (int i = 0; i < numSsid; i++) { //fill the sorted list with normal indexes first
       indexes[i] = i;
@@ -87,10 +93,12 @@ void getWifiScanResults(int numSsid) {
     }
     JsonDocument wifiJsonDoc;
     JsonArray wifiJsonArray = wifiJsonDoc.to<JsonArray>();
-    for (int i = 0; i < numSsid; i++) { //then output json
+    int listed = 0;
+    for (int i = 0; (i < numSsid) && (listed < WIFI_SCAN_MAX_LIST); i++) { //then output json, strongest first
       if (indexes[i] == -1) {
         continue;
       }
+      listed++;
       JsonObject wifiJsonObject = wifiJsonArray.add<JsonObject>();
       wifiJsonObject[F("ssid")] = WiFi.SSID(indexes[i]);
       String quality = String(dBmToQuality(WiFi.RSSI(indexes[i]))) + "%";
@@ -362,15 +370,19 @@ void loadSettings(settingsStruct *heishamonSettings) {
 // The ESP8266 does not choose the strongest access point when several have the same SSID.
 // With a mesh that can be a far away node with a bad signal, and it stays there. So scan first
 // and connect to the strongest access point (BSSID) with our SSID, like the ESP32 does with
-// WIFI_ALL_CHANNEL_SCAN. The scan blocks for about 2 seconds. The same scan also fills the
-// network list of the settings page, so the initial scan at 15 seconds after boot is skipped.
-// Also used by the retry in check_wifi(): the access point is locked by BSSID, so when that node is
-// gone the retry must look for the strongest remaining one.
-void wifiBeginStrongest(const char *ssid, const char *password) {
+// WIFI_ALL_CHANNEL_SCAN. The same scan also fills the network list of the settings page, so the
+// initial scan at 15 seconds after boot is skipped.
+// At boot the scan blocks for about 2 seconds (wifiBeginStrongest). The retry in check_wifi() also
+// scans, because the access point is locked by BSSID and that node may be gone, but in the
+// background (wifiRetryStrongest/wifiRetryLoop): a blocking scan every retry would stall the loop,
+// and with it OpenTherm and the heat pump communication, for as long as the wifi is away.
+static bool wifiRetryScanPending = false;
+
+// connect with the result of a finished scan; numSsid <= 0 is a failed scan
+static void wifiBeginFromScan(const char *ssid, const char *password, int numSsid) {
   const char *pass = (password[0] == '\0') ? NULL : password;
   int best = -1;
   int found = 0;
-  int numSsid = WiFi.scanNetworks(false, false);
   for (int i = 0; i < numSsid; i++) {
     if (strcmp(WiFi.SSID(i).c_str(), ssid) == 0) {
       found++;
@@ -400,6 +412,33 @@ void wifiBeginStrongest(const char *ssid, const char *password) {
     // not found in the scan (hidden SSID or out of range), let the SDK search for it
     WiFi.begin(ssid, pass);
   }
+}
+
+void wifiBeginStrongest(const char *ssid, const char *password) {
+  wifiRetryScanPending = false;
+  wifiBeginFromScan(ssid, password, WiFi.scanNetworks(false, false));
+}
+
+// Start the scan for a retry. wifiRetryLoop() connects when the scan is done.
+void wifiRetryStrongest() {
+  if (wifiRetryScanPending) return;
+  if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) { // else use the scan that is already running (settings page)
+    WiFi.scanNetworks(true, false);
+  }
+  wifiRetryScanPending = true;
+}
+
+void wifiRetryLoop(const char *ssid, const char *password) {
+  if (!wifiRetryScanPending) return;
+  int numSsid = WiFi.scanComplete();
+  if (numSsid == WIFI_SCAN_RUNNING) return;
+  wifiRetryScanPending = false;
+  if (WiFi.status() == WL_CONNECTED) { // connected again in the meantime, leave it alone
+    WiFi.scanDelete();
+    return;
+  }
+  // a scan of the settings page may have taken the result away (numSsid < 0): then connect without one
+  wifiBeginFromScan(ssid, password, numSsid);
 }
 #endif
 
