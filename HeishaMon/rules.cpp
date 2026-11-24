@@ -197,8 +197,8 @@ static int8_t is_variable(char *text, uint16_t size) {
       if(match == 0) {
         int nrtopics = sizeof(optTopics)/sizeof(optTopics[0]);
         for(x=0;x<nrtopics;x++) {
-          char cpy[MAX_TOPIC_LEN];
-          memcpy_P(&cpy, optTopics[x], MAX_TOPIC_LEN);
+          char cpy[sizeof(optTopics[0])];
+          memcpy_P(&cpy, optTopics[x], sizeof(cpy));
           size_t len = strlen(cpy);
           if(size-1 == len && strnicmp(&text[1], cpy, len) == 0) {
             i = len+1;
@@ -526,8 +526,8 @@ static int8_t vm_value_get(struct rules_t *obj) {
       }
     }
     for(i=0;i<NUMBER_OF_OPT_TOPICS;i++) {
-      char cpy[MAX_TOPIC_LEN];
-      memcpy_P(&cpy, topics[i], MAX_TOPIC_LEN);
+      char cpy[sizeof(optTopics[0])];
+      memcpy_P(&cpy, optTopics[i], sizeof(cpy));
       if(stricmp(cpy, (char *)&key[1]) == 0) {
         String dataValue = actOptData[0] == '\0' ? "" : getOptDataValue(actOptData, i);
         char *str = (char *)dataValue.c_str();
@@ -577,6 +577,8 @@ static int8_t vm_value_get(struct rules_t *obj) {
         }
       }
     }
+    rules_pushnil(); // not a known topic: the caller expects a value on the stack
+    return 0;
   } else {
     struct varstack_t *table = NULL;
     struct array_t *array = NULL;

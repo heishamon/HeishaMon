@@ -642,6 +642,15 @@ void log_message(char* string)
   strftime(timestring, 32, "%c", timeinfo);
   size_t len = strlen(string) + strlen(timestring) + 32; //+32 long enough to contain millis() and the json part later for websocket mesg
   char* log_line = (char *) malloc(len);
+  if (log_line == NULL) { // out of memory: only log to serial, which needs no buffer
+    if (heishamonSettings.logSerial1) {
+      loggingSerial.println(string);
+    }
+#ifdef ESP32
+    if (!inSetup) blinkNeoPixel(false);
+#endif
+    return;
+  }
   snprintf(log_line, len, "%s (%lu): %s", timestring, millis(), string);
 
   if (heishamonSettings.logSerial1) {
@@ -662,7 +671,7 @@ void log_message(char* string)
     }
   }
   //send log message to websocket
-  snprintf(log_line, len+12, "{\"logMsg\":\"%s (%lu): %s\"}", timestring, millis(), string);
+  snprintf(log_line, len, "{\"logMsg\":\"%s (%lu): %s\"}", timestring, millis(), string);
   websocket_write_all(log_line, strlen(log_line));
   free(log_line);
 #ifdef ESP32
@@ -1072,14 +1081,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 	char* topic_command = topic + strlen(heishamonSettings.mqtt_topic_base) + 1; //strip base plus seperator from topic
     if (strcmp(topic_command, mqtt_send_raw_value_topic) == 0)
     { // send a raw hex string
-      byte *rawcommand;
-      rawcommand = (byte *) malloc(length);
-      memcpy(rawcommand, msg, length);
-
       sprintf_P(log_msg, PSTR("sending raw value"));
       log_message(log_msg);
-      send_command(rawcommand, length);
-      free(rawcommand);
+      send_command((byte *)msg, length); // msg is already our own copy of the payload
     } else if (strncmp(topic_command, mqtt_topic_s0, strlen(mqtt_topic_s0)) == 0)  // this is a s0 topic, check for watthour topic and restore it
     {
       char* topic_s0_watthour_port = topic_command + strlen(mqtt_topic_s0) + 15; //strip the first 17 "s0/WatthourTotal/" from the topic to get the s0 port
