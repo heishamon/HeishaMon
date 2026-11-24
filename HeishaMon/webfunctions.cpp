@@ -969,7 +969,7 @@ int cacheSettings(struct webserver_t *client, struct arguments_t * args) {
     node->name += (char *)args->name;
     if (args->value != NULL) {
       char *cpy = (char *)malloc(args->len + 1);
-      if (node == NULL) {
+      if (cpy == NULL) {
         Serial1.printf("Out of memory %s:#%d\n", __FUNCTION__, __LINE__);
         ESP.restart();
         exit(-1);
