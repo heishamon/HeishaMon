@@ -894,7 +894,7 @@ function attemptReconnect(){
 }
 function startWebsockets(){
   if(typeof MozWebSocket!='undefined'){
-    oWebsocket=new MozWebSocket('ws://'+location.host);
+    oWebsocket=new MozWebSocket('ws://'+location.host+'/ws');
   } else if(typeof WebSocket!='undefined'){
     oWebsocket=new WebSocket('ws://'+location.host+'/ws');
   }

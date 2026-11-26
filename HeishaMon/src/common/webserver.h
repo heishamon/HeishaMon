@@ -33,6 +33,45 @@
 #define WEBSERVER_MAX_SENDLIST 0
 #endif
 
+/*
+ * Limits of what the webserver keeps of a request until the callback
+ * has decided about it (WEBSERVER_CLIENT_REQUEST). The space is taken
+ * from the heap while the request line and the headers come in, only as
+ * far as needed, and is given back right after the decision.
+ */
+#ifndef WEBSERVER_MAX_PATH
+  #define WEBSERVER_MAX_PATH 128         // longer request path: connection closed
+#endif
+#ifndef WEBSERVER_MAX_QUERY
+  #define WEBSERVER_MAX_QUERY 1024       // longer query string: connection closed
+#endif
+#ifndef WEBSERVER_MAX_HEADER_SIZE
+  #define WEBSERVER_MAX_HEADER_SIZE 4096 // request line and headers together, more: connection closed
+#endif
+#ifndef WEBSERVER_MAX_COOKIE
+  #define WEBSERVER_MAX_COOKIE 256       // longer values are cut and marked in request->truncated
+#endif
+#ifndef WEBSERVER_MAX_AUTHORIZATION
+  #define WEBSERVER_MAX_AUTHORIZATION 192
+#endif
+#ifndef WEBSERVER_MAX_ORIGIN
+  #define WEBSERVER_MAX_ORIGIN 128
+#endif
+#ifndef WEBSERVER_MAX_HOST
+  #define WEBSERVER_MAX_HOST 64
+#endif
+#ifndef WEBSERVER_MAX_CONTENT_TYPE
+  #define WEBSERVER_MAX_CONTENT_TYPE 128 // a multipart request with a longer one is closed (boundary lost)
+#endif
+
+/*
+ * The only path on which a websocket upgrade is possible (the one the
+ * web page connects to).
+ */
+#ifndef WEBSERVER_WEBSOCKET_PATH
+  #define WEBSERVER_WEBSOCKET_PATH "/ws"
+#endif
+
 #ifndef WEBSERVER_CLIENT_TIMEOUT
   #define WEBSERVER_CLIENT_TIMEOUT 30000
 #endif
@@ -79,6 +118,46 @@ extern struct webserver_client_t clients[WEBSERVER_MAX_CLIENTS];
 
 typedef int8_t (webserver_cb_t)(struct webserver_t *client, void *data);
 
+/*
+ * Return values of the callback for WEBSERVER_CLIENT_REQUEST
+ * (-1 closes the connection, as for every other step).
+ */
+#define WEBSERVER_ACCEPT 0
+#define WEBSERVER_REJECT 1
+
+#define WEBSERVER_METHOD_GET 0
+#define WEBSERVER_METHOD_POST 1
+
+/*
+ * The request headers the webserver keeps for the callback, index into
+ * webserver_request_t.header[] and bit in webserver_request_t.truncated.
+ * All other headers are skipped.
+ */
+enum {
+  WEBSERVER_HEADER_HOST = 0,
+  WEBSERVER_HEADER_ORIGIN,
+  WEBSERVER_HEADER_COOKIE,
+  WEBSERVER_HEADER_AUTHORIZATION,
+  WEBSERVER_HEADER_CONTENT_TYPE,
+  WEBSERVER_HEADER_COUNT
+};
+
+/*
+ * What the callback gets with WEBSERVER_CLIENT_REQUEST: the whole request
+ * line and the headers, before any of the query arguments, the body or a
+ * websocket upgrade is handled. The pointers are only valid during this
+ * call.
+ */
+typedef struct webserver_request_t {
+  uint8_t method;                 // WEBSERVER_METHOD_GET or WEBSERVER_METHOD_POST
+  uint8_t websocket;              // 1: a valid websocket upgrade on WEBSERVER_WEBSOCKET_PATH
+  uint8_t truncated;              // bit (1 << WEBSERVER_HEADER_x): value longer than its limit, cut
+  uint32_t content_length;        // 0 without a Content-Length header
+  const char *path;               // as sent, not url decoded, without the query
+  const char *query;              // as sent (not url decoded), "" when there is none
+  const char *header[WEBSERVER_HEADER_COUNT]; // NULL when the header was not sent
+} webserver_request_t;
+
 typedef struct arguments_t {
   unsigned char *name;
   unsigned char *value;
@@ -98,14 +177,14 @@ typedef struct sendlist_t {
 
 #if !defined(ESP8266) && !defined(ESP32)
 struct WiFiClient {
-  int (*write)(unsigned char *, int i);
+  int (*write)(const unsigned char *, int i);
   int (*write_P)(const char *, int i);
   int (*available)();
   int (*connected)();
   void (*stop)();
   int (*read)(uint8_t *buffer, int size);
 };
-  #define PGM_P unsigned char *
+  #define PGM_P const char *
 #endif
 
 typedef struct webserver_t {
@@ -127,6 +206,12 @@ typedef struct webserver_t {
   uint8_t chunked:4;
   uint8_t step:4;
   uint8_t substep:4;
+  uint8_t rejected:1;   // the callback rejected the request: body is skipped, not parsed
+  uint8_t mpemitted:1;  // multipart: a part of the current value was already given to the callback
+  uint8_t mpmatch;      // multipart: bytes of the boundary delimiter matched so far
+  uint8_t mpdlen;       // multipart: length of the boundary delimiter
+  uint8_t mpname;       // multipart: length of the name of the current field
+  struct webserver_reqbuf_t *req; // request line and headers until the callback decided
   uint16_t ptr;
   uint32_t totallen;
   uint32_t readlen;
@@ -141,8 +226,7 @@ typedef struct webserver_t {
   webserver_cb_t *callback;
   unsigned char buffer[WEBSERVER_BUFFER_SIZE];
   union {
-    char *boundary;
-    char *websockkey;
+    char *boundary;     // multipart: "\r\n--" followed by the boundary
   } data;
   void *userdata;
 } webserver_t;
@@ -153,16 +237,14 @@ typedef struct webserver_client_t {
 
 typedef enum {
   WEBSERVER_CLIENT_CONNECTING = 1,
-  WEBSERVER_CLIENT_REQUEST_METHOD,
-  WEBSERVER_CLIENT_REQUEST_URI,
+  WEBSERVER_CLIENT_REQUEST,         // data: struct webserver_request_t *, return WEBSERVER_ACCEPT, WEBSERVER_REJECT or -1
   WEBSERVER_CLIENT_READ_HEADER,
   WEBSERVER_CLIENT_CREATE_HEADER,
   WEBSERVER_CLIENT_WRITE,
   WEBSERVER_CLIENT_WEBSOCKET,
   WEBSERVER_CLIENT_WEBSOCKET_TEXT,
   WEBSERVER_CLIENT_SENDING,
-  WEBSERVER_CLIENT_HEADER,
-  WEBSERVER_CLIENT_ARGS,
+  WEBSERVER_CLIENT_ARGS,            // data: struct arguments_t *, query arguments first, then the body
   WEBSERVER_CLIENT_CLOSE,
 } webserver_steps;
 
