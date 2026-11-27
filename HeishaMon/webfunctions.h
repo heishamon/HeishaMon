@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include "src/common/webserver.h"
+#include "src/common/webauth.h"
 #include "dallas.h"
 #include "s0.h"
 #include "HeishaOT.h"
@@ -117,6 +118,15 @@ int getSettingsJson(struct webserver_t *client, settingsStruct *heishamonSetting
 int handleModbus(struct webserver_t *client);
 #endif
 int handleSettings(struct webserver_t *client);
+// web login (src/common/webauth.*)
+#define WEBAUTH_DEVICE_HOSTS_LEN 192
+#define WEBAUTH_FILE "/webauth.bin"
+#define WEBAUTH_FILE_TMP "/webauth.tmp"
+void webauthDeviceHosts(char *out, size_t size, settingsStruct *heishamonSettings);
+void loadWebAuth(void);
+int handleLogin(struct webserver_t *client, uint8_t message);
+int handleSecurity(struct webserver_t *client, uint8_t message);
+int showApiKey(struct webserver_t *client, const char *key);
 int saveSettings(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsReconnectWifi(struct webserver_t *client, settingsStruct *heishamonSettings);
 int settingsNewPassword(struct webserver_t *client, settingsStruct *heishamonSettings);

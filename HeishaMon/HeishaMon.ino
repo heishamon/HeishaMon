@@ -1125,7 +1125,20 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+static bool otaRunning = false;
+
 void setupOTA() {
+  // ArduinoOTA can flash firmware without the web login: it only runs while the login is off
+  // and with a password of its own (never the default one). Checked at start and in loop().
+  if (webauth_login_on()) {
+    log_message(_F("ArduinoOTA (port 8266) not started: the web login is on"));
+    return;
+  }
+  if (!webauth_ota_allowed(heishamonSettings.ota_password)) {
+    log_message(_F("ArduinoOTA (port 8266) not started: set an OTA password other than the default 'heisha' in the settings"));
+    return;
+  }
+  otaRunning = true;
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
 
@@ -1154,133 +1167,92 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
   
 
   switch (client->step) {
-    case WEBSERVER_CLIENT_REQUEST_METHOD: {
-        if (strcmp_P((char *)dat, PSTR("POST")) == 0) {
-          client->route = 110;
-        }
-        return 0;
-      } break;
-    case WEBSERVER_CLIENT_REQUEST_URI: {
-        if (strcmp_P((char *)dat, PSTR("/")) == 0) {
-          client->route = 1;
-#ifdef ESP32
-        } else if (strcmp_P((char *)dat, PSTR("/modbus")) == 0) {
-          client->route = 200;
-#endif
-        } else if (strcmp_P((char *)dat, PSTR("/json")) == 0) {
-          client->route = 20;
-        } else if (strcmp_P((char *)dat, PSTR("/reboot")) == 0) {
-          client->route = 30;
-        } else if (strcmp_P((char *)dat, PSTR("/debug")) == 0) {
-          client->route = 40;
-          log_message(_F("Debug URL requested"));
-        } else if (strcmp_P((char *)dat, PSTR("/wifiscan")) == 0) {
-          client->route = 50;
-        } else if (strcmp((char *)dat, "/dallasalias") == 0) {
-          client->route = 60;
-        } else if (strcmp((char *)dat, "/removedallas") == 0) {
-          client->route = 190;
-        } else if (strcmp((char *)dat, "/dallasoffset") == 0) {
-          client->route = 195;
-        } else if (strcmp((char *)dat, "/togglelog") == 0) {
-          client->route = 1;
-          log_message(_F("Toggled mqtt log flag"));
-          heishamonSettings.logMqtt ^= true;
-        } else if (strcmp_P((char *)dat, PSTR("/togglehexdump")) == 0) {
-          client->route = 1;
-          log_message(_F("Toggled hexdump log flag"));
-          heishamonSettings.logHexdump ^= true;
-        } else if (strcmp_P((char *)dat, PSTR("/connecttest.txt")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/ncsi.txt")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/redirect")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/fwlink")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/generate_204")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/gen_204")) == 0 ||
-                   strcmp_P((char *)dat, PSTR("/popup")) == 0) {
-          client->route = 80; //for Android/Windows devices
-        } else if (strcmp_P((char *)dat, PSTR("/hotspot-detect.html")) == 0 ) {
-          client->route = 81;  //for Apple devices
-        } else if (strcmp_P((char *)dat, PSTR("/factoryreset")) == 0) {
-          client->route = 90;
-        } else if (strcmp_P((char *)dat, PSTR("/gpio")) == 0) {
-          client->route = 191;
-        } else if (strcmp_P((char *)dat, PSTR("/command")) == 0) {
-          if ((client->userdata = malloc(1)) == NULL) {
-            loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
-            ESP.restart();
-            exit(-1);
-          }
-          ((char *)client->userdata)[0] = 0;
-          client->route = 100;
-        } else if (client->route == 110) {
-          // Only accept settings POST requests
-          if (strcmp_P((char *)dat, PSTR("/savesettings")) == 0) {
-            client->route = 110;
-          } else if (strcmp_P((char *)dat, PSTR("/saverules")) == 0) {
-            client->route = 170;
-            if (LittleFS.begin()) {
-              LittleFS.remove("/rules.new");
-              client->userdata = new File(LittleFS.open("/rules.new", "a+"));
-            }
-#ifdef TLS_SUPPORT
-        } else if (strcmp_P((char *)dat, PSTR("/cacert")) == 0) {
-          client->route = 165; 
-          if (LittleFS.begin()) {
-            LittleFS.remove("/ca.tmp");
-            File cf = LittleFS.open("/ca.tmp", "w");
-            if (cf) {
-              client->userdata = new File(cf);
-            }
-            new_ca_stored = true;
-          }
-#endif
-          } else if (strcmp_P((char *)dat, PSTR("/firmware")) == 0) {
-            if (!Update.isRunning()) {
-#ifdef ESP8266
-              Update.runAsync(true);
-#endif
-              if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
-                Update.printError(loggingSerial);
-                return -1;
-              } else {
-                client->route = 150;
-              }
-            } else {
-              loggingSerial.println(PSTR("New firmware update client, while previous isn't finished yet! Assume broken connection, abort!"));
-              Update.end();
-              return -1;
-            }
-          } else {
-            return -1;
-          }
-        } else if (strcmp_P((char *)dat, PSTR("/settings")) == 0) {
-          client->route = 120;
-        } else if (strcmp_P((char *)dat, PSTR("/getsettings")) == 0) {
-          client->route = 130;
-        } else if (strcmp_P((char *)dat, PSTR("/firmware")) == 0) {
-          client->route = 140;
-        } else if (strcmp_P((char *)dat, PSTR("/rules")) == 0) {
-          client->route = 160;
-#ifdef TLS_SUPPORT
-        } else if (strcmp_P((char *)dat, PSTR("/cacert")) == 0) {
-          client->route = 166; 
-#endif
-        } else if (strcmp_P((char *)dat, PSTR("/scandallas")) == 0) {
-          client->route = 180;          
-        } else {
-          client->route = 0;
+    case WEBSERVER_CLIENT_REQUEST: {
+        // The whole request line and the headers are in; nothing of the request was handled yet.
+        struct webserver_request_t *req = (struct webserver_request_t *)dat;
+
+        // 1. Find the route and decide (src/common/webauth.cpp: route table, login, Host, Origin, lockout).
+        //    A rejected request gets an answer route (login redirect, 401, 403, 429); the webserver then
+        //    skips the query arguments, the body and a websocket upgrade.
+        char hosts[WEBAUTH_DEVICE_HOSTS_LEN];
+        webauthDeviceHosts(hosts, sizeof(hosts), &heishamonSettings);
+        webauth_env_t env = { (uint32_t)client->client->remoteIP(), hosts };
+        int8_t decision = webauth_request(client, req, &env);
+        if (decision != WEBSERVER_ACCEPT) {
+          return decision;
         }
 
-        return 0;
+        // 2. Accepted: only now start what the route does.
+        switch (client->route) {
+          case 2: {
+              log_message(_F("Toggled mqtt log flag"));
+              heishamonSettings.logMqtt ^= true;
+            } break;
+          case 3: {
+              log_message(_F("Toggled hexdump log flag"));
+              heishamonSettings.logHexdump ^= true;
+            } break;
+          case 40: {
+              log_message(_F("Debug URL requested"));
+            } break;
+          case 100: {
+              if ((client->userdata = malloc(1)) == NULL) {
+                loggingSerial.printf(PSTR("Out of memory %s:#%d\n"), __FUNCTION__, __LINE__);
+                ESP.restart();
+                exit(-1);
+              }
+              ((char *)client->userdata)[0] = 0;
+            } break;
+          case 170: {
+              if (LittleFS.begin()) {
+                LittleFS.remove("/rules.new");
+                client->userdata = new File(LittleFS.open("/rules.new", "a+"));
+              }
+            } break;
+#ifdef TLS_SUPPORT
+          case 165: {
+              if (LittleFS.begin()) {
+                LittleFS.remove("/ca.tmp");
+                File cf = LittleFS.open("/ca.tmp", "w");
+                if (cf) {
+                  client->userdata = new File(cf);
+                }
+                new_ca_stored = true;
+              }
+            } break;
+#endif
+          case 150: {
+              if (!Update.isRunning()) {
+#ifdef ESP8266
+                Update.runAsync(true);
+#endif
+                if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
+                  Update.printError(loggingSerial);
+                  return -1;
+                }
+              } else {
+                loggingSerial.println(PSTR("New firmware update client, while previous isn't finished yet! Assume broken connection, abort!"));
+                Update.end();
+                return -1;
+              }
+            } break;
+        }
+        return WEBSERVER_ACCEPT;
       } break;
     case WEBSERVER_CLIENT_ARGS: {
         struct arguments_t *args = (struct arguments_t *)dat;
         switch (client->route) {
+          case WEBAUTH_ROUTE_LOGIN_PAGE:
+          case WEBAUTH_ROUTE_LOGIN_POST:
+          case WEBAUTH_ROUTE_SECURITY_PAGE:
+          case WEBAUTH_ROUTE_SECURITY_POST: {
+              return webauth_args(client, args);
+            } break;
           case 20: {
               return handleJsonArgs(client, args, &heishamonSettings);
             } break;
           case 60: {
-              sprintf_P(log_msg, PSTR("Dallas alias changed address %s to alias %s"), args->name, args->value);
+              snprintf_P(log_msg, LOG_MSG_SIZE, PSTR("Dallas alias changed address %s to alias %s"), args->name, args->value);
               log_message(log_msg);
               changeDallasAlias((char *)args->name, (char *)args->value);
               return 0;
@@ -1297,12 +1269,14 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
             } break;
           case 100: {
               unsigned char cmd[256] = { 0 };
-              char cpy[args->len + 1];
               char log_msg[256] = { 0 };
               unsigned int len = 0;
-
-              memset(&cpy, 0, args->len + 1);
-              snprintf((char *)&cpy, args->len + 1, "%.*s", args->len, args->value);
+              // a query argument can be up to WEBSERVER_MAX_QUERY long (SetCurves JSON): keep it off the stack
+              char *cpy = (char *)malloc(args->len + 1);
+              if (cpy == NULL) {
+                return -1;
+              }
+              snprintf(cpy, args->len + 1, "%.*s", (int)args->len, (char *)args->value);
 
 #ifdef ESP32
               if (strcmp((char *)args->name, "SetRelayOne") == 0 || strcmp((char *)args->name, "SetRelayTwo") == 0) {
@@ -1316,6 +1290,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                 }
                 strcat((char *)client->userdata, log_msg);
                 strcat((char *)client->userdata, "\n");
+                free(cpy);
                 return 0;
               }
 #endif
@@ -1361,6 +1336,7 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
                   }
                 }
               }
+              free(cpy);
             } break;
           case 110: {
               return cacheSettings(client, args);
@@ -1391,12 +1367,12 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
           case 150: {
               if (Update.isRunning() && (!Update.hasError())) {
                 if ((strcmp((char *)args->name, "md5") == 0) && (args->len > 0)) {
-                  char md5[args->len + 1];
-                  memset(&md5, 0, args->len + 1);
-                  snprintf((char *)&md5, args->len + 1, "%.*s", args->len, args->value);
-                  sprintf_P(log_msg, PSTR("Firmware MD5 expected: %s"), md5);
+                  // an MD5 is 32 hex digits; any other length is refused below
+                  char md5[33];
+                  snprintf(md5, sizeof(md5), "%.*s", (int)args->len, (char *)args->value);
+                  snprintf_P(log_msg, LOG_MSG_SIZE, PSTR("Firmware MD5 expected: %s"), md5);
                   log_message(log_msg);
-                  if (!Update.setMD5(md5)) {
+                  if (args->len != 32 || !Update.setMD5(md5)) {
                     log_message(_F("Failed to set expected update file MD5!"));
                     Update.end(false);
                   }
@@ -1435,10 +1411,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
 #endif
         }
       } break;
-    case WEBSERVER_CLIENT_HEADER: {
-        struct arguments_t *args = (struct arguments_t *)dat;
-        return 0;
-      } break;
     case WEBSERVER_CLIENT_WRITE: {
         switch (client->route) {
           case 0: {
@@ -1448,8 +1420,32 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               }
               return 0;
             } break;
-          case 1: {
+          case 1:
+          case 2:
+          case 3: {
               return handleRoot(client, readpercentage, mqttReconnects, &heishamonSettings);
+            } break;
+          case WEBAUTH_ROUTE_LOGIN_PAGE: {
+              return handleLogin(client, webauth_query_message(client));
+            } break;
+          case WEBAUTH_ROUTE_SECURITY_PAGE: {
+              return handleSecurity(client, webauth_query_message(client));
+            } break;
+          case WEBAUTH_ROUTE_SECURITY_POST: {
+              if (webauth_write_answer(client) == 1) {
+                showApiKey(client, webauth_form_apikey(client)); // shown once, then wiped
+                webauth_close(client);
+              }
+              return 0;
+            } break;
+          case WEBAUTH_ROUTE_LOGIN_POST:
+          case WEBAUTH_ROUTE_LOGOUT:
+          case WEBAUTH_ROUTE_TO_LOGIN:
+          case WEBAUTH_ROUTE_UNAUTHORIZED:
+          case WEBAUTH_ROUTE_FORBIDDEN:
+          case WEBAUTH_ROUTE_BAD_HOST:
+          case WEBAUTH_ROUTE_TOO_MANY: {
+              return webauth_write_answer(client);
             } break;
 #ifdef ESP32
           case 200: {
@@ -1667,7 +1663,6 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               return -1;
             } break;
           case 60:
-          case 70:
           case 190:
           case 195: {
               header->ptr += sprintf_P((char *)header->buffer, PSTR("Location: /"));
@@ -1682,16 +1677,26 @@ int8_t webserver_cb(struct webserver_t *client, void *dat) {
               header->ptr += sprintf_P((char *)header->buffer, PSTR("Location: /rules"));
               return -1;
             } break;
-          default: {
-              if (client->route != 0) {
-                header->ptr += sprintf_P((char *)header->buffer, PSTR("Access-Control-Allow-Origin: *"));
-              }
+          case WEBAUTH_ROUTE_LOGIN_POST:
+          case WEBAUTH_ROUTE_LOGOUT:
+          case WEBAUTH_ROUTE_SECURITY_POST:
+          case WEBAUTH_ROUTE_TO_LOGIN:
+          case WEBAUTH_ROUTE_UNAUTHORIZED:
+          case WEBAUTH_ROUTE_FORBIDDEN:
+          case WEBAUTH_ROUTE_BAD_HOST:
+          case WEBAUTH_ROUTE_TOO_MANY: {
+              return webauth_create_header(client, header);
             } break;
         }
         return 0;
       } break;
     case WEBSERVER_CLIENT_CLOSE: {
         switch (client->route) {
+          case WEBAUTH_ROUTE_LOGIN_POST:
+          case WEBAUTH_ROUTE_SECURITY_POST:
+          case WEBAUTH_ROUTE_BAD_HOST: {
+              webauth_close(client); // frees the form (and wipes the passwords in it) or the 403 page data
+            } break;
           case 100: {
               if (client->userdata != NULL) {
                 free(client->userdata);
@@ -2057,6 +2062,7 @@ void setup() {
 
   loggingSerial.println(F("Loading config from flash..."));
   loadSettings(&heishamonSettings);
+  loadWebAuth(); // web login: password hash and API key hash from /webauth.bin
 
   loggingSerial.println(F("Setup wifi..."));
   setupWifi(&heishamonSettings);
@@ -2213,7 +2219,15 @@ void loop() {
   // check wifi
   check_wifi();
   // Handle OTA first.s
-  ArduinoOTA.handle();
+  if (otaRunning) {
+    if (webauth_ota_allowed(heishamonSettings.ota_password)) {
+      ArduinoOTA.handle();
+    } else {
+      otaRunning = false;  // the login was switched on: no more OTA until a restart with the login off
+      log_message(_F("ArduinoOTA stopped: the web login is on"));
+    }
+  }
+  webauth_tick(); // expired web login sessions and lockouts
 
 #ifdef ESP32
   modbusServer.configure(heishamonSettings.modbus, heishamonSettings.optionalPCB, heishamonSettings.modbusWrites, heishamonSettings.listenonly);
