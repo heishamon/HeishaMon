@@ -31,6 +31,9 @@ jobs:
       - name: Test webserver
         run: python3 tests/webserver/run_tests.py
 
+      - name: Test web login
+        run: python3 tests/webauth/run_tests.py
+
       - name: Test command encoding
         run: python3 Tools/test_commands.py
 

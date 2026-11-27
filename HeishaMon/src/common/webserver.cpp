@@ -754,6 +754,7 @@ static const uint16_t req_field_max[REQ_FIELD_COUNT] = {
   WEBSERVER_MAX_COOKIE,
   WEBSERVER_MAX_AUTHORIZATION,
   WEBSERVER_MAX_CONTENT_TYPE,
+  WEBSERVER_MAX_SEC_FETCH_SITE,
   12,  // Content-Length
   32,  // Upgrade
   32,  // Sec-WebSocket-Key (24 characters)
@@ -864,6 +865,8 @@ static int8_t req_header_field(const char *name) {
     return WEBSERVER_HEADER_AUTHORIZATION;
   } else if(strcasecmp_P(name, PSTR("Content-Type")) == 0) {
     return WEBSERVER_HEADER_CONTENT_TYPE;
+  } else if(strcasecmp_P(name, PSTR("Sec-Fetch-Site")) == 0) {
+    return WEBSERVER_HEADER_SEC_FETCH_SITE;
   } else if(strcasecmp_P(name, PSTR("Content-Length")) == 0) {
     return REQ_FIELD_CONTENT_LENGTH;
   } else if(strcasecmp_P(name, PSTR("Upgrade")) == 0) {
@@ -1459,6 +1462,8 @@ static PGM_P code_to_text(uint16_t code) {
       return PSTR("Range not satisfiable");
     case 417:
       return PSTR("Expectation Failed");
+    case 429:
+      return PSTR("Too Many Requests");
     case 500:
       return PSTR("Internal Server Error");
     case 501:
@@ -2756,6 +2761,19 @@ err_t webserver_client(void *arg, tcp_pcb *pcb, err_t err) {
   return ERR_OK;
 }
 #endif
+
+/*
+ * Let every other open connection be closed by webserver_loop() (with its
+ * WEBSERVER_CLIENT_CLOSE callback), for example after the web password
+ * changed: a request or websocket accepted before must not go on.
+ */
+void webserver_close_others(struct webserver_t *keep) {
+  for(uint8_t i = 0; i < WEBSERVER_MAX_CLIENTS; i++) {
+    if(&clients[i].data != keep && clients[i].data.step != 0) {
+      clients[i].data.step = WEBSERVER_CLIENT_CLOSE;
+    }
+  }
+}
 
 void webserver_loop(void) {
   uint16_t size = 0;

@@ -777,8 +777,20 @@ R"====(  </nav>
 // second half, the optional description is injected between the two parts
 static const char webBodyStart2[] FLASHPROG = R"====(
   </div>
-  <div class='topbar-right'></div>
+  <div class='topbar-right'>)====";
+
+// end of the top bar; with the login on a "Log out" link goes in front of it
+static const char webBodyStartLogout[] FLASHPROG = "<a href='/logout' class='btn btn-ghost'>Log out</a>";
+static const char webBodyStart3[] FLASHPROG = R"====(</div>
 </header>
+)====";
+
+// start page while no web password is set
+static const char webBodyRootLoginOff[] FLASHPROG = R"====(
+<div class='firmware-warning' style='margin:16px 24px 0'>
+  <strong>No web password is set.</strong> Every device in your network can control this HeishaMon, change its settings and upload firmware,
+  and the first one to set a web password owns the login. <a href='/security'>Set a web password now</a> (Settings &rarr; System &rarr; Access &amp; security)
+</div>
 )====";
 
 static const char webFooter[] FLASHPROG = "</body></html>";
@@ -789,8 +801,10 @@ static const char webFooter[] FLASHPROG = "</body></html>";
 static const char menuJS[] FLASHPROG = R"====(
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+  // /security (Access & security) belongs to the System tab of the settings
+  var here = window.location.pathname === '/security' ? '/settings' : window.location.pathname;
   document.querySelectorAll('#sideNav a').forEach(function(link){
-    if (link.getAttribute('href') === window.location.pathname) {
+    if (link.getAttribute('href') === here) {
       link.setAttribute('aria-current', 'page');
     }
   });
@@ -1608,13 +1622,20 @@ static const char settingsForm1[] FLASHPROG = R"====(
     <button type='button' data-tab='system' onclick="openSettingsTab('system')">System</button>
   </nav>
   <form accept-charset='UTF-8' action='/savesettings' method='POST'>
+  <div class='panel' data-tab='system' id='access_panel' style='margin-bottom:16px'>
+  <div class='panel-header'><h3>Access &amp; security</h3></div>
+  <div class='settings-grid'>
+    <div class='setting-row'><label class='setting-label'>Status</label><span id='access_status'>&hellip;</span></div>
+    <div class='setting-row'><a href='/security' class='btn btn-primary'>Open Access &amp; security</a><span class='setting-hint'>Web password, API key and host names.</span></div>
+  </div></div>
   <div class='panel' data-tab='basic' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Network</h3></div>
   <div class='settings-grid'>
     <div class='setting-row'>
       <label class='setting-label'>Hostname</label>
-      <input type='text' name='wifi_hostname' maxlength='39' class='setting-input' value=''>
-      <div class='setting-desc'>Name of this HeishaMon on the network.</div>
+      <input type='text' name='wifi_hostname' id='wifi_hostname_id' maxlength='32' pattern='[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?' class='setting-input' value=''>
+      <div class='setting-desc'>Name of this HeishaMon on the network: letters, digits and '-' (up to 32).</div>
+      <div class='setting-desc' id='wifi_hostname_msg' style='display:none;color:var(--red)'></div>
     </div>
     <div class='setting-row'>
       <label class='setting-label'>Description</label>
@@ -1639,7 +1660,7 @@ static const char settingsForm1[] FLASHPROG = R"====(
   <div class='panel' data-tab='system' style='margin-bottom:16px'>
   <div class='panel-header'><h3>Arduino OTA password</h3></div>
   <div class='settings-grid'>
-    <div class='setting-row'><span class='setting-hint'>Only for firmware updates over the network from the Arduino IDE or arduino-cli (ArduinoOTA). The firmware update on the web interface doesn't use it; like the rest of the web interface that has no password.</span></div>
+    <div class='setting-row'><span class='setting-hint'>Only for firmware updates over the network from the Arduino IDE or arduino-cli (ArduinoOTA, port 8266). ArduinoOTA only runs after a restart while the web login is off and this password is not the default "heisha". The firmware upload of the web interface doesn't use it.</span></div>
     <div class='setting-row'>
       <label class='setting-label'>Current Password</label>
       <div style='display:flex;align-items:center;gap:10px'>
@@ -2020,6 +2041,39 @@ static const char settingsForm2[] FLASHPROG = R"====(
 // Populate settings form via /getsettings (unchanged logic)
 static const char populategetsettingsJS[] FLASHPROG = R"====(
 <script>
+// A hostname stored by an older version may have characters that are not allowed any more. The
+// pattern of the field would then stop the browser from saving ANY setting, without a visible
+// reason when another tab is open. So while the field still holds that stored name it is not
+// checked (the device keeps the stored name, it never accepts an invalid one), and a message next
+// to the field says what to do. A changed name is checked as always.
+function checkStoredHostname(){
+  var el=document.getElementById('wifi_hostname_id'),msg=document.getElementById('wifi_hostname_msg');
+  if(!el||!msg)return;
+  var stored=el.value,rule=el.getAttribute('pattern'),re=new RegExp('^(?:'+rule+')$');
+  var show=function(text){msg.textContent=text;msg.style.display=text?'block':'none';};
+  if(stored!==''&&!re.test(stored)){
+    el.removeAttribute('pattern');
+    var check=function(){
+      if(el.value===stored){
+        el.setCustomValidity('');
+        show("The stored hostname has characters that are not allowed (only letters, digits and '-', not at the start or end). It is kept as it is until you change it here; other settings can be saved. The web interface does not accept it as a host name: use the IP address.");
+      }else if(re.test(el.value)){
+        el.setCustomValidity('');
+        show('');
+      }else{
+        el.setCustomValidity("Only letters, digits and '-' (not at the start or end)");
+        show("Hostname: only letters, digits and '-' (not at the start or end). Nothing is saved until this is corrected.");
+      }
+    };
+    el.addEventListener('input',check);
+    check();
+  }
+  // an invalid field on a tab that is not shown: say so instead of doing nothing
+  el.addEventListener('invalid',function(){
+    show("Hostname: only letters, digits and '-' (not at the start or end). Nothing is saved until this is corrected (tab Basic).");
+    if(el.offsetParent===null)alert("The hostname (tab Basic) is not valid: only letters, digits and '-'. Nothing was saved.");
+  });
+}
 var getSettings=function(){
   var req=new XMLHttpRequest();
   req.onreadystatechange=function(){
@@ -2049,6 +2103,12 @@ R"====(
           if(el[0].type.indexOf('select')>-1){var ch=el[0].childNodes;for(var x=0;x<ch.length;x++){if(ch[x].value==j[k])ch[x].selected=true;}}
         }
       }
+      var as=document.getElementById('access_status');
+      if(as){
+        as.textContent='Web password: '+(j.web_password_set?'set (login on)':'not set (login off)')+' \u00b7 API key: '+(j.web_apikey_set?'set':'not set');
+        as.style.color=j.web_password_set?'':'var(--red)';
+      }
+      checkStoredHostname();
       if(typeof updateGPIORowVisibility==='function')updateGPIORowVisibility();
       document.getElementById('loading_settings').style.display='none';
       document.getElementById('settings_form').style.display='block';
@@ -2738,6 +2798,130 @@ static const char webBodySettingsSaveMessage[] FLASHPROG = R"====(
 <div class='msg-box success'>
   <h2>Settings Saved</h2>
   <p>Configuration has been saved. The device is rebooting…</p>
+</div>
+)====";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB LOGIN (login page, the access page /security of the System tab of the settings, new API key)
+// ─────────────────────────────────────────────────────────────────────────────
+static const char webBodyLogin1[] FLASHPROG = R"====(
+</head>
+<body>
+<div class='msg-box' style='max-width:420px'>
+  <h2>HeishaMon</h2>
+)====";
+
+static const char webBodyLoginNoPassword[] FLASHPROG = R"====(
+  <p><strong>No web password is set</strong>, so there is nothing to log in to: every device in your network can use this HeishaMon.
+  Whoever sets the first web password owns the login. <a href='/security'>Set a web password</a> (Settings &rarr; System &rarr; Access &amp; security) &middot; <a href='/'>Home</a></p>
+</div>
+)====";
+
+static const char webBodyLoginForm[] FLASHPROG = R"====(
+  <form method='POST' action='/login'>
+    <p><input type='password' name='password' maxlength='64' class='setting-input' placeholder='Web password' autocomplete='current-password' autofocus required></p>
+    <p><button type='submit' class='btn btn-primary'>Log in</button></p>
+  </form>
+  <p style='font-size:12px;color:var(--text-muted)'>Forgot the password? Hold the boot button of the HeishaMon for more than 10 seconds: this is a factory reset, all settings are lost.</p>
+</div>
+)====";
+
+static const char webBodySecurityOpen[] FLASHPROG = R"====(
+<div class='main-content' style='max-width:780px;margin:0 auto'>
+  <nav class='tabnav' id='settings_tabs' style='padding:0 0 14px;background:none'>
+    <button type='button' onclick="location.href='/settings#basic'">Basic</button>
+    <button type='button' onclick="location.href='/settings#heatpump'">Heat pump</button>
+    <button type='button' onclick="location.href='/settings#io'">Sensors &amp; GPIO</button>
+    <button type='button' onclick="location.href='/settings#advanced'">Advanced</button>
+    <button type='button' class='active' onclick="location.href='/settings#system'">System</button>
+  </nav>
+)====";
+
+static const char webBodySecurityBack[] FLASHPROG = R"====(
+<p style='margin:0 0 12px'><a href='/settings#system'>&larr; Back to System</a></p>
+<h2 id='weblogin' style='font-size:18px;font-weight:500;margin:0 0 12px'>Access &amp; security: Web login</h2>
+)====";
+
+static const char webBodySecurityFirst[] FLASHPROG = R"====(
+<div class='firmware-warning' style='margin-bottom:16px'>
+  <strong>No web password is set.</strong> Every device in your network can use this HeishaMon, and the <strong>first</strong> one to set a web password owns the login: set it now.
+</div>
+<div class='panel' style='margin-bottom:16px'>
+<div class='panel-header'><h3>Set the web password (switches the login on)</h3></div>
+<form method='POST' action='/security' class='settings-grid' onsubmit="if(this.password.value!=this.repeat.value){alert('The two passwords are not the same.');return false;}return true;">
+  <input type='hidden' name='action' value='password'>
+  <div class='setting-row'><label class='setting-label'>New web password</label><input type='password' name='password' minlength='8' maxlength='64' class='setting-input' autocomplete='new-password' required></div>
+  <div class='setting-row'><label class='setting-label'>Repeat</label><input type='password' name='repeat' minlength='8' maxlength='64' class='setting-input' autocomplete='new-password' required></div>
+  <div class='setting-row'><button type='submit' class='btn btn-primary'>Save and switch the login on</button></div>
+</form></div>
+)====";
+
+static const char webBodySecurityChange[] FLASHPROG = R"====(
+<div class='panel' style='margin-bottom:16px'>
+<div class='panel-header'><h3>Change the web password</h3></div>
+<form method='POST' action='/security' class='settings-grid' onsubmit="if(this.password.value!=this.repeat.value){alert('The two passwords are not the same.');return false;}return true;">
+  <input type='hidden' name='action' value='password'>
+  <div class='setting-row'><label class='setting-label'>Current web password</label><input type='password' name='current' maxlength='64' class='setting-input' autocomplete='current-password' required></div>
+  <div class='setting-row'><label class='setting-label'>New web password</label><input type='password' name='password' minlength='8' maxlength='64' class='setting-input' autocomplete='new-password' required></div>
+  <div class='setting-row'><label class='setting-label'>Repeat</label><input type='password' name='repeat' minlength='8' maxlength='64' class='setting-input' autocomplete='new-password' required></div>
+  <div class='setting-row'><label class='setting-label'>Keep the API key</label><div class='checkbox-wrap'><input type='checkbox' name='keep_apikey' value='1'></div><div class='setting-desc'>Without the tick the API key is deleted.</div></div>
+  <div class='setting-row'><button type='submit' class='btn btn-primary'>Change password</button><span class='setting-hint'>All browsers are logged out.</span></div>
+</form></div>
+<div class='panel' style='margin-bottom:16px'>
+<div class='panel-header'><h3>Switch the login off</h3></div>
+<form method='POST' action='/security' class='settings-grid' onsubmit="return confirm('Remove the web password? Every device in your network can then use this HeishaMon again.');">
+  <input type='hidden' name='action' value='remove'>
+  <div class='setting-row'><label class='setting-label'>Current web password</label><input type='password' name='current' maxlength='64' class='setting-input' autocomplete='current-password' required></div>
+  <div class='setting-row'><button type='submit' class='btn btn-danger'>Remove the web password</button></div>
+</form></div>
+)====";
+
+static const char webBodySecurityApiKey1[] FLASHPROG = R"====(
+<div class='panel' style='margin-bottom:16px'>
+<div class='panel-header'><h3>API key</h3></div>
+<div class='settings-grid'>
+  <div class='setting-row'><span class='setting-hint' style='margin-left:0'>For Home Assistant and scripts, sent as <code>Authorization: Bearer &lt;key&gt;</code>; shown only once.</span></div>
+  <div class='setting-row'><label class='setting-label'>API key</label><span>)====";
+
+static const char webBodySecurityApiKey2[] FLASHPROG = R"====(</span></div>
+  <div class='setting-row'>
+    <form method='POST' action='/security' style='display:inline' onsubmit="return confirm('Make a new API key? The old one stops working.');"><input type='hidden' name='action' value='apikey'><input type='password' name='current' maxlength='64' class='setting-input' placeholder='Current web password' autocomplete='current-password' required> <button type='submit' class='btn btn-primary'>Make a new API key</button></form>
+  </div>
+  <div class='setting-row'>
+    <form method='POST' action='/security' style='display:inline'><input type='hidden' name='action' value='apikey_delete'><input type='password' name='current' maxlength='64' class='setting-input' placeholder='Current web password' autocomplete='current-password' required> <button type='submit' class='btn btn-ghost'>Delete the API key</button></form>
+  </div>
+</div></div>
+<div class='panel' style='margin-bottom:16px'>
+<div class='panel-header'><h3>Host names</h3></div>
+<form method='POST' action='/security' class='settings-grid'>
+  <input type='hidden' name='action' value='hosts'>
+  <div class='setting-row'><span class='setting-hint' style='margin-left:0'>Names this device answers to (Host header). Allowed now: )====";
+
+static const char webBodySecurityApiKey3[] FLASHPROG = R"====(; add a reverse proxy or router DNS name here.</span></div>
+  <div class='setting-row'><label class='setting-label'>Extra host names</label><input type='text' name='hosts' maxlength='95' class='setting-input' placeholder='heishamon.fritz.box, heatpump.example.com' value=')====";
+
+static const char webBodySecurityEnd[] FLASHPROG = R"====('></div>
+  <div class='setting-row'><label class='setting-label'>Current web password</label><input type='password' name='current' maxlength='64' class='setting-input' autocomplete='current-password' placeholder='(needed while the login is on)'></div>
+  <div class='setting-row'><button type='submit' class='btn btn-primary'>Save host names</button></div>
+</form></div>
+<p style='font-size:12px;color:var(--text-muted)'>Forgot the web password? Only a factory reset at the device helps (boot button for more than 10 seconds).</p>
+)====";
+
+static const char webBodySecurityClose[] FLASHPROG = R"====(
+<p><a href='/settings#system'>&larr; Back to System</a></p>
+</div>
+)====";
+
+static const char webBodyApiKey1[] FLASHPROG = R"====(
+<div class='msg-box success' style='max-width:640px'>
+  <h2>New API key</h2>
+  <p>Copy it now: it is shown only this once. The old key no longer works.</p>
+  <p><code style='font-size:16px;user-select:all;word-break:break-all'>)====";
+
+static const char webBodyApiKey2[] FLASHPROG = R"====(</code></p>
+  <p style='font-size:13px'>Send it with every request as the header <code>Authorization: Bearer &lt;key&gt;</code>, for example<br>
+  <code>curl -H 'Authorization: Bearer &lt;key&gt;' http://heishamon.local/json</code></p>
+  <p><a href='/security'>Back</a></p>
 </div>
 )====";
 

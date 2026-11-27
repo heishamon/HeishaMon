@@ -78,7 +78,7 @@ static int8_t callback(struct webserver_t *client, void *data) {
       snprintf(tmp, sizeof(tmp), "REQ %s %s q=%s ws=%d cl=%u t=%d", r->method == WEBSERVER_METHOD_POST ? "POST" : "GET",
                r->path, r->query, r->websocket, (unsigned)r->content_length, r->truncated);
       events += tmp;
-      static const char *names[WEBSERVER_HEADER_COUNT] = { "host", "origin", "cookie", "auth", "ctype" };
+      static const char *names[WEBSERVER_HEADER_COUNT] = { "host", "origin", "cookie", "auth", "ctype", "sfs" };
       for(int i = 0; i < WEBSERVER_HEADER_COUNT; i++) {
         if(r->header[i] != NULL && i != WEBSERVER_HEADER_COOKIE) {
           events += std::string(" ") + names[i] + "=" + r->header[i];
@@ -305,6 +305,12 @@ int main() {
     CHECK(r.events == "REQ GET / q= ws=0 cl=0 t=0 host=heishamon.local origin=http://heishamon.local auth=Basic YWRtaW46c2VjcmV0;WRITE;CLOSE;",
           "%s", r.events.c_str());
     CHECK(r.cookie == "session=abc; theme=dark", "%s", r.cookie.c_str());
+
+    // Sec-Fetch-Site is kept too (cross-site check of the web login)
+    r = run_split("sec-fetch-site", "GET /reboot HTTP/1.1\r\nHost: x\r\nSec-Fetch-Site: cross-site\r\nSec-Fetch-Mode: no-cors\r\n\r\n");
+    CHECK(r.events == "REQ GET /reboot q= ws=0 cl=0 t=0 host=x sfs=cross-site;WRITE;CLOSE;", "%s", r.events.c_str());
+    r = run("GET / HTTP/1.1\r\nSec-Fetch-Site: " + std::string(40, 's') + "\r\n\r\n");
+    CHECK(contains(r.events, "t=32 "), "%s", r.events.c_str());
 
     // only the first of a repeated header counts
     r = run("GET / HTTP/1.1\r\nCookie: a=1\r\nCookie: b=2\r\n\r\n");
